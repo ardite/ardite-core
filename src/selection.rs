@@ -1,19 +1,20 @@
 //! Defines types used in trimming and transforming a set of documents in a
 //! database.
 
-use structure::Property;
+use document::Property;
 use document::Value;
 
 /// A recursive filter condition.
+/// TODO: @caleb Think better type system
 pub enum Filter {
   /// Combine multiple filters with an “and” operator.
-  And([Filter]),
+  And(Vec<Box<Filter>>),
 
   /// Combine multiple filters with an “or” operator.
-  Or([Filter]),
+  Or(Vec<Box<Filter>>),
 
   /// Inverts the filter.
-  Not(Filter),
+  Not(Box<Filter>),
 
   /// The basic condition of a filter.
   Condition {
@@ -27,7 +28,7 @@ pub enum Filter {
 
 pub enum FilterCondition {
   Equal(Value),
-  OneOf([Value]),
+  OneOf(Vec<Value>),
   GreaterThan(Value),
   LessThan(Value)
 }
@@ -51,7 +52,7 @@ pub enum OrderDirection {
 /// [1]: http://hackage.haskell.org/package/Ranged-sets-0.3.0/docs/Data-Ranged-Ranges.html
 pub struct Range(RangeBoundary, RangeBoundary);
 
-pub impl Range {
+impl Range {
   /// Creates a new range using an optional limt and offset. If offset is not
   /// defined, ir will be set to 0.
   fn new(optional_limit: Option<u32>, optional_offset: Option<u32>) -> Range {
@@ -68,7 +69,7 @@ pub impl Range {
 
   /// Extracts a limit value from the range.
   fn get_limit(&self) -> Option<u32> {
-    match self {
+    match *self {
       Range(RangeBoundary::Above(from), RangeBoundary::Below(to)) => Some(to - from - 1),
       _ => None
     }
@@ -76,7 +77,7 @@ pub impl Range {
 
   /// Extracts an offset value from the range.
   fn get_offset(&self) -> Option<u32> {
-    match self {
+    match *self {
       Range(RangeBoundary::Above(offset), _) => Some(offset),
       _ => None
     }

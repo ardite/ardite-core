@@ -23,12 +23,12 @@ pub struct Collection {
   /// Keys of properties which are optional in all documents in this collection
   /// linked to the primary key of an external collection. This allows for
   /// relationship detection.
-  foreign_keys: [(Property, Collection)]
+  foreign_keys: Vec<(Property, Collection)>
 }
 
 /// Represents the entire database structure.
 pub struct Structure {
   /// All of the collections in the database which are accessible in some way
   /// via Ardite services.
-  collections: [Collection]
+  collections: Vec<Collection>
 }

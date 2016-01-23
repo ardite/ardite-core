@@ -3,11 +3,10 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the database to these types.
 
+use std::collections::BTreeMap;
+
 /// Represents a property of a collection document.
 pub type Property = String;
-
-/// A document from the database is just a JSON object.
-pub type Document = Value::Object;
 
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
@@ -16,15 +15,17 @@ pub type Document = Value::Object;
 pub enum Value {
   Object(Object),
   Array(Array),
-  Number(f64), // TODO: @svmnotn is `f64` the right choice?
+  Number(f64),
   String(String),
   Boolean(bool),
-  Null
+  Null,
 }
 
 /// An array of values.
 pub type Array = Vec<Value>;
 
-/// An object of key/value pais.
-// TODO: @svmnotn is `Map` right here? Maybe a binary tree map?
-pub type Object = Map<Property, Value>;
+/// An object of key/value pairs.
+pub type Object = BTreeMap<Property, Value>;
+
+/// A document from the database is just a JSON object.
+pub type Document = Object;

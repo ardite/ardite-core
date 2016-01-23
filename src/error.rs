@@ -20,28 +20,18 @@ pub struct Error {
 ///
 /// [1]: http://www.restapitutorial.com/httpstatuscodes.html
 pub enum ErrorCode {
-  Unknown,       /// The most generic error code. Maps to 500.
-  BadRequest,    /// A bad syntax was used. Maps to 400.
-  Forbidden,     /// Permissions do not allow this to happen. Maps to 403.
-  NotFound,      /// Resource was not found. Maps to 404.
-  Conflict,      /// Present data made the request fail. Maps to 409.
-  BadRange,      /// There was an invalid range. Maps to 416.
-  Internal,      /// Something bad happened inside a driver. Maps to 500.
-  NotImplemented /// The feature has not been implemented. Maps to 501.
-}
-
-impl ErrorCode {
-  /// Get‘s the HTTP status code from the `ErrorCode` enum.
-  get_http_status_code(&self) {
-    match self {
-      Unknown        => 500,
-      BadRequest     => 400,
-      Forbidden      => 403,
-      NotFound       => 404,
-      Conflict       => 409,
-      BadRange       => 416,
-      Internal       => 500,
-      NotImplemented => 501
-    }
-  }
+  /// A bad syntax was used. Maps to 400.
+  BadRequest = 400,
+  /// Permissions do not allow this to happen. Maps to 403.
+  Forbidden = 403,
+  /// Resource was not found. Maps to 404.
+  NotFound = 404,
+  /// Present data made the request fail. Maps to 409.
+  Conflict = 409,
+  /// There was an invalid range. Maps to 416.
+  BadRange = 416,
+  /// Something bad happened inside a driver. Maps to 500.
+  Internal = 500,
+  /// The feature has not been implemented. Maps to 501.
+  NotImplemented = 501,
 }

@@ -2,9 +2,10 @@
 //! `Request` enum contains all such requests. This module only contains the
 //! `Request` enum.
 
+use patch::*;
 use selection::*;
 use structure::Collection;
-use document::Document;
+use document::*;
 
 /// Any driver request. All requests will return an array of documents.
 pub enum Request {
@@ -19,7 +20,7 @@ pub enum Request {
     collection: Collection,
 
     /// The documents to be created in the database.
-    documents: [Document],
+    documents: Vec<Document>,
 
     /// The properties to be returned of the created documents.
     returning: ReturnSet,
@@ -43,7 +44,7 @@ pub enum Request {
     filter: Filter,
 
     /// The order in which to return the documents.
-    order: [Ordering],
+    order: Vec<Ordering>,
 
     /// A specific range of documents to be read.
     range: Range,
@@ -66,7 +67,7 @@ pub enum Request {
     filter: Filter,
 
     /// The patches to be applied to the set of documents.
-    patches: [Patch],
+    patches: Vec<Patch>,
 
     /// The properties to be returned of the updated documents.
     returning: ReturnSet
@@ -96,5 +97,5 @@ pub enum ReturnSet {
   All,
 
   /// Only some of the document‘s properties.
-  Some([Property])
+  Some(Vec<Property>)
 }
