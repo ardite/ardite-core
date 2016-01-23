@@ -1,0 +1,10 @@
+[package]
+name = "ardite-core"
+version = "0.0.0.1"
+description = "Core library for Ardite services."
+keywords = ["ardite", "core"]
+authors = ["Caleb Meredith <calebmeredith8@gmail.com>", "Victor M. Suarez <svmnotn@gmail.com>"]
+license = "MIT"
+homepage = "https://github.com/ardite/ardite-core"
+repository = "ardite/ardite-core"
+readme = "README.md"
