@@ -31,5 +31,5 @@ pub enum ErrorCode {
   /// Something bad happened inside a driver. Maps to 500.
   Internal = 500,
   /// The feature has not been implemented. Maps to 501.
-  NotImplemented = 501,
+  NotImplemented = 501
 }
