@@ -18,12 +18,7 @@ pub struct Collection {
   /// not support composite primary keys ([more information][1]).
   ///
   /// [1]: http://stackoverflow.com/questions/1383062/composite-primary-key
-  primary_key: Property,
-
-  /// Keys of properties which are optional in all documents in this collection
-  /// linked to the primary key of an external collection. This allows for
-  /// relationship detection.
-  foreign_keys: Vec<(Property, Collection)>
+  key_property: Property
 }
 
 /// Represents the entire database structure.
