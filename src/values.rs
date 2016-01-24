@@ -5,15 +5,15 @@
 
 use std::collections::BTreeMap;
 
-/// Represents a property of a collection document.
-pub type Property = String;
+/// Represents a JSON pointer to a document property.
+pub type Pointer = Vec<String>;
 
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
 ///
 /// [1]: http://ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
 pub enum Value {
-  Object(BTreeMap<Property, Value>),
+  Object(BTreeMap<String, Value>),
   Array(Vec<Value>),
   Number(f64),
   String(String),
@@ -24,11 +24,11 @@ pub enum Value {
 /// Different database collection property updates.
 pub enum Patch {
   /// Set a property to a new value.
-  Set(Property, Value),
+  Set(Pointer, Value),
   /// Reset a property to its default value.
-  Reset(Property),
+  Reset(Pointer),
   /// Remove a property from the database entirely.
-  Remove(Property)
+  Remove(Pointer)
 }
 
 /// A recursive filter condition for a `Value`.
@@ -40,12 +40,7 @@ pub enum Filter {
   /// Inverts the filter.
   Not(Box<Filter>),
   /// The basic condition of a filter.
-  Condition {
-    /// The property to use in evaluating the condition.
-    property: Property,
-    /// The condition to be used in evaluating.
-    condition: FilterCondition
-  }
+  Condition(Pointer, FilterCondition)
 }
 
 pub enum FilterCondition {
@@ -56,12 +51,7 @@ pub enum FilterCondition {
 }
 
 /// A single way in which to order a collection of documents.
-pub struct Ordering {
-  /// The property to order against.
-  property: Property,
-  /// The direction to order in. Either ascending or descending.
-  direction: OrderDirection
-}
+pub struct Ordering(Pointer, OrderDirection);
 
 pub enum OrderDirection {
   Ascending,

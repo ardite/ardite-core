@@ -4,6 +4,7 @@
 
 use values::*;
 use structure::Collection;
+use range::Range;
 
 /// Any driver request. All requests will return an array of documents.
 pub enum Request {
@@ -17,9 +18,9 @@ pub enum Request {
     /// The collection to create the documents in.
     collection: Collection,
     /// The documents to be created in the database.
-    documents: Vec<Document>,
+    documents: Vec<Value>,
     /// The properties to be returned of the created documents.
-    returning: ReturnSet
+    returning: Vec<Pointer>
   },
 
   /// The read request. Designed after a [SQL `SELECT` statement][1]. Also, a
@@ -42,7 +43,7 @@ pub enum Request {
     /// A specific range of documents to be read.
     range: Range,
     /// The properties to be returned of the read documents.
-    returning: ReturnSet
+    returning: Vec<Pointer>
   },
 
   /// The update request. Designed after a [SQL `UPDATE` statement][1].
@@ -59,7 +60,7 @@ pub enum Request {
     /// The patches to be applied to the set of documents.
     patches: Vec<Patch>,
     /// The properties to be returned of the updated documents.
-    returning: ReturnSet
+    returning: Vec<Pointer>
   },
 
   /// The delete request. Desinged after a [SQL `DELETE` statement][1].
@@ -74,14 +75,6 @@ pub enum Request {
     /// A filter limiting the number of documents deleted.
     filter: Filter,
     /// What properties to be returned of the deleted documents.
-    returning: ReturnSet
+    returning: Vec<Pointer>
   }
-}
-
-/// Defines what the request expects to be returned.
-pub enum ReturnSet {
-  /// All of the properties in the document.
-  All,
-  /// Only some of the document‘s properties.
-  Some(Vec<Property>)
 }

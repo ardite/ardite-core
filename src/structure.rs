@@ -3,7 +3,7 @@
 //! contains just enough information to get started. The types in this module
 //! are that bootstrap static structure.
 
-use values::Property;
+use values::Pointer;
 
 /// Represents a collection of documents.
 pub struct Collection {
@@ -18,7 +18,7 @@ pub struct Collection {
   /// not support composite primary keys ([more information][1]).
   ///
   /// [1]: http://stackoverflow.com/questions/1383062/composite-primary-key
-  key_property: Property
+  key: Pointer
 }
 
 /// Represents the entire database structure.
