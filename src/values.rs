@@ -4,6 +4,7 @@
 //! the database to these types.
 
 use std::collections::BTreeMap;
+use structure::Collection;
 
 /// Represents a JSON pointer to a document property.
 pub type Pointer = Vec<String>;
@@ -13,12 +14,20 @@ pub type Pointer = Vec<String>;
 ///
 /// [1]: http://ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
 pub enum Value {
-  Object(BTreeMap<String, Value>),
-  Array(Vec<Value>),
-  Number(f64),
-  String(String),
+  /// The abscense of any value.
+  Null,
+  /// True or false.
   Boolean(bool),
-  Null
+  /// A numeric value, float, integer, whatever.
+  Number(f64),
+  /// A list of characters.
+  String(String),
+  /// A list of values.
+  Array(Vec<Value>),
+  /// A map of key/value pairs.
+  Object(BTreeMap<String, Value>),
+  /// A reference to a document in another collection.
+  Reference(Collection, Box<Value>)
 }
 
 /// Different database collection property updates.
