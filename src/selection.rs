@@ -5,7 +5,6 @@ use document::Property;
 use document::Value;
 
 /// A recursive filter condition.
-/// TODO: @caleb Think better type system
 pub enum Filter {
   /// Combine multiple filters with an “and” operator.
   And(Vec<Box<Filter>>),
