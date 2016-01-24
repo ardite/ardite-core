@@ -1,8 +1,7 @@
 #![allow(dead_code, unused_variables, unused_imports)]
-pub mod document;
+pub mod values;
+pub mod structure;
+pub mod request;
 pub mod driver;
 pub mod error;
-pub mod patch;
-pub mod request;
-pub mod selection;
-pub mod structure;
+pub mod range;

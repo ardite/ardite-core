@@ -7,10 +7,8 @@
 pub struct Error {
   /// A specific error code which describes the error.
   code: ErrorCode,
-
   /// A message providing more detail beyond the error code.
   message: String,
-
   /// A hint to the user on what to do next to try and avoid the error
   /// happening again. This is optional.
   hint: Option<String>

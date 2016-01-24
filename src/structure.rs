@@ -3,7 +3,7 @@
 //! contains just enough information to get started. The types in this module
 //! are that bootstrap static structure.
 
-use document::Property;
+use values::Property;
 
 /// Represents a collection of documents.
 pub struct Collection {
