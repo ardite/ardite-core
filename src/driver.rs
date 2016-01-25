@@ -23,13 +23,4 @@ pub trait Driver {
     // primary key is specified in a filter.
     unimplemented!()
   }
-
-  /// Send multiple requests at once. If one request fails, **all other
-  /// requests must also fail**. If a driver author wishes they may also
-  /// optimize these requests.
-  fn requests(requests: Vec<Request>) -> Result<Vec<Vec<Value>>, Error> {
-    // TODO: default implementation which just runs all the requests and returns
-    // a result.
-    unimplemented!()
-  }
 }
