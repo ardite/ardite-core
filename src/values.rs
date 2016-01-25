@@ -25,7 +25,7 @@ pub enum Value {
   /// A list of values.
   Array(Vec<Value>),
   /// A map of key/value pairs.
-  Object(BTreeMap<String, Value>),
+  Object(Vec<(String, Value)>),
   /// A reference to a document in another collection.
   Reference(Collection, Box<Value>)
 }
@@ -43,9 +43,9 @@ pub enum Patch {
 /// A recursive filter condition for a `Value`.
 pub enum Filter {
   /// Combine multiple filters with an “and” operator.
-  And(Vec<Box<Filter>>),
+  And(Vec<Filter>),
   /// Combine multiple filters with an “or” operator.
-  Or(Vec<Box<Filter>>),
+  Or(Vec<Filter>),
   /// Inverts the filter.
   Not(Box<Filter>),
   /// The basic condition of a filter.
