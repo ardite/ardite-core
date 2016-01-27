@@ -4,4 +4,3 @@ pub mod structure;
 pub mod request;
 pub mod driver;
 pub mod error;
-pub mod range;
