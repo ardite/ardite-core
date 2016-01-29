@@ -64,3 +64,6 @@ pub enum OrderDirection {
   Ascending,
   Descending
 }
+
+// TODO: Find a more Rust idiomatic solution for ranges.
+pub struct Range(Option<u32>, Option<u32>);

@@ -20,23 +20,22 @@ pub trait Driver {
                   -> Result<I, Error>
                   where C: Collection, I: Iterator<Item=Value>;
 
-  // TODO: NEEDS A GOOD RANGE IMPLEMENTATION.
-  // /// The read request. Designed after a [SQL `SELECT` statement][1]. Also, a
-  // /// read request (after much thought) is not recursive/join capable. Instead
-  // /// join decomposition should be preferred. For more information, see “[big
-  // /// query v. small query][2]”.
-  // ///
-  // /// Must return an iterator of the set of values described in this request.
-  // ///
-  // /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
-  // /// [2]: http://dba.stackexchange.com/questions/76973
-  // fn read<C, I>(&collection: C,
-  //               filter: Option<Filter>,
-  //               range: Range,
-  //               order: Vec<Ordering>,
-  //               returning: Vec<Pointer> /* = all_pointer */)
-  //               -> Result<I, Error>
-  //               where C: Collection, I: Iterator<Item=Value>;
+  /// The read request. Designed after a [SQL `SELECT` statement][1]. Also, a
+  /// read request (after much thought) is not recursive/join capable. Instead
+  /// join decomposition should be preferred. For more information, see “[big
+  /// query v. small query][2]”.
+  ///
+  /// Must return an iterator of the set of values described in this request.
+  ///
+  /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
+  /// [2]: http://dba.stackexchange.com/questions/76973
+  fn read<C, I>(&collection: C,
+                filter: Option<Filter>,
+                range: Range,
+                order: Vec<Ordering>,
+                returning: Vec<Pointer> /* = all_pointer */)
+                -> Result<I, Error>
+                where C: Collection, I: Iterator<Item=Value>;
 
   /// The update request. Designed after a [SQL `UPDATE` statement][1].
   ///
