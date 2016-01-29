@@ -2,7 +2,7 @@
 //! different databases exist elsewhere.
 
 use error::Error;
-use values::*;
+use value::*;
 use structure::*;
 
 /// The trait to be implemented by all drivers.
