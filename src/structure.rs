@@ -3,6 +3,13 @@
 //! contains just enough information to get started. The types in this module
 //! are that bootstrap static structure.
 
+/// Represents the entire database structure.
+pub struct Structure<C: Collection> {
+  /// All of the collections in the database. May or may not be accessible by
+  /// Ardite services.
+  collections: Vec<C>
+}
+
 /// Represents a collection of documents. May contain whatever necessary data
 /// to *locate* the collection. These collections must be simple enough to do
 /// easy equality checks.
