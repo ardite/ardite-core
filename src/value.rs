@@ -3,7 +3,6 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the database to these types.
 
-use std::collections::BTreeMap;
 use structure::Collection;
 
 /// Represents a JSON pointer to a document property.
@@ -26,6 +25,68 @@ pub enum Value {
   Array(Vec<Value>),
   /// A map of key/value pairs.
   Object(Vec<(String, Value)>)
+}
+
+/// A schema detailing what the data received from the database (or inserted
+/// into the database) should be. Inspired after [JSON Schema][1]. A JSON
+/// Schema general keyword reference may be found [here][2].
+///
+/// [1]: http://json-schema.org
+/// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/generic.html
+pub struct Schema {
+  /// The types an object may be. Contains some custom validation information
+  /// for each type.
+  types: Vec<SchemaType>,
+  /// The default value of this part of the schema.
+  default: Option<Value>,
+  /// Equivelent to JSON Schema‘s `enum`. If not `None`, the value must be
+  /// exactly equal to one of these.
+  one_of: Option<Vec<Value>>
+}
+
+/// Type specific schema validations. A reference on JSON Schema type-specific
+/// validations may be found [here][1].
+///
+/// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
+pub enum SchemaType {
+  /// The absence of any value is also represented as the absence of any type.
+  Null,
+  /// Represents a binary true/false value.
+  Boolean,
+  /// Represents a numeric type.
+  Number {
+    /// Forces the number to be a multiple of another. This helps specifying
+    /// integers if this value is `Some(1)`.
+    multiple_of: Option<f32>,
+    /// The minimum value the number can be.
+    minimum: Option<f64>,
+    /// The maximum value the number can be.
+    maximum: Option<f64>
+  },
+  /// Represents a set of characters type.
+  String {
+    /// The mimimum length of characters in the string.
+    min_length: Option<u64>,
+    /// The maximum length of characters in the string.
+    max_length: Option<u64>,
+    /// A regular expression pattern to validate the string against.
+    // TODO: Use a regex crate.
+    pattern: Option<String>
+  },
+  /// Represents a set of any type.
+  Array {
+    /// A schema which all items in the array must match.
+    item_schema: Option<Schema>
+  },
+  /// Represents a set of key/value pairs.
+  Object {
+    /// Schemas associated to the object keys.
+    key_schemas: Vec<(String, Schema)>,
+    /// Keys that are required to be present in the object.
+    required_keys: Vec<String>,
+    /// Whether or not extra keys may be present in the object.
+    additional_keys: bool
+  }
 }
 
 /// Different database collection property updates.
