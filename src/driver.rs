@@ -4,7 +4,6 @@
 use error::Error;
 use values::*;
 use structure::*;
-use request::Request;
 
 /// The trait to be implemented by all drivers.
 pub trait Driver {
