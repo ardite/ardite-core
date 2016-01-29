@@ -62,3 +62,9 @@ pub trait Driver {
                   -> Result<I, Error>
                   where C: Collection, I: Iterator<Item=Value>;
 }
+
+/// The trait to be implemented by driver‘s which have the schema feature.
+pub trait DriverSchema {
+  /// Get‘s the schema for a given collection.
+  fn get_schema<C: Collection>(&collection: C) -> Schema;
+}
