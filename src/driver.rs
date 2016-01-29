@@ -19,11 +19,11 @@ pub trait Driver {
   /// inserted value.
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-insert.html
-  fn create<Iter>(&collection: Collection,
-                  values: Vec<Value>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<Iter, Error>
-                  where Iter: Iterator<Item=Value>;
+  fn create<I>(&collection: Collection,
+               values: Vec<Value>,
+               returning: Vec<Pointer> /* = all_pointer */)
+               -> Result<I, Error>
+               where I: Iterator<Item=Value>;
 
   // TODO: NEEDS A GOOD RANGE IMPLEMENTATION.
   // /// The read request. Designed after a [SQL `SELECT` statement][1]. Also, a
@@ -35,13 +35,13 @@ pub trait Driver {
   // ///
   // /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   // /// [2]: http://dba.stackexchange.com/questions/76973
-  // fn read<Iter>(&collection: Collection,
-  //               filter: Option<Filter>,
-  //               range: Range,
-  //               order: Vec<Ordering>,
-  //               returning: Vec<Pointer> /* = all_pointer */)
-  //               -> Result<Iter, Error>
-  //               where Iter: Iterator<Item=Value>;
+  // fn read<I>(&collection: Collection,
+  //            filter: Option<Filter>,
+  //            range: Range,
+  //            order: Vec<Ordering>,
+  //            returning: Vec<Pointer> /* = all_pointer */)
+  //            -> Result<I, Error>
+  //            where I: Iterator<Item=Value>;
 
   /// The update request. Designed after a [SQL `UPDATE` statement][1].
   ///
@@ -49,12 +49,12 @@ pub trait Driver {
   /// request.
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-update.html
-  fn update<Iter>(&collection: Collection,
-                  filter: Option<Filter>,
-                  patches: Vec<Patch>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<Iter, Error>
-                  where Iter: Iterator<Item=Value>;
+  fn update<I>(&collection: Collection,
+               filter: Option<Filter>,
+               patches: Vec<Patch>,
+               returning: Vec<Pointer> /* = all_pointer */)
+               -> Result<I, Error>
+               where I: Iterator<Item=Value>;
 
   /// The delete request. Desinged after a [SQL `DELETE` statement][1].
   ///
@@ -62,9 +62,9 @@ pub trait Driver {
   /// request.
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-delete.html
-  fn delete<Iter>(&collection: Collection,
-                  filter: Option<Filter>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<Iter, Error>
-                  where Iter: Iterator<Item=Value>;
+  fn delete<I>(&collection: Collection,
+               filter: Option<Filter>,
+               returning: Vec<Pointer> /* = all_pointer */)
+               -> Result<I, Error>
+               where I: Iterator<Item=Value>;
 }
