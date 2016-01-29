@@ -3,27 +3,11 @@
 //! contains just enough information to get started. The types in this module
 //! are that bootstrap static structure.
 
-use values::Pointer;
-
-/// Represents a collection of documents.
-pub struct Collection {
-  /// The outward facing name of the collection. In a relational database
-  /// with schemas (for example), this should be the table name, not including
-  /// the schema name.
-  name: String,
-
-  /// The primary key property required for all documents in a collection.
-  /// For each document in the collection the value for this property should be
-  /// able to uniquely identify the document within the collection. Ardite does
-  /// not support composite primary keys ([more information][1]).
-  ///
-  /// [1]: http://stackoverflow.com/questions/1383062/composite-primary-key
-  key: Pointer
-}
-
-/// Represents the entire database structure.
-pub struct Structure {
-  /// All of the collections in the database which are accessible in some way
-  /// via Ardite services.
-  collections: Vec<Collection>
+/// Represents a collection of documents. May contain whatever necessary data
+/// to *locate* the collection. These collections must be simple enough to do
+/// easy equality checks.
+pub trait Collection {
+  /// Get the public name of the collection. In a PostgreSQL database, this
+  /// would be the table name without the schema name.
+  fn get_name() -> String;
 }

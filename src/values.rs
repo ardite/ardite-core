@@ -25,9 +25,7 @@ pub enum Value {
   /// A list of values.
   Array(Vec<Value>),
   /// A map of key/value pairs.
-  Object(Vec<(String, Value)>),
-  /// A reference to a document in another collection.
-  Reference(Collection, Box<Value>)
+  Object(Vec<(String, Value)>)
 }
 
 /// Different database collection property updates.
