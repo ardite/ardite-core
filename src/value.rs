@@ -39,6 +39,8 @@ pub enum Value {
 /// [1]: http://json-schema.org
 /// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
 pub enum Schema {
+  /// There is no schema. No validations should occur.
+  None,
   /// Represents the absence of any value.
   Null,
   /// Represents a binary true/false value.
@@ -65,7 +67,7 @@ pub enum Schema {
   /// Represents a set of any type.
   Array {
     /// A schema which all items in the array must match.
-    items: Option<Box<Schema>>
+    items: Box<Schema>
   },
   /// Represents any tuple of values.
   Tuple {

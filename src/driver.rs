@@ -65,6 +65,8 @@ pub trait Driver {
 
 /// The trait to be implemented by driver‘s which have the schema feature.
 pub trait DriverSchema {
-  /// Get‘s the schema for a given collection.
-  fn get_schema<C: Collection>(&collection: C) -> Schema;
+  /// Gets the schema for the driver. By default no schema is returned.
+  fn get_schema(&self) -> Result<Schema, Error> {
+    Ok(Schema::None)
+  }
 }
