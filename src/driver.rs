@@ -70,3 +70,10 @@ pub trait DriverSchema {
     Ok(Schema::None)
   }
 }
+
+optional_box_plugin! {
+  DriverData {
+    driver: Driver,
+    schema: DriverSchema
+  }
+}
