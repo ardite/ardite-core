@@ -4,7 +4,6 @@
 //! the database to these types.
 
 use std::collections::BTreeMap;
-use structure::Collection;
 
 /// The atomic level of a pointer.
 pub type Key = String;
@@ -79,56 +78,13 @@ pub enum Schema {
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object properties.
-    properties: BTreeMap<String, Schema>,
+    properties: BTreeMap<Key, Schema>,
     /// Properties that are required to be in the object.
-    required: Vec<String>,
+    required: Vec<Key>,
     /// Whether or not there may be extra properties outside of the ones
     /// defined by the properties map.
     additional_properties: bool
   },
   /// Represents a value which *must* be one of the defined values.
   Enum(Vec<Value>)
-}
-
-/// Different database collection property updates.
-pub enum Patch {
-  /// Set a property to a new value.
-  Set(Pointer, Value),
-  /// Reset a property to its default value.
-  Reset(Pointer),
-  /// Remove a property from the database entirely.
-  Remove(Pointer)
-}
-
-/// A recursive filter condition for a `Value`.
-pub enum Filter {
-  /// Combine multiple filters with an “and” operator.
-  And(Vec<Filter>),
-  /// Combine multiple filters with an “or” operator.
-  Or(Vec<Filter>),
-  /// Inverts the filter.
-  Not(Box<Filter>),
-  /// The basic condition of a filter.
-  Condition(Pointer, FilterCondition)
-}
-
-pub enum FilterCondition {
-  Equal(Value),
-  OneOf(Vec<Value>),
-  GreaterThan(Value),
-  LessThan(Value)
-}
-
-/// A single way in which to order a collection of documents.
-pub struct Ordering(Pointer, OrderDirection);
-
-pub enum OrderDirection {
-  Ascending,
-  Descending
-}
-
-// TODO: Find a more Rust idiomatic solution for ranges.
-pub struct Range {
-  from: Option<u32>,
-  to: Option<u32>
 }
