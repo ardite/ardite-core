@@ -32,42 +32,27 @@ pub enum Value {
 }
 
 /// A schema detailing what the data received from the database (or inserted
-/// into the database) should be. Inspired after [JSON Schema][1]. A JSON
-/// Schema general keyword reference may be found [here][2].
+/// into the database) should be. Inspired after [JSON Schema][1]. A reference
+/// on JSON Schema type-specific validations used in this enum may be found
+/// [here][2].
 ///
 /// [1]: http://json-schema.org
-/// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/generic.html
-pub struct Schema {
-  /// The types an object may be. Contains some custom validation information
-  /// for each type.
-  types: Vec<SchemaType>,
-  /// The default value of this part of the schema.
-  default: Option<Value>,
-  /// Equivelent to JSON Schema‘s `enum`. If not `None`, the value must be
-  /// exactly equal to one of these.
-  one_of: Option<Vec<Value>>
-}
-
-/// Type specific schema validations. A reference on JSON Schema type-specific
-/// validations may be found [here][1].
-///
-/// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
-pub enum SchemaType {
-  /// The absence of any value is also represented as the absence of any type.
+/// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
+pub enum Schema {
+  /// Represents the absence of any value.
   Null,
   /// Represents a binary true/false value.
   Boolean,
   /// Represents a numeric type.
   Number {
-    /// Forces the number to be a multiple of another. This helps specifying
-    /// integers if this value is `Some(1)`.
+    /// Forces the number to be a multiple of another. This helps in specifying
+    /// integers if this value is `Some(1)` for example.
     multiple_of: Option<f32>,
     /// The minimum value the number can be.
     minimum: Option<f64>,
     /// The maximum value the number can be.
     maximum: Option<f64>
   },
-  /// Represents a set of characters type.
   String {
     /// The mimimum length of characters in the string.
     min_length: Option<u64>,
@@ -80,17 +65,20 @@ pub enum SchemaType {
   /// Represents a set of any type.
   Array {
     /// A schema which all items in the array must match.
-    item_schema: Option<Schema>
+    items: Option<Schema>
   },
   /// Represents a set of key/value pairs.
   Object {
-    /// Schemas associated to the object keys.
-    key_schemas: BTreeMap<Key, Schema>,
-    /// Keys that are required to be present in the object.
-    required_keys: Vec<Key>,
-    /// Whether or not extra keys may be present in the object.
-    additional_keys: bool
-  }
+    /// Schemas associated to the object properties.
+    properties: BTreeMap<String, Schema>,
+    /// Properties that are required to be in the object.
+    required: Vec<String>,
+    /// Whether or not there may be extra properties outside of the ones
+    /// defined by the properties map.
+    additional_properties: bool
+  },
+  /// Represents a value which *must* be one of the defined values.
+  Enum(Vec<Value>)
 }
 
 /// Different database collection property updates.
