@@ -78,9 +78,9 @@ pub enum Schema {
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object properties.
-    properties: BTreeMap<String, Schema>,
+    properties: BTreeMap<Key, Schema>,
     /// Properties that are required to be in the object.
-    required: Vec<String>,
+    required: Vec<Key>,
     /// Whether or not there may be extra properties outside of the ones
     /// defined by the properties map.
     additional_properties: bool
