@@ -15,6 +15,17 @@ pub struct Error<'a> {
 }
 
 impl<'a> Error<'a> {
+  /// Easily create a new error.
+  pub fn new(code: ErrorCode, message: &'a str) -> Self {
+    Error {
+      code: code,
+      message: message,
+      hint: None
+    }
+  }
+
+  /// Convenience function for creating an unimplemented error with a plain
+  /// message describing what is unimplemented.
   pub fn unimplemented(message: &'a str) -> Self {
     Error {
       code: ErrorCode::NotImplemented,
