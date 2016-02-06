@@ -131,4 +131,7 @@ pub enum OrderDirection {
 }
 
 // TODO: Find a more Rust idiomatic solution for ranges.
-pub struct Range(Option<u32>, Option<u32>);
+pub struct Range {
+  from: Option<u32>,
+  to: Option<u32>
+}
