@@ -11,12 +11,6 @@ pub type Key = String;
 /// Represents a JSON pointer to a document property.
 pub type Pointer = Vec<Key>;
 
-/// The id value.
-pub type Identifier = String;
-
-/// Represents a single record in the database.
-pub struct Record(Identifier, Value);
-
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
 ///
@@ -93,12 +87,4 @@ pub enum Schema {
   },
   /// Represents a value which *must* be one of the defined values.
   Enum(Vec<Value>)
-}
-
-/// A condition which will resolve to a boolean value after comparing a certain
-/// value with a set rule.
-// TODO: Add more conditions.
-pub enum Condition {
-  /// If the compared value is exactly equal to this one, the condition passes.
-  Equal(Value)
 }
