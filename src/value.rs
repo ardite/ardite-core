@@ -67,6 +67,13 @@ pub enum Schema {
     /// A schema which all items in the array must match.
     items: Option<Box<Schema>>
   },
+  /// Represents any tuple of values.
+  Tuple {
+    /// Schemas which each tuple value (in the same place) must comply with.
+    items: Vec<Schema>,
+    /// Whether or not there can be more items in the tuple.
+    additional_items: bool
+  },
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object properties.
