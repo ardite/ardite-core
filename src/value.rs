@@ -3,6 +3,7 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the database to these types.
 
+use std::collections::BTreeMap;
 use structure::Collection;
 
 /// Represents a JSON pointer to a document property.
@@ -24,7 +25,7 @@ pub enum Value {
   /// A list of values.
   Array(Vec<Value>),
   /// A map of key/value pairs.
-  Object(Vec<(String, Value)>)
+  Object(BTreeMap<String, Value>)
 }
 
 /// A schema detailing what the data received from the database (or inserted
@@ -81,7 +82,7 @@ pub enum SchemaType {
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object keys.
-    key_schemas: Vec<(String, Schema)>,
+    key_schemas: BTreeMap<String, Schema>,
     /// Keys that are required to be present in the object.
     required_keys: Vec<String>,
     /// Whether or not extra keys may be present in the object.
