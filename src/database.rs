@@ -5,7 +5,7 @@ use error::Error;
 use value::*;
 use query::Query;
 
-pub trait Driver {
+pub trait Database {
   /// Connects to a database and returns a driver instance. After calling this
   /// the driver is ready to roll!
   fn connect(url: &str) -> Self;
