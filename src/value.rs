@@ -6,8 +6,11 @@
 use std::collections::BTreeMap;
 use structure::Collection;
 
+/// The atomic level of a pointer.
+pub type Key = String;
+
 /// Represents a JSON pointer to a document property.
-pub type Pointer = Vec<String>;
+pub type Pointer = Vec<Key>;
 
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
@@ -25,7 +28,7 @@ pub enum Value {
   /// A list of values.
   Array(Vec<Value>),
   /// A map of key/value pairs.
-  Object(BTreeMap<String, Value>)
+  Object(BTreeMap<Key, Value>)
 }
 
 /// A schema detailing what the data received from the database (or inserted
@@ -82,9 +85,9 @@ pub enum SchemaType {
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object keys.
-    key_schemas: BTreeMap<String, Schema>,
+    key_schemas: BTreeMap<Key, Schema>,
     /// Keys that are required to be present in the object.
-    required_keys: Vec<String>,
+    required_keys: Vec<Key>,
     /// Whether or not extra keys may be present in the object.
     additional_keys: bool
   }
