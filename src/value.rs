@@ -4,13 +4,18 @@
 //! the database to these types.
 
 use std::collections::BTreeMap;
-use structure::Collection;
 
 /// The atomic level of a pointer.
 pub type Key = String;
 
 /// Represents a JSON pointer to a document property.
 pub type Pointer = Vec<Key>;
+
+/// The id value.
+pub type Identifier = String;
+
+/// Represents a single record in the database.
+pub struct Record(Identifier, Value);
 
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
@@ -90,45 +95,10 @@ pub enum Schema {
   Enum(Vec<Value>)
 }
 
-/// Different database collection property updates.
-pub enum Patch {
-  /// Set a property to a new value.
-  Set(Pointer, Value),
-  /// Reset a property to its default value.
-  Reset(Pointer),
-  /// Remove a property from the database entirely.
-  Remove(Pointer)
-}
-
-/// A recursive filter condition for a `Value`.
-pub enum Filter {
-  /// Combine multiple filters with an “and” operator.
-  And(Vec<Filter>),
-  /// Combine multiple filters with an “or” operator.
-  Or(Vec<Filter>),
-  /// Inverts the filter.
-  Not(Box<Filter>),
-  /// The basic condition of a filter.
-  Condition(Pointer, FilterCondition)
-}
-
-pub enum FilterCondition {
-  Equal(Value),
-  OneOf(Vec<Value>),
-  GreaterThan(Value),
-  LessThan(Value)
-}
-
-/// A single way in which to order a collection of documents.
-pub struct Ordering(Pointer, OrderDirection);
-
-pub enum OrderDirection {
-  Ascending,
-  Descending
-}
-
-// TODO: Find a more Rust idiomatic solution for ranges.
-pub struct Range {
-  from: Option<u32>,
-  to: Option<u32>
+/// A condition which will resolve to a boolean value after comparing a certain
+/// value with a set rule.
+// TODO: Add more conditions.
+pub enum Condition {
+  /// If the compared value is exactly equal to this one, the condition passes.
+  Equal(Value)
 }

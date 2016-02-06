@@ -3,69 +3,61 @@
 
 use error::Error;
 use value::*;
-use structure::*;
 
-/// The trait to be implemented by all drivers.
 pub trait Driver {
-  /// The create request. Designed after a [SQL `INSERT` statmenet][1].
-  ///
-  /// Returns all of the values created in the database with any automatically
-  /// generated properties. This is useful if you need the id of the just
-  /// inserted value.
-  ///
-  /// [1]: http://www.postgresql.org/docs/current/static/sql-insert.html
-  fn create<C, I>(&collection: C,
-                  values: Vec<Value>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<I, Error>
-                  where C: Collection, I: Iterator<Item=Value>;
+  /// The driver specific collection type.
+  type Collection: Collection;
 
-  /// The read request. Designed after a [SQL `SELECT` statement][1]. Also, a
-  /// read request (after much thought) is not recursive/join capable. Instead
-  /// join decomposition should be preferred. For more information, see “[big
-  /// query v. small query][2]”.
-  ///
-  /// Must return an iterator of the set of values described in this request.
-  ///
-  /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
-  /// [2]: http://dba.stackexchange.com/questions/76973
-  fn read<C, I>(&collection: C,
-                filter: Option<Filter>,
-                range: Range,
-                order: Vec<Ordering>,
-                returning: Vec<Pointer> /* = all_pointer */)
-                -> Result<I, Error>
-                where C: Collection, I: Iterator<Item=Value>;
+  /// Connects to a database and returns a driver instance. After calling this
+  /// the driver is ready to roll!
+  fn connect(connection_url: &str) -> Self;
 
-  /// The update request. Designed after a [SQL `UPDATE` statement][1].
-  ///
-  /// Must return an array of all the documents that were updated with this
-  /// request.
-  ///
-  /// [1]: http://www.postgresql.org/docs/current/static/sql-update.html
-  fn update<C, I>(&collection: C,
-                  filter: Option<Filter>,
-                  patches: Vec<Patch>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<I, Error>
-                  where C: Collection, I: Iterator<Item=Value>;
-
-  /// The delete request. Desinged after a [SQL `DELETE` statement][1].
-  ///
-  /// Must return an array of all documents that were deleted with this
-  /// request.
-  ///
-  /// [1]: http://www.postgresql.org/docs/current/static/sql-delete.html
-  fn delete<C, I>(&collection: C,
-                  filter: Option<Filter>,
-                  returning: Vec<Pointer> /* = all_pointer */)
-                  -> Result<I, Error>
-                  where C: Collection, I: Iterator<Item=Value>;
+  /// Get all collections in the database.
+  fn get_collections(&self) -> Result<Vec<Self::Collection>, Error>;
 }
 
-/// The trait to be implemented by driver‘s which have the schema feature.
-pub trait DriverSchema {
-  /// Gets the schema for the driver. By default no schema is returned.
+pub trait Collection {
+  /// Gets the name of the collection.
+  fn get_name(&self) -> String;
+
+  /// Creates a single record in the database. Returns the new record with its
+  /// *assigned* identifier.
+  fn create_one(&self, value: Value) -> Result<Record, Error>;
+
+  /// Creates many records in the database. Returns a stream of the new
+  /// records with their *assigned* identifiers.
+  fn create<V, I>(&self, values: V) -> Result<I, Error> where V: Iterator<Item=Value>, I: Iterator<Item=Record> {
+    Err(Error::unimplemented("Cannot perform a batch insert."))
+  }
+
+  /// Reads a single record from the database. Returns the record that was
+  /// read.
+  fn read_one(&self, id: Identifier) -> Result<Record, Error>;
+
+  /// Reads many records from the database. Returns a stream of the read
+  /// records.
+  fn read<I>(&self, filter: Vec<Condition>) -> Result<I, Error> where I: Iterator<Item=Record>;
+
+  /// Updates a single record in the database. Returns the updated record.
+  fn update_one(&self, id: Identifier, patches: Vec<(Pointer, Value)>) -> Result<Record, Error>;
+
+  /// Updates many records in the database. Returns a stream of the updated
+  /// records.
+  fn update<I>(&self, filter: Vec<Condition>, patches: Vec<(Pointer, Value)>) -> Result<I, Error> where I: Iterator<Item=Record> {
+    Err(Error::unimplemented("Cannot perform a batch update."))
+  }
+
+  /// Removes a single record from the database. Returns the deleted record
+  /// with its identifier.
+  fn delete_one(&self, id: Identifier) -> Result<Record, Error>;
+
+  /// Removes many records from the database. Returns a stream of the deleted
+  /// records.
+  fn delete<I>(&self, filter: Vec<Condition>) -> Result<I, Error> where I: Iterator<Item=Record> {
+    Err(Error::unimplemented("Cannot perform a batch deletion."))
+  }
+
+  /// Gets the schema for the collection. By default no schema is returned.
   fn get_schema(&self) -> Result<Schema, Error> {
     Ok(Schema::None)
   }
