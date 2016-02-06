@@ -65,7 +65,7 @@ pub enum Schema {
   /// Represents a set of any type.
   Array {
     /// A schema which all items in the array must match.
-    items: Option<Schema>
+    items: Option<Box<Schema>>
   },
   /// Represents a set of key/value pairs.
   Object {
