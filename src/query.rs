@@ -1,25 +1,43 @@
 //! Defines complex queries over Ardite driver data structures.
 
-use std::collections::BTreeMap;
 use value::*;
 
 /// Specifies a complex driver query. The query is structured like a tree
-/// except each node is unaware of its name (or if it even has a name).
+/// except each node is unaware of its name (or if it even has a name). It
+/// cannot be expected that a `Query` tree will map 1 to 1 with a `Value` tree.
 pub enum Query {
-  /// The most basic query node.
-  Node {
-    /// Child queries. If `None` then the entire value is returned.
-    children: Option<BTreeMap<Key, Query>>
+  /// Basic query of a value with some specified children.
+  Item {
+    /// Name of 
+    name: String,
+    /// Child queries.
+    children: Vec<Query>
   },
-  /// Directly query a collection.
+  /// Query all values of a single record. If an object it returns *all* of the
+  /// properties. Works like a star select in SQL. Some properties may be
+  /// hidden and therefore not included in the return value. This is up to the
+  /// disgression of the driver.
+  Value {
+    /// The name of the value to return.
+    name: String
+  },
+  /// Directly query a collection. When thinking of the `Query` type as a tree
+  /// which maps to a `Value` object, this query “skips” a level. For example,
+  /// another query might have
+  /// `Query::Item(users) -> Query::Item(1) -> Query::Item(name)` which maps to
+  /// the expect JSON pointer `/users/1/name`. Whereas with a collection, the
+  /// query may look like `Query::Collection(users) -> Query::Item(name)`. Note
+  /// that there was no “middle” query item for the record. 
   Collection {
+    /// The name of the collection we will be querying.
+    name: String,
     /// The range of records to query.
     range: Range,
     /// A set of conditions which are joined by “and” which specifies the
     /// values to be filtered out be the query.
-    filter: Vec<Condition>,
-    /// Child queries. If `None` then the entire value is returned.
-    children: Option<BTreeMap<Key, Query>>
+    filter: Condition,
+    /// Child queries.
+    children: Vec<Query>
   }
 }
 
@@ -42,6 +60,14 @@ pub enum Condition {
   True,
   /// The condition always fails.
   False,
+  /// Inverts a condition.
+  Not(Box<Condition>),
+  /// Composes many conditions. They all must be true for the condition to be
+  /// true.
+  And(Vec<Condition>),
+  /// Composes many conditions. Only one must be true for the condition to be
+  /// true.
+  Or(Vec<Condition>),
   /// If the compared value is exactly equal to this one, the condition passes.
   Equal(Value)
 }
