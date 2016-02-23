@@ -15,6 +15,7 @@ pub type Pointer = Vec<Key>;
 /// 5).
 ///
 /// [1]: http://ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
+#[derive(PartialEq, Debug)]
 pub enum Value {
   /// The abscense of any value.
   Null,
