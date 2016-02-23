@@ -1,7 +1,7 @@
-//! Types representing for data which will be retrieved from the database.
+//! Types representing for data which will be retrieved from the driver.
 //! Currently this data is expected to look like a JSON object but this may be
 //! changed in the future. Driver authors must cast the data they retrieve from
-//! the database to these types.
+//! the driver to these types.
 
 use std::collections::BTreeMap;
 
@@ -30,8 +30,8 @@ pub enum Value {
   Object(BTreeMap<Key, Value>)
 }
 
-/// A schema detailing what the data received from the database (or inserted
-/// into the database) should be. Inspired after [JSON Schema][1]. A reference
+/// A schema detailing what the data received from the driver (or inserted
+/// into the driver) should be. Inspired after [JSON Schema][1]. A reference
 /// on JSON Schema type-specific validations used in this enum may be found
 /// [here][2].
 ///
