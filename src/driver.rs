@@ -18,7 +18,7 @@ pub fn get_driver<D: Driver>(url: &str) -> D {
 pub trait Driver {
   /// Connects to a driver and returns a driver instance. After calling this
   /// the driver is ready to roll!
-  fn connect(url: &str) -> Self;
+  fn connect(url: &str) -> Result<&Self, Error>;
 
   /// Set a value at a certain point in the driver.
   fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error>;
