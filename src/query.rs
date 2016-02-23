@@ -7,7 +7,7 @@ use value::*;
 /// cannot be expected that a `Query` tree will map 1 to 1 with a `Value` tree.
 pub enum Query {
   /// Basic query of a value with some specified children.
-  Item {
+  Object {
     /// Name of 
     name: String,
     /// Child queries.
@@ -17,7 +17,7 @@ pub enum Query {
   /// properties. Works like a star select in SQL. Some properties may be
   /// hidden and therefore not included in the return value. This is up to the
   /// disgression of the driver.
-  Value {
+  Property {
     /// The name of the value to return.
     name: String
   },
