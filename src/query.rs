@@ -1,9 +1,9 @@
-//! Defines complex queries over Ardite database data structures.
+//! Defines complex queries over Ardite driver data structures.
 
 use std::collections::BTreeMap;
 use value::*;
 
-/// Specifies a complex database query. The query is structured like a tree
+/// Specifies a complex driver query. The query is structured like a tree
 /// except each node is unaware of its name (or if it even has a name).
 pub enum Query {
   /// The most basic query node.
