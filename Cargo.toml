@@ -1,5 +1,5 @@
 [package]
-name = "ardite-core"
+name = "ardite"
 version = "0.0.1"
 description = "Core library for Ardite services."
 keywords = ["ardite", "core"]
