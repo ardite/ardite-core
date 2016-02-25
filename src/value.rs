@@ -28,7 +28,9 @@ pub enum Value {
   /// A list of values.
   Array(Vec<Value>),
   /// A map of key/value pairs.
-  Object(BTreeMap<Key, Value>)
+  Object(BTreeMap<Key, Value>),
+  /// References another value somewhere else in the object tree.
+  Ref(Pointer)
 }
 
 /// A schema detailing what the data received from the driver (or inserted
