@@ -1,6 +1,7 @@
 //! Defines complex queries over Ardite driver data structures.
 
 use std::convert::From;
+use std::collections::BTreeMap;
 use value::*;
 
 /// Specifies a complex driver query. The query is structured like a tree
@@ -8,62 +9,27 @@ use value::*;
 /// cannot be expected that a `Query` tree will map 1 to 1 with a `Value` tree.
 #[derive(PartialEq, Debug)]
 pub enum Query {
-  /// No operation query. Useful for `Option` type things.
-  Noop,
-  /// Basic query of a value with some specified children.
-  Object {
-    /// Name of 
-    name: Key,
-    /// Child queries.
-    children: Vec<Query>
-  },
-  /// Query all values of a single record. If an object it returns *all* of the
-  /// properties. Works like a star select in SQL. Some properties may be
-  /// hidden and therefore not included in the return value. This is up to the
-  /// disgression of the driver.
-  Property {
-    /// The name of the value to return.
-    name: Key
-  },
-  /// Directly query a collection. When thinking of the `Query` type as a tree
-  /// which maps to a `Value` object, this query “skips” a level. For example,
-  /// another query might have
-  /// `Query::Item(users) -> Query::Item(1) -> Query::Item(name)` which maps to
-  /// the expect JSON pointer `/users/1/name`. Whereas with a collection, the
-  /// query may look like `Query::Collection(users) -> Query::Item(name)`. Note
-  /// that there was no “middle” query item for the record. 
-  Collection {
-    /// The name of the collection we will be querying.
-    name: Key,
-    /// The range of records to query.
-    range: Range,
-    /// A set of conditions which are joined by “and” which specifies the
-    /// values to be filtered out be the query.
-    filter: Condition,
-    /// Child queries.
-    children: Vec<Query>
-  }
+  /// Queries a single value.
+  Value,
+  /// Queries some partial properties of an object.
+  Object(BTreeMap<Key, Query>),
+  
+  // Collection {
+  //   name: Key,
+  //   range: Range,
+  //   filter: Condition,
+  //   properties: BTreeMap<Key, Query>
+  // }
 }
 
 impl From<Pointer> for Query {
-  fn from(mut pointer: Pointer) -> Query {
-    if pointer.len() == 0 {
-      // Exit early if length is 0 to avoid errors later.
-      Query::Noop
-    } else {
-      // Take out the last key and save it. We will use this to start our fold.
-      // Unwrapping should be safe here because we exit if the pointer has a
-      // length of 0 earlier.
-      let last_key = pointer.pop().unwrap();
-      // Reverse loop through the pointer to construct the query by setting the
-      // only child to the rightmost query object. 
-      pointer.iter().rev().fold(Query::Property {
-        name: last_key
-      }, |acc, key| Query::Object {
-        name: key.to_owned(),
-        children: vec![acc]
-      })
-    }
+  fn from(pointer: Pointer) -> Self {
+    // Reverse loop through the pointer to construct the query. 
+    pointer.iter().rev().fold(Query::Value, |acc, key| {
+      let mut properties = BTreeMap::new();
+      properties.insert(key.to_owned(), acc);
+      Query::Object(properties)
+    })
   }
 }
 
@@ -109,20 +75,18 @@ mod tests {
     let good = || String::from("good");
     let world = || String::from("world");    
     
-    assert_eq!(Query::from(vec![hello(), good(), world()]), Query::Object {
-      name: hello(),
-      children: vec![Query::Object {
-        name: good(),
-        children: vec![Query::Property {
-          name: world()
-        }]
-      }]
-    });
+    assert_eq!(Query::from(vec![hello(), good(), world()]), Query::Object(btreemap!{
+      hello() => Query::Object(btreemap!{
+        good() => Query::Object(btreemap!{
+          world() => Query::Value
+        })
+      })
+    }));
     
-    assert_eq!(Query::from(vec![good()]), Query::Property {
-      name: good()
-    });
+    assert_eq!(Query::from(vec![good()]), Query::Object(btreemap!{
+      good() => Query::Value
+    }));
     
-    assert_eq!(Query::from(vec![]), Query::Noop);
+    assert_eq!(Query::from(vec![]), Query::Value);
   }
 }

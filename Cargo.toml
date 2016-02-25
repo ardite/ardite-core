@@ -8,3 +8,6 @@ license = "MIT"
 homepage = "https://github.com/ardite/ardite-core"
 repository = "ardite/ardite-core"
 readme = "README.md"
+
+[dependencies]
+maplit = "0.1.3"
