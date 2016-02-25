@@ -11,7 +11,9 @@ use query::Query;
 /// exist in the file system, and then return an instance initialized with the
 /// `connect` static trait function.
 pub fn get_driver<D: Driver>(url: &str) -> D {
-  // TODO: implement
+  // TODO: implement.
+  // Used to quiet warnings.
+  println!("{}", url);
   unimplemented!();
 }
 
