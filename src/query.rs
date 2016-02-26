@@ -12,14 +12,7 @@ pub enum Query {
   /// Queries a single value.
   Value,
   /// Queries some partial properties of an object.
-  Object(BTreeMap<Key, Query>),
-  
-  // Collection {
-  //   name: Key,
-  //   range: Range,
-  //   filter: Condition,
-  //   properties: BTreeMap<Key, Query>
-  // }
+  Object(BTreeMap<Key, Query>)
 }
 
 impl From<Pointer> for Query {
@@ -31,38 +24,6 @@ impl From<Pointer> for Query {
       Query::Object(properties)
     })
   }
-}
-
-/// Specifies a positive numeric range of data.
-#[derive(PartialEq, Default, Debug)]
-pub struct Range {
-  /// The inclusive lower bound of the range. If `None`, the range is unbounded
-  /// on the bottom and thus goes to 0.
-  from: Option<u64>,
-  /// The exclusive upper bound of the range. If `None`, the range is unbounded
-  /// on the top and thus goes to infinity.
-  to: Option<u64>
-}
-
-/// A condition which will resolve to a boolean value after comparing a certain
-/// value with a set rule.
-// TODO: Add more conditions.
-#[derive(PartialEq, Debug)]
-pub enum Condition {
-  /// The condition always passes.
-  True,
-  /// The condition always fails.
-  False,
-  /// Inverts a condition.
-  Not(Box<Condition>),
-  /// Composes many conditions. They all must be true for the condition to be
-  /// true.
-  And(Vec<Condition>),
-  /// Composes many conditions. Only one must be true for the condition to be
-  /// true.
-  Or(Vec<Condition>),
-  /// If the compared value is exactly equal to this one, the condition passes.
-  Equal(Value)
 }
 
 #[cfg(test)]
