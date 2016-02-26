@@ -10,3 +10,4 @@ repository = "ardite/ardite-core"
 readme = "README.md"
 
 [dependencies]
+linear-map = "0.0.4"
