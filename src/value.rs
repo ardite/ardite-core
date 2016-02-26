@@ -25,11 +25,11 @@ pub enum Value {
   Number(f64),
   /// A list of characters.
   String(String),
-  /// A list of values.
-  Array(Vec<Value>),
   /// A map of key/value pairs. Stored as a vector of tuples for performance
   /// and to maintain key ordering.
-  Object(LinearMap<Key, Value>)
+  Object(LinearMap<Key, Value>),
+  /// A list of values. Just a value, but using *only* integer keys.
+  Array(Vec<Value>)
 }
 
 /// A schema detailing what the data received from the driver (or inserted
