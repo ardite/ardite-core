@@ -3,8 +3,6 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the driver to these types.
 
-use std::collections::BTreeMap;
-
 /// The atomic level of a pointer.
 pub type Key = String;
 
@@ -27,8 +25,9 @@ pub enum Value {
   String(String),
   /// A list of values.
   Array(Vec<Value>),
-  /// A map of key/value pairs.
-  Object(BTreeMap<Key, Value>)
+  /// A map of key/value pairs. Stored as a vector of tuples for performance
+  /// and to maintain key ordering.
+  Object(Vec<(Key, Value)>)
 }
 
 /// A schema detailing what the data received from the driver (or inserted
@@ -79,7 +78,7 @@ pub enum Schema {
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object properties.
-    properties: BTreeMap<Key, Schema>,
+    properties: Vec<(Key, Schema)>,
     /// Properties that are required to be in the object.
     required: Vec<Key>,
     /// Whether or not there may be extra properties outside of the ones

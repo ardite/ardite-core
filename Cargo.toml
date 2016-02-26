@@ -10,4 +10,3 @@ repository = "ardite/ardite-core"
 readme = "README.md"
 
 [dependencies]
-maplit = "0.1.3"
