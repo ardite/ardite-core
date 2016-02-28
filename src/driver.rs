@@ -28,6 +28,13 @@ pub trait Driver {
   /// Query a subset of values in the database.
   fn query(&self, query: Query) -> Result<Value, Error>;
 
+  /// Gets a value from a certain *exact* point in the driver. This method by
+  /// default uses a `Query` based implementation, however driver authors may
+  /// choose to optimize.
+  fn get(&self, pointer: Pointer) -> Result<Value, Error> {
+    self.query(Query::from(pointer)).get(pointer)
+  }
+
   /// Gets the schema for the driver. By default no schema is returned.
   /// Whether or not this method gets memoized is the driver implementors
   /// decision.
