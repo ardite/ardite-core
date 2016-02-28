@@ -11,5 +11,5 @@ readme = "README.md"
 
 [dependencies]
 lazy_static = "0.1"
-linear-map = { git = "https://github.com/calebmer/linear-map" }
+linear-map = "0.0"
 regex = "0.1"

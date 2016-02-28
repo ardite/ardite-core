@@ -141,27 +141,26 @@ impl Schema {
 
 #[cfg(test)]
 mod tests {
-  use query::Query;
+  use linear_map::LinearMap;
   use schema::Schema;
-  use value::Value;
 
   #[test]
   fn test_query_none() {
-    assert_eq!(Schema::None.validate_query(&Query::Value).is_ok(), true);
-    assert_eq!(Schema::None.validate_query(&Query::Object(linear_map!{
-      String::from("s@#f&/Ij)82h(;pa0]") => Query::Value,
-      String::from("123") => Query::Value,
-      String::from("hello") => Query::Value,
-      String::from("nested") => Query::Object(linear_map!{
-        String::from("yo") => Query::Value
-      })
-    })).is_ok(), true);
+    assert_eq!(Schema::None.validate_query(&qvalue!()).is_ok(), true);
+    assert_eq!(Schema::None.validate_query(&qobject!{
+      "s@#f&/Ij)82h(;pa0]" => qvalue!(),
+      "123" => qvalue!(),
+      "hello" => qvalue!(),
+      "nested" => qobject!{
+        "yo" => qvalue!()
+      }
+    }).is_ok(), true);
   }
 
   #[test]
   fn test_query_primitive() {
-    assert!(Schema::Null.validate_query(&Query::Value).is_ok());
-    let obj_query = Query::Object(linear_map!{});
+    assert!(Schema::Null.validate_query(&qvalue!()).is_ok());
+    let obj_query = qobject!{};
     Schema::Null.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Boolean.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Number{
@@ -175,8 +174,8 @@ mod tests {
       pattern: None
     }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Enum(vec![
-      Value::Boolean(true),
-      Value::Boolean(false)
+      vbool!(true),
+      vbool!(false)
     ]).validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
   }
 
@@ -188,26 +187,26 @@ mod tests {
     let array_bool = Schema::Array{
       items: Box::new(Schema::Boolean)
     };
-    assert!(array_none.validate_query(&Query::Value).is_ok());
-    assert!(array_none.validate_query(&Query::Object(linear_map!{
-      String::from("1") => Query::Value
-    })).is_ok());
-    assert!(array_none.validate_query(&Query::Object(linear_map!{
-      String::from("1") => Query::Object(linear_map!{})
-    })).is_ok());
-    assert!(array_bool.validate_query(&Query::Object(linear_map!{
-      String::from("1") => Query::Value,
-      String::from("2") => Query::Value,
-      String::from("3") => Query::Value,
-      String::from("50") => Query::Value,
-      String::from("999999999999999") => Query::Value
-    })).is_ok());
-    array_none.validate_query(&Query::Object(linear_map!{
-      String::from("hello") => Query::Value
-    })).unwrap_err().assert_message("non-integer \"hello\"");
-    array_bool.validate_query(&Query::Object(linear_map!{
-      String::from("1") => Query::Object(linear_map!{})
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(array_none.validate_query(&qvalue!()).is_ok());
+    assert!(array_none.validate_query(&qobject!{
+      "1" => qvalue!()
+    }).is_ok());
+    assert!(array_none.validate_query(&qobject!{
+      "1" => qobject!{}
+    }).is_ok());
+    assert!(array_bool.validate_query(&qobject!{
+      "1" => qvalue!(),
+      "2" => qvalue!(),
+      "3" => qvalue!(),
+      "50" => qvalue!(),
+      "999999999999999" => qvalue!()
+    }).is_ok());
+    array_none.validate_query(&qobject!{
+      "hello" => qvalue!()
+    }).unwrap_err().assert_message("non-integer \"hello\"");
+    array_bool.validate_query(&qobject!{
+      "1" => qobject!{}
+    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
   }
 
   #[test]
@@ -224,7 +223,11 @@ mod tests {
       items: vec![
         Schema::Boolean,
         Schema::Object{
-          properties: linear_map!{String::from("hello") => Schema::Boolean},
+          properties: {
+            let mut map = LinearMap::new();
+            map.insert(String::from("hello"), Schema::Boolean);
+            map
+          },
           required: vec![],
           additional_properties: false
         },
@@ -232,96 +235,100 @@ mod tests {
       ],
       additional_items: false
     };
-    assert!(nums.validate_query(&Query::Object(linear_map!{
-      String::from("0") => Query::Value,
-      String::from("2") => Query::Value
-    })).is_ok());
-    nums.validate_query(&Query::Object(linear_map!{
-      String::from("0") => Query::Value,
-      String::from("1") => Query::Value,
-      String::from("2") => Query::Value,
-      String::from("3") => Query::Value
-    })).unwrap_err().assert_message(r"Tuple has only 3 values\. Can’t query the index 3\.");
-    nums.validate_query(&Query::Object(linear_map!{
-      String::from("asd") => Query::Value,
-      String::from("1") => Query::Value,
-      String::from("2") => Query::Value,
-      String::from("3") => Query::Value
-    })).unwrap_err().assert_message("non-integer \"asd\"");
-    nums.validate_query(&Query::Object(linear_map!{
-      String::from("1") => Query::Value,
-      String::from("2") => Query::Object(linear_map!{}),
-      String::from("3") => Query::Value
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(nums_additional.validate_query(&Query::Object(linear_map!{
-      String::from("0") => Query::Value,
-      String::from("1") => Query::Value,
-      String::from("3") => Query::Value,
-      String::from("99999999") => Query::Value
-    })).is_ok());
-    assert!(nums_and_object.validate_query(&Query::Object(linear_map!{
-      String::from("0") => Query::Value,
-      String::from("1") => Query::Object(linear_map!{
-        String::from("hello") => Query::Value
-      }),
-      String::from("2") => Query::Value
-    })).is_ok());
+    assert!(nums.validate_query(&qobject!{
+      "0" => qvalue!(),
+      "2" => qvalue!()
+    }).is_ok());
+    nums.validate_query(&qobject!{
+      "0" => qvalue!(),
+      "1" => qvalue!(),
+      "2" => qvalue!(),
+      "3" => qvalue!()
+    }).unwrap_err().assert_message(r"Tuple has only 3 values\. Can’t query the index 3\.");
+    nums.validate_query(&qobject!{
+      "asd" => qvalue!(),
+      "1" => qvalue!(),
+      "2" => qvalue!(),
+      "3" => qvalue!()
+    }).unwrap_err().assert_message("non-integer \"asd\"");
+    nums.validate_query(&qobject!{
+      "1" => qvalue!(),
+      "2" => qobject!{},
+      "3" => qvalue!()
+    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(nums_additional.validate_query(&qobject!{
+      "0" => qvalue!(),
+      "1" => qvalue!(),
+      "3" => qvalue!(),
+      "99999999" => qvalue!()
+    }).is_ok());
+    assert!(nums_and_object.validate_query(&qobject!{
+      "0" => qvalue!(),
+      "1" => qobject!{"hello" => qvalue!()},
+      "2" => qvalue!()
+    }).is_ok());
   }
 
   #[test]
   fn test_query_object() {
     let object = Schema::Object{
-      properties: linear_map!{
-        String::from("hello") => Schema::Boolean,
-        String::from("world") => Schema::Boolean,
-        String::from("5") => Schema::Boolean,
-        String::from("goodbye") => Schema::Object{
-          properties: linear_map!{
-            String::from("hello") => Schema::Boolean,
-            String::from("world") => Schema::Boolean
+      properties: {
+        let mut map1 = LinearMap::new();
+        map1.insert(String::from("hello"), Schema::Boolean);
+        map1.insert(String::from("world"), Schema::Boolean);
+        map1.insert(String::from("5"), Schema::Boolean);
+        map1.insert(String::from("goodbye"), Schema::Object{
+          properties: {
+            let mut map2 = LinearMap::new();
+            map2.insert(String::from("hello"), Schema::Boolean);
+            map2.insert(String::from("world"), Schema::Boolean);
+            map2
           },
           required: vec![],
           additional_properties: false
-        }
+        });
+        map1
       },
       required: vec![],
       additional_properties: false
     };
     let object_additional = Schema::Object{
-      properties: linear_map!{
-        String::from("hello") => Schema::Boolean,
-        String::from("world") => Schema::Boolean
+      properties: {
+        let mut map = LinearMap::new();
+        map.insert(String::from("hello"), Schema::Boolean);
+        map.insert(String::from("world"), Schema::Boolean);
+        map
       },
       required: vec![],
       additional_properties: true
     };
-    assert!(object.validate_query(&Query::Object(linear_map!{
-      String::from("world") => Query::Value,
-      String::from("5") => Query::Value,
-      String::from("goodbye") => Query::Value
-    })).is_ok());
-    object.validate_query(&Query::Object(linear_map!{
-      String::from("hello") => Query::Value,
-      String::from("moon") => Query::Value
-    })).unwrap_err().assert_message("Cannot query object property \"moon\".");
-    object.validate_query(&Query::Object(linear_map!{
-      String::from("hello") => Query::Object(linear_map!{})
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object.validate_query(&Query::Object(linear_map!{
-      String::from("goodbye") => Query::Object(linear_map!{
-        String::from("hello") => Query::Value
-      })
-    })).is_ok());
-    object.validate_query(&Query::Object(linear_map!{
-      String::from("goodbye") => Query::Object(linear_map!{
-        String::from("hello") => Query::Object(linear_map!{})
-      })
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object_additional.validate_query(&Query::Object(linear_map!{
-      String::from("world") => Query::Value,
-      String::from("5") => Query::Value,
-      String::from("goodbye") => Query::Value,
-      String::from("moon") => Query::Value
-    })).is_ok());
+    assert!(object.validate_query(&qobject!{
+      "world" => qvalue!(),
+      "5" => qvalue!(),
+      "goodbye" => qvalue!()
+    }).is_ok());
+    object.validate_query(&qobject!{
+      "hello" => qvalue!(),
+      "moon" => qvalue!()
+    }).unwrap_err().assert_message("Cannot query object property \"moon\".");
+    object.validate_query(&qobject!{
+      "hello" => qobject!{}
+    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(object.validate_query(&qobject!{
+      "goodbye" => qobject!{
+        "hello" => qvalue!()
+      }
+    }).is_ok());
+    object.validate_query(&qobject!{
+      "goodbye" => qobject!{
+        "hello" => qobject!{}
+      }
+    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(object_additional.validate_query(&qobject!{
+      "world" => qvalue!(),
+      "5" => qvalue!(),
+      "goodbye" => qvalue!(),
+      "moon" => qvalue!()
+    }).is_ok());
   }
 }

@@ -32,19 +32,14 @@ mod tests {
 
   #[test]
   fn test_from_pointer() {
-    let hello = || String::from("hello");
-    let good = || String::from("good");
-    let world = || String::from("world");
-    assert_eq!(Query::from(vec![hello(), good(), world()]), Query::Object(linear_map!{
-      String::from("hello") => Query::Object(linear_map!{
-        String::from("good") => Query::Object(linear_map!{
-          String::from("world") => Query::Value
-        })
-      })
-    }));
-    assert_eq!(Query::from(vec![good()]), Query::Object(linear_map!{
-      String::from("good") => Query::Value
-    }));
-    assert_eq!(Query::from(vec![]), Query::Value);
+    assert_eq!(Query::from(point!["hello", "good", "world"]), qobject!{
+      "hello" => qobject!{
+        "good" => qobject!{
+          "world" => qvalue!()
+        }
+      }
+    });
+    assert_eq!(Query::from(point!["good"]), qobject!{"good" => qvalue!()});
+    assert_eq!(Query::from(point![]), qvalue!());
   }
 }
