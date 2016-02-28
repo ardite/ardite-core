@@ -25,9 +25,8 @@ pub trait Driver {
   /// Set a value at a certain point in the driver.
   fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error>;
 
-  /// Get a value from a certain point in the driver. An optional query may be
-  /// performed for more complex data selection.
-  fn get(&self, query: Query) -> Result<Value, Error>;
+  /// Query a subset of values in the database.
+  fn query(&self, query: Query) -> Result<Value, Error>;
 
   /// Gets the schema for the driver. By default no schema is returned.
   fn get_schema(&self) -> Result<Schema, Error> {
