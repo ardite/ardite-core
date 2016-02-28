@@ -37,9 +37,9 @@ macro_rules! vobject {
 macro_rules! varray {
   ($($value:expr),*) => {
     {
-      let mut _vec = ::std::collections::Vec::new();
+      let mut _vec = Vec::new();
       $(
-        _vec.push($value)
+        _vec.push($value);
       )*
       $crate::value::Value::Array(_vec)
     }

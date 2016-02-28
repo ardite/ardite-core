@@ -78,6 +78,7 @@ mod tests {
   fn test_get_primitive() {
     assert_eq!(vnull!().get(point![]), Some(vnull!()));
     assert_eq!(vnull!().get(point!["hello"]), None);
+    assert_eq!(vnull!().get(point!["a", "b", "c", "d", "e"]), None);
     assert_eq!(vbool!(true).get(point![]), Some(vbool!(true)));
     assert_eq!(vbool!(true).get(point!["hello"]), None);
     assert_eq!(vnum!(36f64).get(point![]), Some(vnum!(36f64)));
@@ -104,6 +105,34 @@ mod tests {
     assert_eq!(object.get(point!["moon", "nope"]), None);
   }
 
-  // #[test]
-  // fn test_get_array
+  #[test]
+  fn test_get_array() {
+    let array = varray![
+      vbool!(false),
+      vnum!(64f64),
+      vobject!{
+        "hello" => vbool!(true),
+        "world" => vbool!(false),
+        "moon" => vobject!{
+          "goodbye" => vstring!("yoyo")
+        }
+      },
+      varray![
+        varray![
+          vnum!(1f64),
+          vnum!(2f64),
+          vnum!(3f64)
+        ],
+        vnum!(4f64),
+        vnum!(5f64)
+      ]
+    ];
+    assert_eq!(array.get(point![]), Some(array.clone()));
+    assert_eq!(array.get(point!["0"]), Some(vbool!(false)));
+    assert_eq!(array.get(point!["1"]), Some(vnum!(64f64)));
+    assert_eq!(array.get(point!["2", "hello"]), Some(vbool!(true)));
+    assert_eq!(array.get(point!["2", "moon", "goodbye"]), Some(vstring!("yoyo")));
+    assert_eq!(array.get(point!["length"]), None);
+    assert_eq!(array.get(point!["3", "0", "1"]), Some(vnum!(2f64)));
+  }
 }
