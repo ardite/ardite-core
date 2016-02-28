@@ -10,4 +10,6 @@ repository = "ardite/ardite-core"
 readme = "README.md"
 
 [dependencies]
-linear-map = "0.0.4"
+lazy_static = "0.1"
+linear-map = { git = "https://github.com/calebmer/linear-map" }
+regex = "0.1"
