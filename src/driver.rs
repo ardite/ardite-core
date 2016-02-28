@@ -2,8 +2,9 @@
 //! different drivers exist elsewhere.
 
 use error::Error;
-use value::*;
+use value::{Pointer, Value};
 use query::Query;
+use schema::Schema;
 
 /// Gets the driver from a URL string using the protocol. For example a URL
 /// of `postgres://localhost:5432/test_db` would look for a
