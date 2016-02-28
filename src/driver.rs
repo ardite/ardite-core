@@ -10,10 +10,9 @@ use query::Query;
 /// `ardite-driver-postgres` crate, download the crate if it did not already
 /// exist in the file system, and then return an instance initialized with the
 /// `connect` static trait function.
+#[allow(unused_variables)]
 pub fn get_driver<D: Driver>(url: &str) -> D {
   // TODO: implement.
-  // Used to quiet warnings.
-  println!("{}", url);
   unimplemented!();
 }
 
