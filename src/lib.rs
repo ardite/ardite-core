@@ -1,5 +1,7 @@
-#[macro_use] extern crate lazy_static;
-#[macro_use] extern crate linear_map;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate linear_map;
 extern crate regex;
 
 pub mod driver;
