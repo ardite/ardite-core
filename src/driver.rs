@@ -29,7 +29,9 @@ pub trait Driver {
   fn query(&self, query: Query) -> Result<Value, Error>;
 
   /// Gets the schema for the driver. By default no schema is returned.
-  fn get_schema(&self) -> Result<Schema, Error> {
+  /// Whether or not this method gets memoized is the driver implementors
+  /// decision.
+  fn schema(&self) -> Result<Schema, Error> {
     Ok(Schema::None)
   }
 }
