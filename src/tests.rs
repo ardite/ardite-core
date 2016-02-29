@@ -55,7 +55,7 @@ macro_rules! point {
       )*
       _vec
     }
-  };
+  }
 }
 
 macro_rules! qvalue {
