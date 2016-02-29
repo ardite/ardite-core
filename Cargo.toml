@@ -8,3 +8,8 @@ license = "MIT"
 homepage = "https://github.com/ardite/ardite-core"
 repository = "ardite/ardite-core"
 readme = "README.md"
+
+[dependencies]
+lazy_static = "0.1"
+linear-map = { git = "https://github.com/calebmer/linear-map" }
+regex = "0.1"

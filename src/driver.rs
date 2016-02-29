@@ -2,16 +2,18 @@
 //! different drivers exist elsewhere.
 
 use error::Error;
-use value::*;
+use value::{Pointer, Value};
 use query::Query;
+use schema::Schema;
 
 /// Gets the driver from a URL string using the protocol. For example a URL
 /// of `postgres://localhost:5432/test_db` would look for a
 /// `ardite-driver-postgres` crate, download the crate if it did not already
 /// exist in the file system, and then return an instance initialized with the
 /// `connect` static trait function.
+#[allow(unused_variables)]
 pub fn get_driver<D: Driver>(url: &str) -> D {
-  // TODO: implement
+  // TODO: implement.
   unimplemented!();
 }
 
