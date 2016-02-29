@@ -43,29 +43,19 @@ impl Value {
       &Value::Object(ref map) => {
         if pointer.len() == 0 {
           Some(self.clone())
+        } else if let Some(value) = map.get(&pointer.remove(0)) {
+          value.get(pointer)
         } else {
-          let key = pointer.remove(0);
-          if let Some(value) = map.get(&key) {
-            value.get(pointer)
-          } else {
-            None
-          }
+          None
         }
       },
       &Value::Array(ref vec) => {
         if pointer.len() == 0 {
           Some(self.clone())
+        } else if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
+          value.get(pointer)
         } else {
-          let key = pointer.remove(0);
-          if let Some(index) = key.parse::<usize>().ok() {
-            if let Some(value) = vec.get(index) {
-              value.get(pointer)
-            } else {
-              None
-            }
-          } else {
-            None
-          }
+          None
         }
       }
     }
