@@ -36,7 +36,7 @@ impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
   pub fn get(&self, mut pointer: Pointer) -> Option<Value> {
     match self {
-      &Value::Null => if pointer.len() == 0 { Some(Value::Null) } else { None },
+      &Value::Null => if pointer.len() == 0 { Some(self.clone()) } else { None },
       &Value::Boolean(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
       &Value::Number(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
       &Value::String(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
