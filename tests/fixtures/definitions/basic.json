@@ -1,0 +1,49 @@
+{
+  "data": {
+    "type": "object",
+    "properties": {
+      "people": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["email"],
+          "properties": {
+            "name": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 64
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "minLength": 4,
+              "maxLength": 256,
+              "pattern": ".+@.+\\..+"
+            }
+          }
+        }
+      },
+      "posts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["headline"],
+          "properties": {
+            "headline": {
+              "type": "string",
+              "minLength": 4,
+              "maxLength": 1024
+            },
+            "topic": {
+              "enum": ["showcase", "help", "ama"]
+            },
+            "text": {
+              "type": "string",
+              "maxLength": 65536
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -156,8 +156,7 @@ impl Schema {
 
 #[cfg(test)]
 mod tests {
-  use linear_map::LinearMap;
-  use schema::Schema;
+  use definition::schema::Schema;
   
   #[test]
   fn test_get_primitive() {
@@ -197,26 +196,22 @@ mod tests {
   #[test]
   fn test_get_object() {
     let object = Schema::Object {
-      properties: {
-        let mut map1 = LinearMap::new();
-        map1.insert(String::from("hello"), Schema::Boolean);
-        map1.insert(String::from("world"), Schema::Boolean);
-        map1.insert(String::from("5"), Schema::Boolean);
-        map1.insert(String::from("goodbye"), Schema::Object{
-          properties: {
-            let mut map2 = LinearMap::new();
-            map2.insert(String::from("hello"), Schema::Boolean);
-            map2.insert(String::from("world"), Schema::Boolean);
-            map2
-          },
-          required: vec![],
-          additional_properties: false
-        });
-        map1
-      },
       required: vec![],
-      additional_properties: false
-    };
+      additional_properties: false,
+      properties: linear_map! {
+        String::from("hello") => Schema::Boolean,
+        String::from("world") => Schema::Boolean,
+        String::from("5") => Schema::Boolean,
+        String::from("goodbye") => Schema::Object {
+          required: vec![],
+          additional_properties: false,
+          properties: linear_map! {
+            String::from("hello") => Schema::Boolean,
+            String::from("world") => Schema::Boolean
+          }
+        }
+      }
+    }; 
     assert_eq!(object.get(point!["yo"]), Schema::None);
     assert_eq!(object.get(point!["hello"]), Schema::Boolean);
     assert_eq!(object.get(point!["goodbye", "world"]), Schema::Boolean);
@@ -226,11 +221,11 @@ mod tests {
   #[test]
   fn test_query_none() {
     assert_eq!(Schema::None.validate_query(&qvalue!()).is_ok(), true);
-    assert_eq!(Schema::None.validate_query(&qobject!{
+    assert_eq!(Schema::None.validate_query(&qobject! {
       "s@#f&/Ij)82h(;pa0]" => qvalue!(),
       "123" => qvalue!(),
       "hello" => qvalue!(),
-      "nested" => qobject!{
+      "nested" => qobject! {
         "yo" => qvalue!()
       }
     }).is_ok(), true);
@@ -269,59 +264,53 @@ mod tests {
       items: Box::new(Schema::Boolean)
     };
     assert!(array_none.validate_query(&qvalue!()).is_ok());
-    assert!(array_none.validate_query(&qobject!{
+    assert!(array_none.validate_query(&qobject! {
       "1" => qvalue!()
     }).is_ok());
-    assert!(array_none.validate_query(&qobject!{
-      "1" => qobject!{}
+    assert!(array_none.validate_query(&qobject! {
+      "1" => qobject! {}
     }).is_ok());
-    assert!(array_bool.validate_query(&qobject!{
+    assert!(array_bool.validate_query(&qobject! {
       "1" => qvalue!(),
       "2" => qvalue!(),
       "3" => qvalue!(),
       "50" => qvalue!(),
       "999999999999999" => qvalue!()
     }).is_ok());
-    array_none.validate_query(&qobject!{
+    array_none.validate_query(&qobject! {
       "hello" => qvalue!()
     }).unwrap_err().assert_message("non-integer \"hello\"");
-    array_bool.validate_query(&qobject!{
-      "1" => qobject!{}
+    array_bool.validate_query(&qobject! {
+      "1" => qobject! {}
     }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
   }
 
   #[test]
   fn test_query_object() {
     let object = Schema::Object {
-      properties: {
-        let mut map1 = LinearMap::new();
-        map1.insert(String::from("hello"), Schema::Boolean);
-        map1.insert(String::from("world"), Schema::Boolean);
-        map1.insert(String::from("5"), Schema::Boolean);
-        map1.insert(String::from("goodbye"), Schema::Object{
-          properties: {
-            let mut map2 = LinearMap::new();
-            map2.insert(String::from("hello"), Schema::Boolean);
-            map2.insert(String::from("world"), Schema::Boolean);
-            map2
-          },
+      required: vec![],
+      additional_properties: false,
+      properties: linear_map! {
+        String::from("hello") => Schema::Boolean,
+        String::from("world") => Schema::Boolean,
+        String::from("5") => Schema::Boolean,
+        String::from("goodbye") => Schema::Object {
           required: vec![],
-          additional_properties: false
-        });
-        map1
-      },
-      required: vec![],
-      additional_properties: false
-    };
+          additional_properties: false,
+          properties: linear_map! {
+            String::from("hello") => Schema::Boolean,
+            String::from("world") => Schema::Boolean
+          }
+        }
+      }
+    }; 
     let object_additional = Schema::Object {
-      properties: {
-        let mut map = LinearMap::new();
-        map.insert(String::from("hello"), Schema::Boolean);
-        map.insert(String::from("world"), Schema::Boolean);
-        map
-      },
       required: vec![],
-      additional_properties: true
+      additional_properties: true,
+      properties: linear_map! {
+        String::from("hello") => Schema::Boolean,
+        String::from("world") => Schema::Boolean
+      }
     };
     assert!(object.validate_query(&qobject!{
       "world" => qvalue!(),

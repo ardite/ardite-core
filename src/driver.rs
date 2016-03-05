@@ -5,7 +5,6 @@ use error::{Error, ErrorCode};
 use patch::Patch;
 use value::{Pointer, Value};
 use query::Query;
-use schema::Schema;
 
 /// Gets the driver from a URL string using the protocol. For example a URL
 /// of `postgres://localhost:5432/test_db` would look for a
@@ -49,10 +48,5 @@ pub trait Driver {
         hint: None
       })
     }
-  }
-
-  /// Gets the schema for the driver. By default no schema is returned.
-  fn get_schema(&self) -> Result<Schema, Error> {
-    Ok(Schema::None)
   }
 }
