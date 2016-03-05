@@ -1,7 +1,7 @@
 //! This module contains the common driver code. Specific implementations for
 //! different drivers exist elsewhere.
 
-use error::Error;
+use error::{Error, ErrorCode};
 use value::{Pointer, Value};
 use query::Query;
 use schema::Schema;
@@ -25,9 +25,22 @@ pub trait Driver {
   /// Set a value at a certain point in the driver.
   fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error>;
 
-  /// Get a value from a certain point in the driver. An optional query may be
-  /// performed for more complex data selection.
-  fn get(&self, query: Query) -> Result<Value, Error>;
+  /// Performs a complex query on the driver. Returns a value whose shape
+  /// matches the shape of the query.
+  fn query(&self, query: Query) -> Result<Value, Error>;
+  
+  /// Get’s a value in the driver at a specific point and returns exactly that
+  /// value.
+  fn get(&self, pointer: Pointer) -> Result<Value, Error> {
+    match try!(self.query(Query::from(pointer.clone()))).get(pointer) {
+      Some(value) => Ok(value),
+      None => Err(Error {
+        code: ErrorCode::Internal,
+        message: String::from("Driver failed to return a value with the requested data."),
+        hint: None
+      })
+    }
+  }
 
   /// Gets the schema for the driver. By default no schema is returned.
   fn get_schema(&self) -> Result<Schema, Error> {
