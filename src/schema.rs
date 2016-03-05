@@ -48,7 +48,11 @@ pub enum Schema {
   /// Represents a set of any type.
   Array {
     /// A schema which all items in the array must match.
-    items: Box<Schema>
+    items: Box<Schema>,
+    /// The minimum number of items in the array.
+    min_items: Option<u64>,
+    /// The maximum number of items in the array.
+    max_items: Option<u64>
   },
   /// Represents any tuple of values.
   Tuple {
@@ -95,7 +99,7 @@ impl Schema {
       (&Schema::String{..}, &Query::Value) => Ok(()),
       (&Schema::String{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
       (&Schema::Array{..}, &Query::Value) => Ok(()),
-      (&Schema::Array{ref items}, &Query::Object(ref query_properties)) => {
+      (&Schema::Array{ref items,..}, &Query::Object(ref query_properties)) => {
         match query_properties.keys().map(|key| {
           if !INTEGER_RE.is_match(key) {
             Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
@@ -189,11 +193,15 @@ mod tests {
 
   #[test]
   fn test_query_array() {
-    let array_none = Schema::Array{
-      items: Box::new(Schema::None)
+    let array_none = Schema::Array {
+      items: Box::new(Schema::None),
+      min_items: None,
+      max_items: None
     };
-    let array_bool = Schema::Array{
-      items: Box::new(Schema::Boolean)
+    let array_bool = Schema::Array {
+      items: Box::new(Schema::Boolean),
+      min_items: None,
+      max_items: None
     };
     assert!(array_none.validate_query(&qvalue!()).is_ok());
     assert!(array_none.validate_query(&qobject!{
