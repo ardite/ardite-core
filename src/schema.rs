@@ -4,6 +4,10 @@ use error::Error;
 use query::Query;
 use value::{Key, Value};
 
+lazy_static! {
+  static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
+}
+
 /// A schema detailing what the data received from the driver (or inserted
 /// into the driver) should be. Inspired after [JSON Schema][1]. A reference
 /// on JSON Schema type-specific validations used in this enum may be found
@@ -48,11 +52,7 @@ pub enum Schema {
   /// Represents a set of any type.
   Array {
     /// A schema which all items in the array must match.
-    items: Box<Schema>,
-    /// The minimum number of items in the array.
-    min_items: Option<u64>,
-    /// The maximum number of items in the array.
-    max_items: Option<u64>
+    items: Box<Schema>
   },
   /// Represents any tuple of values.
   Tuple {
@@ -83,8 +83,6 @@ impl Schema {
   /// in the query are accessible according to the schema.
   pub fn validate_query(&self, query: &Query) -> Result<(), Error> {
     static NO_PRIMITIVE_HINT: &'static str = "Try not querying specific properties of a primitive like `null` or `boolean`.";
-    lazy_static! { static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap(); }
-
     match (self, query) {
       // No schema describes these values, its the wild west. Go crazy query.
       // `Schema::None` does not represent the absence of value, just the
@@ -99,7 +97,7 @@ impl Schema {
       (&Schema::String{..}, &Query::Value) => Ok(()),
       (&Schema::String{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
       (&Schema::Array{..}, &Query::Value) => Ok(()),
-      (&Schema::Array{ref items,..}, &Query::Object(ref query_properties)) => {
+      (&Schema::Array{ref items}, &Query::Object(ref query_properties)) => {
         match query_properties.keys().map(|key| {
           if !INTEGER_RE.is_match(key) {
             Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
@@ -194,14 +192,10 @@ mod tests {
   #[test]
   fn test_query_array() {
     let array_none = Schema::Array {
-      items: Box::new(Schema::None),
-      min_items: None,
-      max_items: None
+      items: Box::new(Schema::None)
     };
     let array_bool = Schema::Array {
-      items: Box::new(Schema::Boolean),
-      min_items: None,
-      max_items: None
+      items: Box::new(Schema::Boolean)
     };
     assert!(array_none.validate_query(&qvalue!()).is_ok());
     assert!(array_none.validate_query(&qobject!{
