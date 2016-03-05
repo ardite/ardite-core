@@ -27,8 +27,14 @@ pub enum Schema {
     multiple_of: Option<f32>,
     /// The minimum value the number can be.
     minimum: Option<f64>,
+    /// Whether or not the minimum value should be included when validating.
+    /// Default is `false`.
+    exclusive_minimum: bool,
     /// The maximum value the number can be.
-    maximum: Option<f64>
+    maximum: Option<f64>,
+    /// Whether or not the maximum value should be included when validating.
+    /// Default is `false`.
+    exclusive_maximum: bool
   },
   String {
     /// The mimimum length of characters in the string.
@@ -166,7 +172,9 @@ mod tests {
     Schema::Number{
       multiple_of: None,
       minimum: None,
-      maximum: None
+      exclusive_minimum: false,
+      maximum: None,
+      exclusive_maximum: false
     }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::String{
       min_length: None,
