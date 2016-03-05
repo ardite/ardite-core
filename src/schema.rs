@@ -2,7 +2,7 @@ use linear_map::LinearMap;
 use regex::Regex;
 use error::Error;
 use query::Query;
-use value::{Key, Value};
+use value::{Key, Pointer, Value};
 
 lazy_static! {
   static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
@@ -15,6 +15,7 @@ lazy_static! {
 ///
 /// [1]: http://json-schema.org
 /// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
+#[derive(PartialEq, Clone, Debug)]
 pub enum Schema {
   /// There is no schema. No validations should occur. Does not represent the
   /// abscense of any value, only represents that a schema does not define the
@@ -71,6 +72,36 @@ pub enum Schema {
 }
 
 impl Schema {
+  /// Gets a nested schema at a certain point.
+  pub fn get(&self, mut pointer: Pointer) -> Self {
+    if pointer.len() == 0 {
+      self.clone()
+    } else {
+      match self {
+        &Schema::None => Schema::None,
+        &Schema::Null => Schema::None,
+        &Schema::Boolean => Schema::None,
+        &Schema::Number{..} => Schema::None,
+        &Schema::String{..} => Schema::None,
+        &Schema::Array{ref items} => {
+          if INTEGER_RE.is_match(&pointer.remove(0)) {
+            items.get(pointer)
+          } else {
+            Schema::None
+          }
+        },
+        &Schema::Object{ref properties,..} => {
+          if let Some(schema) = properties.get(&pointer.remove(0)) {
+            schema.get(pointer)
+          } else {
+            Schema::None
+          }
+        },
+        &Schema::Enum(_) => Schema::None
+      }
+    }
+  }
+  
   /// Validates a query that a user would like to make on the database by
   /// comparing it to the schema. Mostly checks that all properties described
   /// in the query are accessible according to the schema.
@@ -127,6 +158,70 @@ impl Schema {
 mod tests {
   use linear_map::LinearMap;
   use schema::Schema;
+  
+  #[test]
+  fn test_get_primitive() {
+    assert_eq!(Schema::None.get(point![]), Schema::None);
+    assert_eq!(Schema::None.get(point!["hello"]), Schema::None);
+    assert_eq!(Schema::Boolean.get(point![]), Schema::Boolean);
+    assert_eq!(Schema::Boolean.get(point!["hello"]), Schema::None);
+    assert_eq!(Schema::Number {
+      multiple_of: None,
+      minimum: None,
+      exclusive_minimum: false,
+      maximum: None,
+      exclusive_maximum: false
+    }.get(point!["hello"]), Schema::None);
+    assert_eq!(Schema::String {
+      min_length: None,
+      max_length: None,
+      pattern: None
+    }.get(point!["hello"]), Schema::None);
+  }
+  
+  #[test]
+  fn test_get_array() {
+    let array_none = Schema::Array {
+      items: Box::new(Schema::None)
+    };
+    let array_bool = Schema::Array {
+      items: Box::new(Schema::Boolean)
+    };
+    assert_eq!(array_none.get(point!["1"]), Schema::None);
+    assert_eq!(array_none.get(point!["asd"]), Schema::None);
+    assert_eq!(array_bool.get(point!["1"]), Schema::Boolean);
+    assert_eq!(array_bool.get(point!["9999999"]), Schema::Boolean);
+    assert_eq!(array_bool.get(point!["asd"]), Schema::None);
+  }
+  
+  #[test]
+  fn test_get_object() {
+    let object = Schema::Object {
+      properties: {
+        let mut map1 = LinearMap::new();
+        map1.insert(String::from("hello"), Schema::Boolean);
+        map1.insert(String::from("world"), Schema::Boolean);
+        map1.insert(String::from("5"), Schema::Boolean);
+        map1.insert(String::from("goodbye"), Schema::Object{
+          properties: {
+            let mut map2 = LinearMap::new();
+            map2.insert(String::from("hello"), Schema::Boolean);
+            map2.insert(String::from("world"), Schema::Boolean);
+            map2
+          },
+          required: vec![],
+          additional_properties: false
+        });
+        map1
+      },
+      required: vec![],
+      additional_properties: false
+    };
+    assert_eq!(object.get(point!["yo"]), Schema::None);
+    assert_eq!(object.get(point!["hello"]), Schema::Boolean);
+    assert_eq!(object.get(point!["goodbye", "world"]), Schema::Boolean);
+    assert_eq!(object.get(point!["goodbye", "yo"]), Schema::None);
+  }
 
   #[test]
   fn test_query_none() {
@@ -147,14 +242,14 @@ mod tests {
     let obj_query = qobject!{};
     Schema::Null.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Boolean.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::Number{
+    Schema::Number {
       multiple_of: None,
       minimum: None,
       exclusive_minimum: false,
       maximum: None,
       exclusive_maximum: false
     }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::String{
+    Schema::String {
       min_length: None,
       max_length: None,
       pattern: None
@@ -197,7 +292,7 @@ mod tests {
 
   #[test]
   fn test_query_object() {
-    let object = Schema::Object{
+    let object = Schema::Object {
       properties: {
         let mut map1 = LinearMap::new();
         map1.insert(String::from("hello"), Schema::Boolean);
@@ -218,7 +313,7 @@ mod tests {
       required: vec![],
       additional_properties: false
     };
-    let object_additional = Schema::Object{
+    let object_additional = Schema::Object {
       properties: {
         let mut map = LinearMap::new();
         map.insert(String::from("hello"), Schema::Boolean);
