@@ -54,13 +54,6 @@ pub enum Schema {
     /// A schema which all items in the array must match.
     items: Box<Schema>
   },
-  /// Represents any tuple of values.
-  Tuple {
-    /// Schemas which each tuple value (in the same place) must comply with.
-    items: Vec<Schema>,
-    /// Whether or not there can be more items in the tuple.
-    additional_items: bool
-  },
   /// Represents a set of key/value pairs.
   Object {
     /// Schemas associated to the object properties.
@@ -103,23 +96,6 @@ impl Schema {
             Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
           } else {
             items.validate_query(&query_properties[key])
-          }
-        }).find(|r| r.is_err()) {
-          None => Ok(()),
-          Some(error) => error
-        }
-      },
-      (&Schema::Tuple{..}, &Query::Value) => Ok(()),
-      (&Schema::Tuple{ref items, ref additional_items}, &Query::Object(ref query_properties)) => {
-        match query_properties.keys().map(|key| {
-          if !INTEGER_RE.is_match(key) {
-            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-          } else if let Some(item_schema) = items.get(key.parse::<usize>().unwrap()) {
-            item_schema.validate_query(&query_properties[key])
-          } else if !additional_items {
-            Err(Error::validation(format!("Tuple has only {} values. Can’t query the index {}.", items.len(), key), format!("Query a key less than or equal to {}.", items.len() - 1)))
-          } else {
-            Ok(())
           }
         }).find(|r| r.is_err()) {
           None => Ok(()),
@@ -217,66 +193,6 @@ mod tests {
     array_bool.validate_query(&qobject!{
       "1" => qobject!{}
     }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-  }
-
-  #[test]
-  fn test_query_tuple() {
-    let nums = Schema::Tuple{
-      items: vec![Schema::Boolean, Schema::Boolean, Schema::Boolean],
-      additional_items: false
-    };
-    let nums_additional = Schema::Tuple{
-      items: vec![Schema::Boolean, Schema::Boolean, Schema::Boolean],
-      additional_items: true
-    };
-    let nums_and_object = Schema::Tuple{
-      items: vec![
-        Schema::Boolean,
-        Schema::Object{
-          properties: {
-            let mut map = LinearMap::new();
-            map.insert(String::from("hello"), Schema::Boolean);
-            map
-          },
-          required: vec![],
-          additional_properties: false
-        },
-        Schema::Boolean
-      ],
-      additional_items: false
-    };
-    assert!(nums.validate_query(&qobject!{
-      "0" => qvalue!(),
-      "2" => qvalue!()
-    }).is_ok());
-    nums.validate_query(&qobject!{
-      "0" => qvalue!(),
-      "1" => qvalue!(),
-      "2" => qvalue!(),
-      "3" => qvalue!()
-    }).unwrap_err().assert_message(r"Tuple has only 3 values\. Can’t query the index 3\.");
-    nums.validate_query(&qobject!{
-      "asd" => qvalue!(),
-      "1" => qvalue!(),
-      "2" => qvalue!(),
-      "3" => qvalue!()
-    }).unwrap_err().assert_message("non-integer \"asd\"");
-    nums.validate_query(&qobject!{
-      "1" => qvalue!(),
-      "2" => qobject!{},
-      "3" => qvalue!()
-    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(nums_additional.validate_query(&qobject!{
-      "0" => qvalue!(),
-      "1" => qvalue!(),
-      "3" => qvalue!(),
-      "99999999" => qvalue!()
-    }).is_ok());
-    assert!(nums_and_object.validate_query(&qobject!{
-      "0" => qvalue!(),
-      "1" => qobject!{"hello" => qvalue!()},
-      "2" => qvalue!()
-    }).is_ok());
   }
 
   #[test]
