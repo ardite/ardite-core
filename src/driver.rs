@@ -2,6 +2,7 @@
 //! different drivers exist elsewhere.
 
 use error::{Error, ErrorCode};
+use patch::Patch;
 use value::{Pointer, Value};
 use query::Query;
 use schema::Schema;
@@ -22,6 +23,11 @@ pub trait Driver {
   /// the driver is ready to roll!
   fn connect(url: &str) -> Result<&Self, Error>;
 
+  /// Applies multiple patches to the driver. If one patch fails, all other
+  /// patches must also fail. Returns a value with all of the new patched
+  /// values only.
+  fn patch(&self, patch: Vec<Patch>) -> Result<Value, Error>;
+  
   /// Set a value at a certain point in the driver.
   fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error>;
 
