@@ -28,8 +28,11 @@ pub trait Driver {
   /// values only.
   fn patch(&self, patch: Vec<Patch>) -> Result<Value, Error>;
   
-  /// Set a value at a certain point in the driver.
-  fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error>;
+  /// Set a value at a certain point in the driver. Returns nothing.
+  fn set(&self, pointer: Pointer, value: Value) -> Result<(), Error> {
+    try!(self.patch(vec![Patch::Set(pointer, value)]));
+    Ok(())
+  }
 
   /// Performs a complex query on the driver. Returns a value whose shape
   /// matches the shape of the query.
