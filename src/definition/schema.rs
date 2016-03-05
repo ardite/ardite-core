@@ -1,3 +1,5 @@
+//! Format for defining the shape of data in an Ardite Schema Definition.
+
 use linear_map::LinearMap;
 use regex::Regex;
 use error::Error;
@@ -9,9 +11,28 @@ lazy_static! {
 }
 
 /// A schema detailing what the data received from the driver (or inserted
-/// into the driver) should be. Inspired after [JSON Schema][1]. A reference
+/// into the driver) should be. A subset of [JSON Schema][1]. A reference
 /// on JSON Schema type-specific validations used in this enum may be found
 /// [here][2].
+///
+/// The schema is a subset of JSON Schema for three reasons:
+///
+/// 1. Searchability throughout the schema. It must be possible to do
+///    `schema.get("/hello/world")` which finds an object schema, for example
+///    with the `hello` property and then another nested `world` property.
+///    Nested schemas must be retrievable and this goal is not possible with
+///    JSON Schema constructs like `oneOf`, `allOf`, `noneOf`, or `not` make it
+///    difficult (if not impossible) to find a single schema for a pointer.
+///
+/// 2. Schema extension. In some areas, adding new properties to the schema
+///    which don’t have strict validation purposes is useful. For example
+///    `$type`, `$gen`, or `key`.
+///
+/// 3. Easy interoperability with a Rust enum. In Rust-land the best way to
+///    represent a schema like this is with an enum. The official JSON
+///    meta-schema and specification do not provide a format to easily
+///    transform to a Rust enum format, therefore a custom definition is
+///    required.
 ///
 /// [1]: http://json-schema.org
 /// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html

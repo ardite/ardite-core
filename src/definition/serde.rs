@@ -1,3 +1,6 @@
+//! Serializes and deserializes Ardite Schema Definitions from different data
+//! formats such as JSON and YAML.
+
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::path::PathBuf;
@@ -9,6 +12,8 @@ use definition::Definition;
 use definition::schema::Schema;
 use value::Value;
 
+/// Gets an Ardite Schema Definition from a file. Aims to support mainly the
+/// JSON and YAML formats.
 pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   let extension = path.extension().map_or("", |s| s.to_str().unwrap());
   let file = try!(File::open(&path));
