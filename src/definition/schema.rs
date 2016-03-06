@@ -255,7 +255,7 @@ mod tests {
   #[test]
   fn test_query_primitive() {
     assert!(Schema::Null.validate_query(&qvalue!()).is_ok());
-    let obj_query = qobject!{};
+    let obj_query = qobject! {};
     Schema::Null.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Boolean.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Number {
@@ -333,29 +333,29 @@ mod tests {
         String::from("world") => Schema::Boolean
       }
     };
-    assert!(object.validate_query(&qobject!{
+    assert!(object.validate_query(&qobject! {
       "world" => qvalue!(),
       "5" => qvalue!(),
       "goodbye" => qvalue!()
     }).is_ok());
-    object.validate_query(&qobject!{
+    object.validate_query(&qobject! {
       "hello" => qvalue!(),
       "moon" => qvalue!()
     }).unwrap_err().assert_message("Cannot query object property \"moon\".");
-    object.validate_query(&qobject!{
-      "hello" => qobject!{}
+    object.validate_query(&qobject! {
+      "hello" => qobject! {}
     }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object.validate_query(&qobject!{
-      "goodbye" => qobject!{
+    assert!(object.validate_query(&qobject! {
+      "goodbye" => qobject! {
         "hello" => qvalue!()
       }
     }).is_ok());
-    object.validate_query(&qobject!{
-      "goodbye" => qobject!{
+    object.validate_query(&qobject! {
+      "goodbye" => qobject! {
         "hello" => qobject!{}
       }
     }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object_additional.validate_query(&qobject!{
+    assert!(object_additional.validate_query(&qobject! {
       "world" => qvalue!(),
       "5" => qvalue!(),
       "goodbye" => qvalue!(),

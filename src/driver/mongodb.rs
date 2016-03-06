@@ -130,7 +130,7 @@ impl From<Document> for Value {
 impl From<Bson> for Value {
   fn from(bson: Bson) -> Self {
     match bson {
-      Bson::FloatingPoint(value) => Value::Number(value),
+      Bson::FloatingPoint(value) => Value::F64(f64::from(value)),
       Bson::String(value) => Value::String(value),
       Bson::Array(values) => Value::Array(values.into_iter().map(|v| Value::from(v)).collect()),
       Bson::Document(document) => Value::from(document),
@@ -139,12 +139,9 @@ impl From<Bson> for Value {
       Bson::RegExp(value, _) => Value::String(value),
       Bson::JavaScriptCode(value) => Value::String(value),
       Bson::JavaScriptCodeWithScope(value, _) => Value::String(value),
-      Bson::I32(value) => Value::Number(f64::from(value)),
-      // TODO: f64 can't become i64. Add a new i64 type.
-      Bson::I64(_) => Value::Null,
-      Bson::TimeStamp(_) => Value::Null,
-      // Bson::I64(value) => Value::Number(f64::from(value)),
-      // Bson::TimeStamp(value) => Value::Number(f64::from(value)),
+      Bson::I32(value) => Value::I64(i64::from(value)),
+      Bson::I64(value) => Value::I64(i64::from(value)),
+      Bson::TimeStamp(value) => Value::I64(i64::from(value)),
       // TODO: Actual transformation of binary type.
       Bson::Binary(_, _) => Value::Null,
       Bson::ObjectId(object_id) => Value::String(object_id.to_string()),

@@ -26,9 +26,15 @@ macro_rules! vbool {
   }
 }
 
-macro_rules! vnum {
+macro_rules! vi64 {
   ($value:expr) => {
-    $crate::value::Value::Number(f64::from($value))
+    $crate::value::Value::I64(i64::from($value))
+  }
+}
+
+macro_rules! vf64 {
+  ($value:expr) => {
+    $crate::value::Value::F64(f64::from($value))
   }
 }
 

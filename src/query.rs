@@ -32,14 +32,14 @@ mod tests {
 
   #[test]
   fn test_from_pointer() {
-    assert_eq!(Query::from(point!["hello", "good", "world"]), qobject!{
-      "hello" => qobject!{
-        "good" => qobject!{
+    assert_eq!(Query::from(point!["hello", "good", "world"]), qobject! {
+      "hello" => qobject! {
+        "good" => qobject! {
           "world" => qvalue!()
         }
       }
     });
-    assert_eq!(Query::from(point!["good"]), qobject!{"good" => qvalue!()});
+    assert_eq!(Query::from(point!["good"]), qobject! {"good" => qvalue!()});
     assert_eq!(Query::from(point![]), qvalue!());
   }
 }
