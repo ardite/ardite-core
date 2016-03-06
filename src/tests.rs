@@ -79,21 +79,3 @@ macro_rules! point {
     }
   }
 }
-
-macro_rules! qvalue {
-  () => {
-    $crate::query::Query::Value
-  }
-}
-
-macro_rules! qobject {
-  ($($key:expr => $value:expr),*) => {
-    {
-      let mut _map = ::linear_map::LinearMap::new();
-      $(
-        _map.insert(String::from($key), $value);
-      )*
-      $crate::query::Query::Object(_map)
-    }
-  }
-}

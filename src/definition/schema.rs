@@ -3,7 +3,7 @@
 use linear_map::LinearMap;
 use regex::Regex;
 use error::Error;
-use query::Query;
+use query::{Query, Selection};
 use value::{Key, Pointer, Value};
 
 lazy_static! {
@@ -142,11 +142,13 @@ impl Schema {
       (&Schema::String{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
       (&Schema::Array{..}, &Query::Value) => Ok(()),
       (&Schema::Array{ref items}, &Query::Object(ref query_properties)) => {
-        match query_properties.keys().map(|key| {
-          if !INTEGER_RE.is_match(key) {
-            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-          } else {
-            items.validate_query(&query_properties[key])
+        match query_properties.keys().map(|selection| match selection {
+          &Selection::Key(ref key) => {
+            if !INTEGER_RE.is_match(key) {
+              Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
+            } else {
+              items.validate_query(&query_properties.get(selection).unwrap())
+            }
           }
         }).find(|r| r.is_err()) {
           None => Ok(()),
@@ -155,13 +157,15 @@ impl Schema {
       },
       (&Schema::Object{..}, &Query::Value) => Ok(()),
       (&Schema::Object{ref properties, ref additional_properties,..}, &Query::Object(ref query_properties)) => {
-        match query_properties.keys().map(|key| {
-          if let Some(property_schema) = properties.get(key) {
-            property_schema.validate_query(&query_properties[key])
-          } else if !additional_properties {
-            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
-          } else {
-            Ok(())
+        match query_properties.keys().map(|selection| match selection {
+          &Selection::Key(ref key) => {
+            if let Some(property_schema) = properties.get(key) {
+              property_schema.validate_query(&query_properties.get(selection).unwrap())
+            } else if !additional_properties {
+              Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
+            } else {
+              Ok(())
+            }
           }
         }).find(|r| r.is_err()) {
           None => Ok(()),
@@ -177,6 +181,7 @@ impl Schema {
 #[cfg(test)]
 mod tests {
   use definition::schema::Schema;
+  use query::{Query, Selection};
   
   #[test]
   fn test_get_primitive() {
@@ -240,21 +245,21 @@ mod tests {
 
   #[test]
   fn test_query_none() {
-    assert_eq!(Schema::None.validate_query(&qvalue!()).is_ok(), true);
-    assert_eq!(Schema::None.validate_query(&qobject! {
-      "s@#f&/Ij)82h(;pa0]" => qvalue!(),
-      "123" => qvalue!(),
-      "hello" => qvalue!(),
-      "nested" => qobject! {
-        "yo" => qvalue!()
-      }
-    }).is_ok(), true);
+    assert_eq!(Schema::None.validate_query(&Query::Value).is_ok(), true);
+    assert_eq!(Schema::None.validate_query(&Query::Object(linear_map! {
+      Selection::Key("s@#f&/Ij)82h(;pa0]".to_string()) => Query::Value,
+      Selection::Key("123".to_string()) => Query::Value,
+      Selection::Key("hello".to_string()) => Query::Value,
+      Selection::Key("nested".to_string()) => Query::Object(linear_map! {
+        Selection::Key("yo".to_string()) => Query::Value
+      })
+    })).is_ok(), true);
   }
 
   #[test]
   fn test_query_primitive() {
-    assert!(Schema::Null.validate_query(&qvalue!()).is_ok());
-    let obj_query = qobject! {};
+    assert!(Schema::Null.validate_query(&Query::Value).is_ok());
+    let obj_query = Query::Object(linear_map! {});
     Schema::Null.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Boolean.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
     Schema::Number {
@@ -283,26 +288,26 @@ mod tests {
     let array_bool = Schema::Array {
       items: Box::new(Schema::Boolean)
     };
-    assert!(array_none.validate_query(&qvalue!()).is_ok());
-    assert!(array_none.validate_query(&qobject! {
-      "1" => qvalue!()
-    }).is_ok());
-    assert!(array_none.validate_query(&qobject! {
-      "1" => qobject! {}
-    }).is_ok());
-    assert!(array_bool.validate_query(&qobject! {
-      "1" => qvalue!(),
-      "2" => qvalue!(),
-      "3" => qvalue!(),
-      "50" => qvalue!(),
-      "999999999999999" => qvalue!()
-    }).is_ok());
-    array_none.validate_query(&qobject! {
-      "hello" => qvalue!()
-    }).unwrap_err().assert_message("non-integer \"hello\"");
-    array_bool.validate_query(&qobject! {
-      "1" => qobject! {}
-    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(array_none.validate_query(&Query::Value).is_ok());
+    assert!(array_none.validate_query(&Query::Object(linear_map! {
+      Selection::Key("1".to_string()) => Query::Value
+    })).is_ok());
+    assert!(array_none.validate_query(&Query::Object(linear_map! {
+      Selection::Key("1".to_string()) => Query::Object(linear_map! {})
+    })).is_ok());
+    assert!(array_bool.validate_query(&Query::Object(linear_map! {
+      Selection::Key("1".to_string()) => Query::Value,
+      Selection::Key("2".to_string()) => Query::Value,
+      Selection::Key("3".to_string()) => Query::Value,
+      Selection::Key("50".to_string()) => Query::Value,
+      Selection::Key("999999999999999".to_string()) => Query::Value
+    })).is_ok());
+    array_none.validate_query(&Query::Object(linear_map! {
+      Selection::Key("hello".to_string()) => Query::Value
+    })).unwrap_err().assert_message("non-integer \"hello\"");
+    array_bool.validate_query(&Query::Object(linear_map! {
+      Selection::Key("1".to_string()) => Query::Object(linear_map! {})
+    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
   }
 
   #[test]
@@ -332,33 +337,33 @@ mod tests {
         String::from("world") => Schema::Boolean
       }
     };
-    assert!(object.validate_query(&qobject! {
-      "world" => qvalue!(),
-      "5" => qvalue!(),
-      "goodbye" => qvalue!()
-    }).is_ok());
-    object.validate_query(&qobject! {
-      "hello" => qvalue!(),
-      "moon" => qvalue!()
-    }).unwrap_err().assert_message("Cannot query object property \"moon\".");
-    object.validate_query(&qobject! {
-      "hello" => qobject! {}
-    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object.validate_query(&qobject! {
-      "goodbye" => qobject! {
-        "hello" => qvalue!()
-      }
-    }).is_ok());
-    object.validate_query(&qobject! {
-      "goodbye" => qobject! {
-        "hello" => qobject!{}
-      }
-    }).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
-    assert!(object_additional.validate_query(&qobject! {
-      "world" => qvalue!(),
-      "5" => qvalue!(),
-      "goodbye" => qvalue!(),
-      "moon" => qvalue!()
-    }).is_ok());
+    assert!(object.validate_query(&Query::Object(linear_map! {
+      Selection::Key("world".to_string()) => Query::Value,
+      Selection::Key("5".to_string()) => Query::Value,
+      Selection::Key("goodbye".to_string()) => Query::Value
+    })).is_ok());
+    object.validate_query(&Query::Object(linear_map! {
+      Selection::Key("hello".to_string()) => Query::Value,
+      Selection::Key("moon".to_string()) => Query::Value
+    })).unwrap_err().assert_message("Cannot query object property \"moon\".");
+    object.validate_query(&Query::Object(linear_map! {
+      Selection::Key("hello".to_string()) => Query::Object(linear_map! {})
+    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(object.validate_query(&Query::Object(linear_map! {
+      Selection::Key("goodbye".to_string()) => Query::Object(linear_map! {
+        Selection::Key("hello".to_string()) => Query::Value
+      })
+    })).is_ok());
+    object.validate_query(&Query::Object(linear_map! {
+      Selection::Key("goodbye".to_string()) => Query::Object(linear_map! {
+        Selection::Key("hello".to_string()) => Query::Object(linear_map! {})
+      })
+    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    assert!(object_additional.validate_query(&Query::Object(linear_map! {
+      Selection::Key("world".to_string()) => Query::Value,
+      Selection::Key("5".to_string()) => Query::Value,
+      Selection::Key("goodvye".to_string()) => Query::Value,
+      Selection::Key("moon".to_string()) => Query::Value
+    })).is_ok());
   }
 }

@@ -12,7 +12,13 @@ pub enum Query {
   /// Queries a single value.
   Value,
   /// Queries some partial properties of an object.
-  Object(LinearMap<Key, Query>)
+  Object(LinearMap<Selection, Query>)
+}
+
+// TODO: doc
+#[derive(Eq, PartialEq, Debug)]
+pub enum Selection {
+  Key(Key)
 }
 
 impl From<Pointer> for Query {
@@ -20,7 +26,7 @@ impl From<Pointer> for Query {
     // Reverse loop through the pointer to construct the query.
     pointer.iter().rev().fold(Query::Value, |acc, key| {
       let mut map = LinearMap::new();
-      map.insert(key.to_owned(), acc);
+      map.insert(Selection::Key(key.to_owned()), acc);
       Query::Object(map)
     })
   }
@@ -28,18 +34,20 @@ impl From<Pointer> for Query {
 
 #[cfg(test)]
 mod tests {
-  use query::Query;
+  use query::{Query, Selection};
 
   #[test]
   fn test_from_pointer() {
-    assert_eq!(Query::from(point!["hello", "good", "world"]), qobject! {
-      "hello" => qobject! {
-        "good" => qobject! {
-          "world" => qvalue!()
-        }
-      }
-    });
-    assert_eq!(Query::from(point!["good"]), qobject! {"good" => qvalue!()});
-    assert_eq!(Query::from(point![]), qvalue!());
+    assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Object(linear_map! {
+      Selection::Key("hello".to_string()) => Query::Object(linear_map! {
+        Selection::Key("good".to_string()) => Query::Object(linear_map! {
+          Selection::Key("world".to_string()) => Query::Value
+        })
+      })
+    }));
+    assert_eq!(Query::from(point!["good"]), Query::Object(linear_map! {
+      Selection::Key("good".to_string()) => Query::Value
+    }));
+    assert_eq!(Query::from(point![]), Query::Value);
   }
 }

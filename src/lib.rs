@@ -1,3 +1,5 @@
+// TODO: Replace all `String::from` with `.to_string`
+
 #![feature(plugin, custom_derive, custom_attribute)]
 #![plugin(serde_macros)]
 

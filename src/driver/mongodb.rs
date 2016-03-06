@@ -13,7 +13,7 @@ use definition::schema::Schema;
 use driver::Driver;
 use error::{Error, ErrorCode};
 use patch::Patch;
-use query::Query;
+use query::{Query, Selection};
 use value::Value;
 
 struct MongoDBDriver {
@@ -65,6 +65,7 @@ impl Driver for MongoDBDriver {
     Ok(())
   }
   
+  // TODO: Better inline documentation.
   fn query(&self, query: Query) -> Result<Value, Error> {
     match query {
       Query::Value => Err(Error {
@@ -75,29 +76,37 @@ impl Driver for MongoDBDriver {
       Query::Object(collection_queries) => {
         // First level is the collection.
         let mut object = LinearMap::new();
-        for (coll_name, query) in collection_queries {
-          let collection = self.db.collection(&coll_name);
-          match query {
-            // TODO: Make this a range error when implementing selection by
-            // range.
-            Query::Value => {
-              let mut cursor = try!(collection.find(None, None));
-              let mut values = Vec::new();
-              if let Some(Err(error)) = cursor.find(|entry| match entry {
-                &Ok(ref document) => { values.push(Value::from(document.clone())); false },
-                &Err(_) => true
-              }) {
-                return Err(Error::from(error));
-              } else {
-                object.insert(coll_name, Value::Array(values));
+        for (Selection::Key(coll_name), query) in collection_queries {
+          // if let Selection::Key(coll_name) = selection {
+            let collection = self.db.collection(&coll_name);
+            match query {
+              // TODO: Make this a range error when implementing selection by
+              // range.
+              Query::Value => {
+                let mut cursor = try!(collection.find(None, None));
+                let mut values = Vec::new();
+                if let Some(Err(error)) = cursor.find(|entry| match entry {
+                  &Ok(ref document) => { values.push(Value::from(document.clone())); false },
+                  &Err(_) => true
+                }) {
+                  return Err(Error::from(error));
+                } else {
+                  object.insert(coll_name, Value::Array(values));
+                }
+              },
+              // TODO: When implementing collections consider not using the
+              // MongoDB `_id` property as the key.
+              Query::Object(_) => {
+                
               }
-            },
-            // TODO: When implementing collections consider not using the
-            // MongoDB `_id` property as the key.
-            Query::Object(_) => {
-              
             }
-          }
+          // } else {
+          //   return Err(Error {
+          //     code: ErrorCode::Forbidden,
+          //     message: "Can‘t query a selection of MongoDB collections.".to_string(),
+          //     hint: Some("Query specific collections instead of a range of collections.".to_string())
+          //   });
+          // }
         }
         Ok(Value::Object(object))
       }
@@ -171,6 +180,7 @@ mod tests {
   use definition::schema::Schema;
   use driver::Driver;
   use driver::mongodb::MongoDBDriver;
+  use query::{Query, Selection};
   use value::Value;
   
   #[test]
@@ -233,8 +243,10 @@ mod tests {
     doc2.insert(String::from("buz"), Bson::String(String::from("baz")));
     let id1 = collection.insert_one(doc1, None).unwrap().inserted_id.unwrap();
     let id2 = collection.insert_one(doc2, None).unwrap().inserted_id.unwrap();
-    assert!(driver.query(qvalue!()).is_err());
-    assert_eq!(driver.query(qobject! { coll_name => qvalue!() }).unwrap(), vobject! {
+    assert!(driver.query(Query::Value).is_err());
+    assert_eq!(driver.query(Query::Object(linear_map! {
+      Selection::Key(coll_name.to_string()) => Query::Value
+    })).unwrap(), vobject! {
       coll_name => varray![
         vobject! {
           "_id" => Value::from(id1),
