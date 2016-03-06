@@ -6,6 +6,7 @@ use std::io::BufReader;
 use std::path::PathBuf;
 use std::fs::File;
 use linear_map::LinearMap;
+use regex::Regex;
 use serde_json;
 use error::{Error, ErrorCode};
 use definition::Definition;
@@ -93,7 +94,7 @@ impl SerdeSchema {
         "string" => Ok(Schema::String {
           min_length: self.min_length,
           max_length: self.max_length,
-          pattern: self.pattern
+          pattern: self.pattern.map_or(None, |pattern| Regex::new(&pattern).ok())
         }),
         "array" => {
           if let Some(items) = self.items {
@@ -131,6 +132,7 @@ impl SerdeSchema {
 #[cfg(test)]
 mod tests {
   use std::path::PathBuf;
+  use regex::Regex;
   use definition::Definition;
   use definition::schema::Schema;
   use definition::serde::from_file;
@@ -149,7 +151,7 @@ mod tests {
                 String::from("email") => Schema::String {
                   min_length: Some(4),
                   max_length: Some(256),
-                  pattern: Some(String::from(r".+@.+\..+"))
+                  pattern: Some(Regex::new(r".+@.+\..+").unwrap())
                 },
                 String::from("name") => Schema::String {
                   min_length: Some(2),

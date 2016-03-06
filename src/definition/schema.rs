@@ -68,8 +68,7 @@ pub enum Schema {
     /// The maximum length of characters in the string.
     max_length: Option<u64>,
     /// A regular expression pattern to validate the string against.
-    // TODO: Use a regex crate.
-    pattern: Option<String>
+    pattern: Option<Regex>
   },
   /// Represents a set of any type.
   Array {
