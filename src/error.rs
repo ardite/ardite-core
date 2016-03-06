@@ -63,6 +63,15 @@ impl Error {
       hint: Some(hint.into())
     }
   }
+  
+  /// Convenience function for saying there was an internal error.
+  pub fn internal<S>(message: S) -> Self where S: Into<String> {
+    Error {
+      code: ErrorCode::Internal,
+      message: message.into(),
+      hint: None
+    }
+  }
 
   /// Convenience function for creating an unimplemented error with a plain
   /// message describing what is unimplemented.
