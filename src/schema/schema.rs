@@ -180,7 +180,7 @@ impl Schema {
 
 #[cfg(test)]
 mod tests {
-  use definition::schema::Schema;
+  use schema::Schema;
   use query::{Query, Selection};
   
   #[test]

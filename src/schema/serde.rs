@@ -9,8 +9,7 @@ use linear_map::LinearMap;
 use regex::Regex;
 use serde_json;
 use error::{Error, ErrorCode};
-use definition::Definition;
-use definition::schema::Schema;
+use schema::{Definition, Schema};
 use value::Value;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -133,9 +132,7 @@ impl SerdeSchema {
 mod tests {
   use std::path::PathBuf;
   use regex::Regex;
-  use definition::Definition;
-  use definition::schema::Schema;
-  use definition::serde::from_file;
+  use schema::{Definition, Schema, from_file};
   
   lazy_static! {
     static ref BASIC_DEFINITION: Definition = Definition {
