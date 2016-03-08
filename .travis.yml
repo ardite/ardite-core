@@ -1,8 +1,6 @@
 sudo: false
 language: rust
 rust:
-  - stable
-  - beta
   - nightly
 env:
   - ARCH=x86_64
@@ -13,8 +11,6 @@ cache:
   directories:
     - $HOME/.cargo
 script:
-  - |
-    cargo build &&
-    cargo test
+  - "cargo build && cargo test"
 notifications:
   email: false
