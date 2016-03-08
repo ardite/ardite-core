@@ -24,11 +24,11 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
       Ok(try!(data.to_definition()))
     },
     "yml" => Err(Error::unimplemented("YAML file parsing has not yet been implemented.")),
-    _ => Err(Error {
-      code: ErrorCode::NotAcceptable,
-      message: format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
-      hint: Some(format!("Use a recognizable file extension like '.json' or '.yml'."))
-    })
+    _ => Err(Error::new(
+      ErrorCode::NotAcceptable,
+      format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
+      Some(format!("Use a recognizable file extension like '.json' or '.yml'."))
+    ))
   }
 }
 
@@ -114,7 +114,10 @@ impl SerdeSchema {
             map
           }
         }),
-        _ => Err(Error::validation(format!("Invalid type '{}'.", type_), format!("Use a permitted type like 'string' and not '{}'.", type_)))
+        _ => Err(Error::validation(
+          format!("Invalid type '{}'.", type_),
+          format!("Use a permitted type like 'string' and not '{}'.", type_)
+        ))
       },
       None => {
         if let Some(enum_) = self.enum_ {

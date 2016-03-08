@@ -27,11 +27,10 @@ impl Driver for MongoDBDriver {
         db: try!(Client::with_config(config, None, None)).db(&db_name)
       }))
     } else {
-      Err(Error {
-        code: ErrorCode::BadRequest,
-        message: format!("Database name not provided in connection string '{}'.", uri),
-        hint: None
-      })
+      Err(Error::validation(
+        format!("Database name not provided in connection path '{}'.", uri),
+        "Include the database name you are connecting to as the connection URI path."
+      ))
     }
   }
   
@@ -67,11 +66,11 @@ impl Driver for MongoDBDriver {
   // TODO: Better inline documentation.
   fn query(&self, query: Query) -> Result<Value, Error> {
     match query {
-      Query::Value => Err(Error {
-        code: ErrorCode::Forbidden,
-        message: "Can’t query the entire MongoDB database.".to_string(),
-        hint: Some("Query something more specfic instead of the entire database.".to_string())
-      }),
+      Query::Value => Err(Error::new(
+        ErrorCode::Forbidden,
+        "Can’t query the entire MongoDB database.",
+        Some("Query something more specfic instead of the entire database.")
+      )),
       Query::Object(collection_queries) => {
         // First level is the collection.
         let mut object = LinearMap::new();
@@ -100,11 +99,11 @@ impl Driver for MongoDBDriver {
               }
             }
           // } else {
-          //   return Err(Error {
-          //     code: ErrorCode::Forbidden,
-          //     message: "Can‘t query a selection of MongoDB collections.".to_string(),
-          //     hint: Some("Query specific collections instead of a range of collections.".to_string())
-          //   });
+          //   return Err(Error::new(
+          //     ErrorCode::Forbidden,
+          //     "Can‘t query a selection of MongoDB collections.",
+          //     Some("Query specific collections instead of a range of collections.")
+          //   );
           // }
         }
         Ok(Value::Object(object))

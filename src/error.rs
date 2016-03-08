@@ -37,21 +37,21 @@ pub enum ErrorCode {
 #[derive(PartialEq, Debug)]
 pub struct Error {
   /// A specific error code which describes the error.
-  pub code: ErrorCode,
+  code: ErrorCode,
   /// A message providing more detail beyond the error code.
-  pub message: String,
+  message: String,
   /// A hint to the user on what to do next to try and avoid the error
   /// happening again. This is optional.
-  pub hint: Option<String>
+  hint: Option<String>
 }
 
 impl Error {
   /// Easily create a new error.
-  pub fn new<S>(code: ErrorCode, message: S) -> Self where S: Into<String> {
+  pub fn new<S>(code: ErrorCode, message: S, hint: Option<S>) -> Self where S: Into<String> {
     Error {
       code: code,
       message: message.into(),
-      hint: None
+      hint: hint.map(|string| string.into())
     }
   }
 
