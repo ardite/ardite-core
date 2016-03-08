@@ -1,4 +1,4 @@
-![Ardite Logo](logo.gif)
+![Ardite Logo](logo.png)
 
 # Ardite Core
 
