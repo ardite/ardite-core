@@ -71,7 +71,6 @@ struct SerdeSchema {
   required: Option<Vec<String>>,
   #[serde(rename="additionalProperties")]
   additional_properties: Option<bool>,
-  // TODO: `enum` should not just accept strings.
   #[serde(rename="enum")]
   enum_: Option<Vec<String>>
 }
