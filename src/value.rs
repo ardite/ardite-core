@@ -67,8 +67,8 @@ impl Value {
   /// Converts a value into a JSON string for distribution.
   pub fn to_json(self) -> String {
     match self {
-      Value::Null => String::from("null"),
-      Value::Boolean(value) => if value { String::from("true") } else { String::from("false") },
+      Value::Null => "null".to_string(),
+      Value::Boolean(value) => if value { "true".to_string() } else { "false".to_string() },
       Value::I64(value) => value.to_string(),
       Value::F64(value) => value.to_string(),
       Value::String(value) => "\"".to_string() + &escape_string_for_json(value) + "\"",

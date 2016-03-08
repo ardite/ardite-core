@@ -99,7 +99,7 @@ impl From<IOError> for Error {
   fn from(error: IOError) -> Self {
     Error {
       code: ErrorCode::Internal,
-      message: String::from(error.description()),
+      message: error.description().to_string(),
       hint: None
     }
   }
@@ -111,14 +111,14 @@ impl From<JSONError> for Error {
       &JSONError::Syntax(_, line, column) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: String::from(error.description()),
-          hint: Some(String::from(format!("Fix your JSON syntax around line {} column {}.", line, column)))
+          message: error.description().to_string(),
+          hint: Some(format!("Fix your JSON syntax around line {} column {}.", line, column))
         }
       },
       _ => {
         Error {
           code: ErrorCode::Internal,
-          message: String::from(error.description()),
+          message: error.description().to_string(),
           hint: None
         }
       }

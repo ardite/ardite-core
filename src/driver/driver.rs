@@ -35,7 +35,7 @@ pub trait Driver {
       Some(value) => Ok(value),
       None => Err(Error {
         code: ErrorCode::Internal,
-        message: String::from("Driver failed to return a value with the requested data."),
+        message: "Driver failed to return a value with the requested data.".to_string(),
         hint: None
       })
     }

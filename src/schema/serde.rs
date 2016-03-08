@@ -26,8 +26,8 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
     "yml" => Err(Error::unimplemented("YAML file parsing has not yet been implemented.")),
     _ => Err(Error {
       code: ErrorCode::NotAcceptable,
-      message: String::from(format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display())),
-      hint: Some(String::from(format!("Use a recognizable file extension like '.json' or '.yml'.")))
+      message: format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
+      hint: Some(format!("Use a recognizable file extension like '.json' or '.yml'."))
     })
   }
 }
@@ -139,17 +139,17 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          String::from("people") => Schema::Array {
+          S!("people") => Schema::Array {
             items: Box::new(Schema::Object {
-              required: vec![String::from("email")],
+              required: vec![S!("email")],
               additional_properties: false,
               properties: linear_map! {
-                String::from("email") => Schema::String {
+                S!("email") => Schema::String {
                   min_length: Some(4),
                   max_length: Some(256),
                   pattern: Some(Regex::new(r".+@.+\..+").unwrap())
                 },
-                String::from("name") => Schema::String {
+                S!("name") => Schema::String {
                   min_length: Some(2),
                   max_length: Some(64),
                   pattern: None
@@ -157,22 +157,22 @@ mod tests {
               }
             })
           },
-          String::from("posts") => Schema::Array {
+          S!("posts") => Schema::Array {
             items: Box::new(Schema::Object {
-              required: vec![String::from("headline")],
+              required: vec![S!("headline")],
               additional_properties: false,
               properties: linear_map! {
-                String::from("headline") => Schema::String {
+                S!("headline") => Schema::String {
                   min_length: Some(4),
                   max_length: Some(1024),
                   pattern: None
                 },
-                String::from("text") => Schema::String {
+                S!("text") => Schema::String {
                   min_length: None,
                   max_length: Some(65536),
                   pattern: None
                 },
-                String::from("topic") => Schema::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
+                S!("topic") => Schema::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
               }
             })
           }

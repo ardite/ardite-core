@@ -224,15 +224,15 @@ mod tests {
       required: vec![],
       additional_properties: false,
       properties: linear_map! {
-        String::from("hello") => Schema::Boolean,
-        String::from("world") => Schema::Boolean,
-        String::from("5") => Schema::Boolean,
-        String::from("goodbye") => Schema::Object {
+        S!("hello") => Schema::Boolean,
+        S!("world") => Schema::Boolean,
+        S!("5") => Schema::Boolean,
+        S!("goodbye") => Schema::Object {
           required: vec![],
           additional_properties: false,
           properties: linear_map! {
-            String::from("hello") => Schema::Boolean,
-            String::from("world") => Schema::Boolean
+            S!("hello") => Schema::Boolean,
+            S!("world") => Schema::Boolean
           }
         }
       }
@@ -316,15 +316,15 @@ mod tests {
       required: vec![],
       additional_properties: false,
       properties: linear_map! {
-        String::from("hello") => Schema::Boolean,
-        String::from("world") => Schema::Boolean,
-        String::from("5") => Schema::Boolean,
-        String::from("goodbye") => Schema::Object {
+        S!("hello") => Schema::Boolean,
+        S!("world") => Schema::Boolean,
+        S!("5") => Schema::Boolean,
+        S!("goodbye") => Schema::Object {
           required: vec![],
           additional_properties: false,
           properties: linear_map! {
-            String::from("hello") => Schema::Boolean,
-            String::from("world") => Schema::Boolean
+            S!("hello") => Schema::Boolean,
+            S!("world") => Schema::Boolean
           }
         }
       }
@@ -333,8 +333,8 @@ mod tests {
       required: vec![],
       additional_properties: true,
       properties: linear_map! {
-        String::from("hello") => Schema::Boolean,
-        String::from("world") => Schema::Boolean
+        S!("hello") => Schema::Boolean,
+        S!("world") => Schema::Boolean
       }
     };
     assert!(object.validate_query(&Query::Object(linear_map! {

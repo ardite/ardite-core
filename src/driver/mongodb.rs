@@ -29,7 +29,7 @@ impl Driver for MongoDBDriver {
     } else {
       Err(Error {
         code: ErrorCode::BadRequest,
-        message: String::from(format!("Database name not provided in connection string '{}'.", uri)),
+        message: format!("Database name not provided in connection string '{}'.", uri),
         hint: None
       })
     }
@@ -69,8 +69,8 @@ impl Driver for MongoDBDriver {
     match query {
       Query::Value => Err(Error {
         code: ErrorCode::Forbidden,
-        message: String::from("Can’t query the entire MongoDB database."),
-        hint: Some(String::from("Query something more specfic instead of the entire database."))
+        message: "Can’t query the entire MongoDB database.".to_string(),
+        hint: Some("Query something more specfic instead of the entire database.".to_string())
       }),
       Query::Object(collection_queries) => {
         // First level is the collection.
@@ -197,7 +197,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          String::from("foo") => Schema::Boolean
+          S!("foo") => Schema::Boolean
         }
       }
     }).is_err());
@@ -206,7 +206,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          String::from("foo") => Schema::Array {
+          S!("foo") => Schema::Array {
             items: Box::new(Schema::Boolean)
           }
         }
@@ -217,7 +217,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          String::from("foo") => Schema::Array {
+          S!("foo") => Schema::Array {
             items: Box::new(Schema::Object {
               required: vec![],
               additional_properties: true,
@@ -236,10 +236,10 @@ mod tests {
     driver.db.drop_collection(coll_name).unwrap();
     let collection = driver.db.collection(coll_name);
     let mut doc1 = Document::new();
-    doc1.insert(String::from("title"), Bson::String(String::from("Back to the future!")));
-    doc1.insert(String::from("foo"), Bson::String(String::from("bar")));
+    doc1.insert(S!("title"), Bson::String(S!("Back to the future!")));
+    doc1.insert(S!("foo"), Bson::String(S!("bar")));
     let mut doc2 = Document::new();
-    doc2.insert(String::from("buz"), Bson::String(String::from("baz")));
+    doc2.insert(S!("buz"), Bson::String(S!("baz")));
     let id1 = collection.insert_one(doc1, None).unwrap().inserted_id.unwrap();
     let id2 = collection.insert_one(doc2, None).unwrap().inserted_id.unwrap();
     assert!(driver.query(Query::Value).is_err());
