@@ -14,9 +14,9 @@ extern crate serde_json;
 #[macro_use]
 mod tests;
 
-pub mod definition;
 pub mod driver;
 pub mod error;
 pub mod patch;
 pub mod query;
+pub mod schema;
 pub mod value;

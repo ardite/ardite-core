@@ -4,7 +4,7 @@
 #[cfg(feature = "driver_mongodb")]
 pub mod mongodb;
 
-use definition::Definition;
+use schema::Definition;
 use error::{Error, ErrorCode};
 use patch::Patch;
 use value::{Pointer, Value};
