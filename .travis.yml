@@ -7,6 +7,7 @@ env:
   - ARCH=i686
 os:
   - linux
+  - osx
 cache:
   directories:
     - $HOME/.cargo
