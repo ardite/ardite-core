@@ -15,16 +15,16 @@ default = []
 driver_mongodb = ["mongodb", "bson"]
 
 [dependencies]
-bson = { version = "0.1", optional = true }
-lazy_static = "0.1"
-linear-map = "0.0"
-mongodb = { version = "0.1", optional = true }
-regex = "0.1"
-serde = "0.7"
-serde_json = "0.7"
-serde_yaml = "0.2"
+bson = { version = "0.2.0", optional = true }
+lazy_static = "0.1.15"
+linear-map = "0.0.4"
+mongodb = { version = "0.1.3", optional = true }
+regex = "0.1.55"
+serde = "0.7.0"
+serde_json = "0.7.0"
+serde_yaml = "0.2.2"
 
 [build-dependencies]
-glob = "0.2"
-serde_codegen = "0.7"
-syntex = "0.29"
+glob = "0.2.11"
+serde_codegen = "0.7.0"
+syntex = "0.29.0"
