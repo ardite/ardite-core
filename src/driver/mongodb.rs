@@ -19,7 +19,7 @@ struct MongoDBDriver {
   db: Database
 }
 
-impl Driver for MongoDBDriver {
+impl Driver for MongoDriver {
   fn connect(uri: &str) -> Result<Box<Self>, Error> {
     let config = try!(connstring::parse(uri));
     if let Some(db_name) = config.clone().database {
