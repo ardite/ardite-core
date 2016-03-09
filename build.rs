@@ -7,9 +7,9 @@ use glob::glob;
 use syntex::Registry;
 
 pub fn main() {
-  for entry in glob("src/**/*.gen.rs").unwrap() {
+  for entry in glob("src/**/*.src.rs").unwrap() {
     let src = entry.unwrap();
-    let dst = src.to_str().unwrap().replace(".gen.rs", ".rs");
+    let dst = src.to_str().unwrap().replace(".src.rs", ".rs");
     let mut registry = Registry::new();
     serde_codegen::register(&mut registry);
     registry.expand("", &src, Path::new(&dst)).unwrap();
