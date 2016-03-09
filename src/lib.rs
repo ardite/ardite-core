@@ -1,6 +1,3 @@
-#![feature(plugin, custom_derive, custom_attribute)]
-#![plugin(serde_macros)]
-
 #[macro_use]
 extern crate lazy_static;
 extern crate linear_map;

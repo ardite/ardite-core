@@ -1,10 +1,9 @@
 sudo: false
 language: rust
 rust:
+  - stable
+  - beta
   - nightly
-env:
-  - ARCH=x86_64
-  - ARCH=i686
 os:
   - linux
   - osx
