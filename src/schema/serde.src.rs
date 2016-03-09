@@ -2,12 +2,14 @@
 //! formats such as JSON and YAML.
 
 use std::collections::BTreeMap;
+use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::fs::File;
 use linear_map::LinearMap;
 use regex::Regex;
 use serde_json;
+use serde_yaml;
 use error::{Error, ErrorCode};
 use schema::{Definition, Schema};
 use value::Value;
@@ -16,14 +18,19 @@ use value::Value;
 /// JSON and YAML formats.
 pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   let extension = path.extension().map_or("", |s| s.to_str().unwrap());
-  let file = try!(File::open(&path));
-  let reader = BufReader::new(file);
+  let mut file = try!(File::open(&path));
   match extension {
     "json" => {
+      let reader = BufReader::new(file);
       let data: SerdeDefinition = try!(serde_json::from_reader(reader));
       Ok(try!(data.to_definition()))
     },
-    "yml" => Err(Error::unimplemented("YAML file parsing has not yet been implemented.")),
+    "yml" => {
+      let mut string = String::new();
+      try!(file.read_to_string(&mut string));
+      let data: SerdeDefinition = try!(serde_yaml::from_str(&string));
+      Ok(try!(data.to_definition()))
+    },
     _ => Err(Error::new(
       ErrorCode::NotAcceptable,
       format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
@@ -135,7 +142,7 @@ mod tests {
   use std::path::PathBuf;
   use regex::Regex;
   use schema::{Definition, Schema, from_file};
-  
+
   lazy_static! {
     static ref BASIC_DEFINITION: Definition = Definition {
       data: Schema::Object {
@@ -183,14 +190,13 @@ mod tests {
       }
     };
   }
-  
+
   #[test]
   fn test_basic_json() {
     assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), *BASIC_DEFINITION);
   }
-  
+
   #[test]
-  #[ignore]
   fn test_basic_yaml() {
     assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), *BASIC_DEFINITION);
   }

@@ -4,6 +4,7 @@ extern crate linear_map;
 extern crate regex;
 extern crate serde;
 extern crate serde_json;
+extern crate serde_yaml;
 
 #[cfg(test)]
 #[macro_use]
