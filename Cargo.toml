@@ -8,8 +8,22 @@ license = "MIT"
 homepage = "https://github.com/ardite/ardite-core"
 repository = "ardite/ardite-core"
 readme = "README.md"
+build = "build.rs"
+
+[features]
+default = []
+driver_mongodb = ["mongodb", "bson"]
 
 [dependencies]
+bson = { version = "0.1", optional = true }
 lazy_static = "0.1"
 linear-map = "0.0"
+mongodb = { version = "0.1", optional = true }
 regex = "0.1"
+serde = "0.7"
+serde_json = "0.7"
+
+[build-dependencies]
+glob = "0.2"
+serde_codegen = "0.7"
+syntex = "0.29"

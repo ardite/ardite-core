@@ -1,3 +1,5 @@
+![Ardite Logo](logo.png)
+
 # Ardite Core
 
 [![Build Status][1]][2]
