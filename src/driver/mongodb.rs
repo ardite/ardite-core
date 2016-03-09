@@ -20,12 +20,12 @@ struct MongoDriver {
 }
 
 impl Driver for MongoDriver {
-  fn connect(uri: &str) -> Result<Box<Self>, Error> {
+  fn connect(uri: &str) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
     if let Some(db_name) = config.clone().database {
-      Ok(Box::new(MongoDriver {
+      Ok(MongoDriver {
         db: try!(Client::with_config(config, None, None)).db(&db_name)
-      }))
+      })
     } else {
       Err(Error::validation(
         format!("Database name not provided in connection path '{}'.", uri),

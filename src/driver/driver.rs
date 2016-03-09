@@ -9,7 +9,7 @@ use query::Query;
 pub trait Driver {
   /// Connects to a driver and returns a driver instance. After calling this
   /// the driver is ready to roll!
-  fn connect(uri: &str) -> Result<Box<Self>, Error>;
+  fn connect(uri: &str) -> Result<Self, Error> where Self: Sized;
 
   /// Validates an Ardite Schema Definition dependending on the driver’s
   /// contracts with the developer. Note that the definition object will not be
