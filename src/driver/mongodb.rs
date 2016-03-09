@@ -15,7 +15,7 @@ use patch::Patch;
 use query::{Query, Selection};
 use value::Value;
 
-struct MongoDBDriver {
+struct MongoDriver {
   db: Database
 }
 
@@ -23,7 +23,7 @@ impl Driver for MongoDriver {
   fn connect(uri: &str) -> Result<Box<Self>, Error> {
     let config = try!(connstring::parse(uri));
     if let Some(db_name) = config.clone().database {
-      Ok(Box::new(MongoDBDriver {
+      Ok(Box::new(MongoDriver {
         db: try!(Client::with_config(config, None, None)).db(&db_name)
       }))
     } else {
@@ -164,21 +164,21 @@ mod tests {
   use definition::Definition;
   use definition::schema::Schema;
   use driver::Driver;
-  use driver::mongodb::MongoDBDriver;
+  use driver::mongodb::MongoDriver;
   use query::{Query, Selection};
   use value::Value;
   
   #[test]
   fn test_validate_definition() {
-    assert!(MongoDBDriver::validate_definition(&Definition { data: Schema::Boolean }).is_err());
-    assert!(MongoDBDriver::validate_definition(&Definition {
+    assert!(MongoDriver::validate_definition(&Definition { data: Schema::Boolean }).is_err());
+    assert!(MongoDriver::validate_definition(&Definition {
       data: Schema::Object {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {}
       }
     }).is_ok());
-    assert!(MongoDBDriver::validate_definition(&Definition {
+    assert!(MongoDriver::validate_definition(&Definition {
       data: Schema::Object {
         required: vec![],
         additional_properties: false,
@@ -187,7 +187,7 @@ mod tests {
         }
       }
     }).is_err());
-    assert!(MongoDBDriver::validate_definition(&Definition {
+    assert!(MongoDriver::validate_definition(&Definition {
       data: Schema::Object {
         required: vec![],
         additional_properties: false,
@@ -198,7 +198,7 @@ mod tests {
         }
       }
     }).is_err());
-    assert!(MongoDBDriver::validate_definition(&Definition {
+    assert!(MongoDriver::validate_definition(&Definition {
       data: Schema::Object {
         required: vec![],
         additional_properties: false,
@@ -217,7 +217,7 @@ mod tests {
   
   #[test]
   fn test_database() {
-    let driver = MongoDBDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
+    let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
     let coll_name = "ardite_test_collection";
     driver.db.drop_collection(coll_name).unwrap();
     let collection = driver.db.collection(coll_name);
