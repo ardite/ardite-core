@@ -32,7 +32,8 @@ pub trait Driver {
   /// value.
   fn get(&self, pointer: Pointer) -> Result<Value, Error> {
     let query = Query::from(pointer.clone());
-    match try!(self.query(query)).get(pointer) {
+    let value = try!(self.query(query));
+    match value.get(pointer) {
       Some(value) => Ok(value),
       None => Err(Error::new(ErrorCode::Internal, "Driver failed to return a value with the requested data.", None))
     }
