@@ -157,19 +157,6 @@ impl From<Bson> for Value {
   }
 }
 
-// fn query_to_projection(query: Query) -> Bson {
-//   match query {
-//     Query::Value => Bson::I32(1),
-//     Query::Object(query_properties) => {
-//       let mut document = Document::new();
-//       for (key, query) in query_properties {
-//         document.insert(key, query_to_projection(query));
-//       }
-//       Bson::Document(document)
-//     }
-//   }
-// }
-
 #[cfg(test)]
 mod tests {
   use super::bson::{Bson, Document};
