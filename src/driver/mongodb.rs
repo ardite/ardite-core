@@ -75,36 +75,28 @@ impl Driver for MongoDriver {
         // First level is the collection.
         let mut object = LinearMap::new();
         for (Selection::Key(coll_name), query) in collection_queries {
-          // if let Selection::Key(coll_name) = selection {
-            let collection = self.db.collection(&coll_name);
-            match query {
-              // TODO: Make this a range error when implementing selection by
-              // range.
-              Query::Value => {
-                let mut cursor = try!(collection.find(None, None));
-                let mut values = Vec::new();
-                if let Some(Err(error)) = cursor.find(|entry| match entry {
-                  &Ok(ref document) => { values.push(Value::from(document.clone())); false },
-                  &Err(_) => true
-                }) {
-                  return Err(Error::from(error));
-                } else {
-                  object.insert(coll_name, Value::Array(values));
-                }
-              },
-              // TODO: When implementing collections consider not using the
-              // MongoDB `_id` property as the key.
-              Query::Object(_) => {
-                
+          let collection = self.db.collection(&coll_name);
+          match query {
+            // TODO: Make this a range error when implementing selection by
+            // range.
+            Query::Value => {
+              let mut cursor = try!(collection.find(None, None));
+              let mut values = Vec::new();
+              if let Some(Err(error)) = cursor.find(|entry| match entry {
+                &Ok(ref document) => { values.push(Value::from(document.clone())); false },
+                &Err(_) => true
+              }) {
+                return Err(Error::from(error));
+              } else {
+                object.insert(coll_name, Value::Array(values));
               }
+            },
+            // TODO: When implementing collections consider not using the
+            // MongoDB `_id` property as the key.
+            Query::Object(_) => {
+              
             }
-          // } else {
-          //   return Err(Error::new(
-          //     ErrorCode::Forbidden,
-          //     "Can‘t query a selection of MongoDB collections.",
-          //     Some("Query specific collections instead of a range of collections.")
-          //   );
-          // }
+          }
         }
         Ok(Value::Object(object))
       }
