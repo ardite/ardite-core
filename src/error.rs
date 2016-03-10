@@ -113,7 +113,7 @@ impl From<JSONError> for Error {
         Error {
           code: ErrorCode::BadRequest,
           message: error.description().to_string(),
-          hint: Some(format!("Fix your JSON syntax around line {} column {}.", line, column))
+          hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
       _ => {
@@ -134,7 +134,7 @@ impl From<YAMLError> for Error {
         Error {
           code: ErrorCode::BadRequest,
           message: message.clone(),
-          hint: Some("Fix your YAML syntax.".to_string())
+          hint: Some("Make sure your YAML syntax is correct.".to_string())
         }
       },
       _ => {
