@@ -6,6 +6,7 @@ use regex::Regex;
 use std::io::Error as IOError;
 use std::error::Error as ErrorTrait;
 use serde_json::error::Error as JSONError;
+use serde_yaml::error::Error as YAMLError;
 
 /// The code of an error. Designed to easily map to [HTTP status codes][1].
 ///
@@ -63,7 +64,7 @@ impl Error {
       hint: Some(hint.into())
     }
   }
-  
+
   /// Convenience function for saying there was an internal error.
   pub fn internal<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -112,7 +113,28 @@ impl From<JSONError> for Error {
         Error {
           code: ErrorCode::BadRequest,
           message: error.description().to_string(),
-          hint: Some(format!("Fix your JSON syntax around line {} column {}.", line, column))
+          hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
+        }
+      },
+      _ => {
+        Error {
+          code: ErrorCode::Internal,
+          message: error.description().to_string(),
+          hint: None
+        }
+      }
+    }
+  }
+}
+
+impl From<YAMLError> for Error {
+  fn from(error: YAMLError) -> Self {
+    match &error {
+      &YAMLError::Custom(ref message) => {
+        Error {
+          code: ErrorCode::BadRequest,
+          message: message.clone(),
+          hint: Some("Make sure your YAML syntax is correct.".to_string())
         }
       },
       _ => {
