@@ -11,11 +11,8 @@ lazy_static! {
 }
 
 /// A schema detailing what the data received from the driver (or inserted
-/// into the driver) should be. A subset of [JSON Schema][1]. A reference
-/// on JSON Schema type-specific validations used in this enum may be found
-/// [here][2].
-///
-/// The schema is a subset of JSON Schema for three reasons:
+/// into the driver) should be. To describe this data we use a subset of
+/// [JSON Schema][1]. The schema is a subset of JSON Schema for three reasons:
 ///
 /// 1. Searchability throughout the schema. It must be possible to do
 ///    `schema.get("/hello/world")` which finds an object schema, for example
@@ -35,9 +32,105 @@ lazy_static! {
 ///    required.
 ///
 /// [1]: http://json-schema.org
-/// [2]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
 #[derive(PartialEq, Clone, Debug)]
-pub enum Schema {
+pub struct Schema {
+  pub type_: Type
+}
+
+impl Schema {
+  /// Gets a nested schema at a certain point.
+  pub fn get(&self, mut pointer: Pointer) -> Option<Self> {
+    if pointer.len() == 0 {
+      Some(self.clone())
+    } else {
+      match &self.type_ {
+        &Type::None => None,
+        &Type::Null => None,
+        &Type::Boolean => None,
+        &Type::Number{..} => None,
+        &Type::String{..} => None,
+        &Type::Array{ref items} => {
+          if INTEGER_RE.is_match(&pointer.remove(0)) {
+            items.get(pointer)
+          } else {
+            None
+          }
+        },
+        &Type::Object{ref properties,..} => {
+          if let Some(schema) = properties.get(&pointer.remove(0)) {
+            schema.get(pointer)
+          } else {
+            None
+          }
+        },
+        &Type::Enum(_) => None
+      }
+    }
+  }
+
+  /// Validates a query that a user would like to make on the database by
+  /// comparing it to the schema. Mostly checks that all properties described
+  /// in the query are accessible according to the schema.
+  pub fn validate_query(&self, query: &Query) -> Result<(), Error> {
+    static NO_PRIMITIVE_HINT: &'static str = "Try not querying specific properties of a primitive like `null` or `boolean`.";
+    match (&self.type_, query) {
+      // No schema describes these values, its the wild west. Go crazy query.
+      // `Schema { type_: Type::None }` does not represent the absence of value, just the
+      // absence of validation.
+      (&Type::None, _) => Ok(()),
+      (&Type::Null, &Query::Value) => Ok(()),
+      (&Type::Null, &Query::Object(_)) => Err(Error::validation("Cannot deeply query null.", NO_PRIMITIVE_HINT)),
+      (&Type::Boolean, &Query::Value) => Ok(()),
+      (&Type::Boolean, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a boolean.", NO_PRIMITIVE_HINT)),
+      (&Type::Number{..}, &Query::Value) => Ok(()),
+      (&Type::Number{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a number.", NO_PRIMITIVE_HINT)),
+      (&Type::String{..}, &Query::Value) => Ok(()),
+      (&Type::String{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
+      (&Type::Array{..}, &Query::Value) => Ok(()),
+      (&Type::Array{ref items}, &Query::Object(ref query_properties)) => {
+        match query_properties.keys().map(|selection| match selection {
+          &Selection::Key(ref key) => {
+            if !INTEGER_RE.is_match(key) {
+              Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
+            } else {
+              items.validate_query(&query_properties.get(selection).unwrap())
+            }
+          }
+        }).find(|r| r.is_err()) {
+          None => Ok(()),
+          Some(error) => error
+        }
+      },
+      (&Type::Object{..}, &Query::Value) => Ok(()),
+      (&Type::Object{ref properties, ref additional_properties,..}, &Query::Object(ref query_properties)) => {
+        match query_properties.keys().map(|selection| match selection {
+          &Selection::Key(ref key) => {
+            if let Some(property_schema) = properties.get(key) {
+              property_schema.validate_query(&query_properties.get(selection).unwrap())
+            } else if !additional_properties {
+              Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
+            } else {
+              Ok(())
+            }
+          }
+        }).find(|r| r.is_err()) {
+          None => Ok(()),
+          Some(error) => error
+        }
+      },
+      (&Type::Enum(_), &Query::Value) => Ok(()),
+      (&Type::Enum(_), &Query::Object(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT))
+    }
+  }
+}
+
+/// Type specific validations for values. A reference
+/// on JSON Schema type-specific validations used in this enum may be found
+/// [here][1].
+///
+/// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
+#[derive(PartialEq, Clone, Debug)]
+pub enum Type {
   /// There is no schema. No validations should occur. Does not represent the
   /// abscense of any value, only represents that a schema does not define the
   /// data structure at this point.
@@ -91,162 +184,87 @@ pub enum Schema {
   Enum(Vec<Value>)
 }
 
-impl Schema {
-  /// Gets a nested schema at a certain point.
-  pub fn get(&self, mut pointer: Pointer) -> Self {
-    if pointer.len() == 0 {
-      self.clone()
-    } else {
-      match self {
-        &Schema::None => Schema::None,
-        &Schema::Null => Schema::None,
-        &Schema::Boolean => Schema::None,
-        &Schema::Number{..} => Schema::None,
-        &Schema::String{..} => Schema::None,
-        &Schema::Array{ref items} => {
-          if INTEGER_RE.is_match(&pointer.remove(0)) {
-            items.get(pointer)
-          } else {
-            Schema::None
-          }
-        },
-        &Schema::Object{ref properties,..} => {
-          if let Some(schema) = properties.get(&pointer.remove(0)) {
-            schema.get(pointer)
-          } else {
-            Schema::None
-          }
-        },
-        &Schema::Enum(_) => Schema::None
-      }
-    }
-  }
-  
-  /// Validates a query that a user would like to make on the database by
-  /// comparing it to the schema. Mostly checks that all properties described
-  /// in the query are accessible according to the schema.
-  pub fn validate_query(&self, query: &Query) -> Result<(), Error> {
-    static NO_PRIMITIVE_HINT: &'static str = "Try not querying specific properties of a primitive like `null` or `boolean`.";
-    match (self, query) {
-      // No schema describes these values, its the wild west. Go crazy query.
-      // `Schema::None` does not represent the absence of value, just the
-      // absence of validation.
-      (&Schema::None, _) => Ok(()),
-      (&Schema::Null, &Query::Value) => Ok(()),
-      (&Schema::Null, &Query::Object(_)) => Err(Error::validation("Cannot deeply query null.", NO_PRIMITIVE_HINT)),
-      (&Schema::Boolean, &Query::Value) => Ok(()),
-      (&Schema::Boolean, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a boolean.", NO_PRIMITIVE_HINT)),
-      (&Schema::Number{..}, &Query::Value) => Ok(()),
-      (&Schema::Number{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a number.", NO_PRIMITIVE_HINT)),
-      (&Schema::String{..}, &Query::Value) => Ok(()),
-      (&Schema::String{..}, &Query::Object(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
-      (&Schema::Array{..}, &Query::Value) => Ok(()),
-      (&Schema::Array{ref items}, &Query::Object(ref query_properties)) => {
-        match query_properties.keys().map(|selection| match selection {
-          &Selection::Key(ref key) => {
-            if !INTEGER_RE.is_match(key) {
-              Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-            } else {
-              items.validate_query(&query_properties.get(selection).unwrap())
-            }
-          }
-        }).find(|r| r.is_err()) {
-          None => Ok(()),
-          Some(error) => error
-        }
-      },
-      (&Schema::Object{..}, &Query::Value) => Ok(()),
-      (&Schema::Object{ref properties, ref additional_properties,..}, &Query::Object(ref query_properties)) => {
-        match query_properties.keys().map(|selection| match selection {
-          &Selection::Key(ref key) => {
-            if let Some(property_schema) = properties.get(key) {
-              property_schema.validate_query(&query_properties.get(selection).unwrap())
-            } else if !additional_properties {
-              Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
-            } else {
-              Ok(())
-            }
-          }
-        }).find(|r| r.is_err()) {
-          None => Ok(()),
-          Some(error) => error
-        }
-      },
-      (&Schema::Enum(_), &Query::Value) => Ok(()),
-      (&Schema::Enum(_), &Query::Object(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT))
-    }
-  }
-}
-
 #[cfg(test)]
 mod tests {
-  use schema::Schema;
+  use schema::{Schema, Type};
   use query::{Query, Selection};
-  
+
   #[test]
   fn test_get_primitive() {
-    assert_eq!(Schema::None.get(point![]), Schema::None);
-    assert_eq!(Schema::None.get(point!["hello"]), Schema::None);
-    assert_eq!(Schema::Boolean.get(point![]), Schema::Boolean);
-    assert_eq!(Schema::Boolean.get(point!["hello"]), Schema::None);
-    assert_eq!(Schema::Number {
-      multiple_of: None,
-      minimum: None,
-      exclusive_minimum: false,
-      maximum: None,
-      exclusive_maximum: false
-    }.get(point!["hello"]), Schema::None);
-    assert_eq!(Schema::String {
-      min_length: None,
-      max_length: None,
-      pattern: None
-    }.get(point!["hello"]), Schema::None);
+    assert_eq!(Schema { type_: Type::None }.get(point![]).unwrap(), Schema { type_: Type::None });
+    assert!(Schema { type_: Type::None }.get(point!["hello"]).is_none());
+    assert_eq!(Schema { type_: Type::Boolean }.get(point![]).unwrap(), Schema { type_: Type::Boolean });
+    assert!(Schema { type_: Type::Boolean }.get(point!["hello"]).is_none());
+    assert!(Schema {
+      type_: Type::Number {
+        multiple_of: None,
+        minimum: None,
+        exclusive_minimum: false,
+        maximum: None,
+        exclusive_maximum: false
+      }
+    }.get(point!["hello"]).is_none());
+    assert!(Schema {
+      type_: Type::String {
+        min_length: None,
+        max_length: None,
+        pattern: None
+      }
+    }.get(point!["hello"]).is_none());
   }
-  
+
   #[test]
   fn test_get_array() {
-    let array_none = Schema::Array {
-      items: Box::new(Schema::None)
+    let array_none = Schema {
+      type_: Type::Array {
+        items: Box::new(Schema { type_: Type::None })
+      }
     };
-    let array_bool = Schema::Array {
-      items: Box::new(Schema::Boolean)
+    let array_bool = Schema {
+      type_: Type::Array {
+        items: Box::new(Schema { type_: Type::Boolean })
+      }
     };
-    assert_eq!(array_none.get(point!["1"]), Schema::None);
-    assert_eq!(array_none.get(point!["asd"]), Schema::None);
-    assert_eq!(array_bool.get(point!["1"]), Schema::Boolean);
-    assert_eq!(array_bool.get(point!["9999999"]), Schema::Boolean);
-    assert_eq!(array_bool.get(point!["asd"]), Schema::None);
+    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema { type_: Type::None });
+    assert!(array_none.get(point!["asd"]).is_none());
+    assert_eq!(array_bool.get(point!["1"]).unwrap(), Schema { type_: Type::Boolean });
+    assert_eq!(array_bool.get(point!["9999999"]).unwrap(), Schema { type_: Type::Boolean });
+    assert!(array_bool.get(point!["asd"]).is_none());
   }
-  
+
   #[test]
   fn test_get_object() {
-    let object = Schema::Object {
-      required: vec![],
-      additional_properties: false,
-      properties: linear_map! {
-        S!("hello") => Schema::Boolean,
-        S!("world") => Schema::Boolean,
-        S!("5") => Schema::Boolean,
-        S!("goodbye") => Schema::Object {
-          required: vec![],
-          additional_properties: false,
-          properties: linear_map! {
-            S!("hello") => Schema::Boolean,
-            S!("world") => Schema::Boolean
+    let object = Schema {
+      type_: Type::Object {
+        required: vec![],
+        additional_properties: false,
+        properties: linear_map! {
+          S!("hello") => Schema { type_: Type::Boolean },
+          S!("world") => Schema { type_: Type::Boolean },
+          S!("5") => Schema { type_: Type::Boolean },
+          S!("goodbye") => Schema {
+            type_: Type::Object {
+              required: vec![],
+              additional_properties: false,
+              properties: linear_map! {
+                S!("hello") => Schema { type_: Type::Boolean },
+                S!("world") => Schema { type_: Type::Boolean }
+              }
+            }
           }
         }
       }
-    }; 
-    assert_eq!(object.get(point!["yo"]), Schema::None);
-    assert_eq!(object.get(point!["hello"]), Schema::Boolean);
-    assert_eq!(object.get(point!["goodbye", "world"]), Schema::Boolean);
-    assert_eq!(object.get(point!["goodbye", "yo"]), Schema::None);
+    };
+    assert!(object.get(point!["yo"]).is_none());
+    assert_eq!(object.get(point!["hello"]).unwrap(), Schema { type_: Type::Boolean });
+    assert_eq!(object.get(point!["goodbye", "world"]).unwrap(), Schema { type_: Type::Boolean });
+    assert!(object.get(point!["goodbye", "yo"]).is_none());
   }
 
   #[test]
   fn test_query_none() {
-    assert_eq!(Schema::None.validate_query(&Query::Value).is_ok(), true);
-    assert_eq!(Schema::None.validate_query(&Query::Object(linear_map! {
+    assert_eq!(Schema { type_: Type::None }.validate_query(&Query::Value).is_ok(), true);
+    assert_eq!(Schema { type_: Type::None }.validate_query(&Query::Object(linear_map! {
       Selection::Key("s@#f&/Ij)82h(;pa0]".to_string()) => Query::Value,
       Selection::Key("123".to_string()) => Query::Value,
       Selection::Key("hello".to_string()) => Query::Value,
@@ -258,35 +276,43 @@ mod tests {
 
   #[test]
   fn test_query_primitive() {
-    assert!(Schema::Null.validate_query(&Query::Value).is_ok());
+    assert!(Schema { type_: Type::Null }.validate_query(&Query::Value).is_ok());
     let obj_query = Query::Object(linear_map! {});
-    Schema::Null.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::Boolean.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::Number {
-      multiple_of: None,
-      minimum: None,
-      exclusive_minimum: false,
-      maximum: None,
-      exclusive_maximum: false
+    Schema { type_: Type::Null }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema { type_: Type::Boolean }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema {
+      type_: Type::Number {
+        multiple_of: None,
+        minimum: None,
+        exclusive_minimum: false,
+        maximum: None,
+        exclusive_maximum: false
+      }
     }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::String {
-      min_length: None,
-      max_length: None,
-      pattern: None
+    Schema {
+      type_: Type::String {
+        min_length: None,
+        max_length: None,
+        pattern: None
+      }
     }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::Enum(vec![
+    Schema { type_: Type::Enum(vec![
       vbool!(true),
       vbool!(false)
-    ]).validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    ]) }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
   }
 
   #[test]
   fn test_query_array() {
-    let array_none = Schema::Array {
-      items: Box::new(Schema::None)
+    let array_none = Schema {
+      type_: Type::Array {
+        items: Box::new(Schema { type_: Type::None })
+      }
     };
-    let array_bool = Schema::Array {
-      items: Box::new(Schema::Boolean)
+    let array_bool = Schema {
+      type_: Type::Array {
+        items: Box::new(Schema { type_: Type::Boolean })
+      }
     };
     assert!(array_none.validate_query(&Query::Value).is_ok());
     assert!(array_none.validate_query(&Query::Object(linear_map! {
@@ -312,29 +338,35 @@ mod tests {
 
   #[test]
   fn test_query_object() {
-    let object = Schema::Object {
-      required: vec![],
-      additional_properties: false,
-      properties: linear_map! {
-        S!("hello") => Schema::Boolean,
-        S!("world") => Schema::Boolean,
-        S!("5") => Schema::Boolean,
-        S!("goodbye") => Schema::Object {
-          required: vec![],
-          additional_properties: false,
-          properties: linear_map! {
-            S!("hello") => Schema::Boolean,
-            S!("world") => Schema::Boolean
+    let object = Schema {
+      type_: Type::Object {
+        required: vec![],
+        additional_properties: false,
+        properties: linear_map! {
+          S!("hello") => Schema { type_: Type::Boolean },
+          S!("world") => Schema { type_: Type::Boolean },
+          S!("5") => Schema { type_: Type::Boolean },
+          S!("goodbye") => Schema {
+            type_: Type::Object {
+              required: vec![],
+              additional_properties: false,
+              properties: linear_map! {
+                S!("hello") => Schema { type_: Type::Boolean },
+                S!("world") => Schema { type_: Type::Boolean }
+              }
+            }
           }
         }
       }
-    }; 
-    let object_additional = Schema::Object {
-      required: vec![],
-      additional_properties: true,
-      properties: linear_map! {
-        S!("hello") => Schema::Boolean,
-        S!("world") => Schema::Boolean
+    };
+    let object_additional = Schema {
+      type_: Type::Object {
+        required: vec![],
+        additional_properties: true,
+        properties: linear_map! {
+          S!("hello") => Schema { type_: Type::Boolean },
+          S!("world") => Schema { type_: Type::Boolean }
+        }
       }
     };
     assert!(object.validate_query(&Query::Object(linear_map! {
