@@ -11,7 +11,7 @@ use regex::Regex;
 use serde_json;
 use serde_yaml;
 use error::{Error, ErrorCode};
-use schema::{Definition, Schema, Type};
+use schema::{Definition, Schema, SchemaType};
 use value::Value;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -39,7 +39,7 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   }
 }
 
-/// Type used to deserialize data files into a usable definition type.
+/// SchemaType used to deserialize data files into a usable definition type.
 #[derive(Deserialize)]
 struct SerdeDefinition {
   types: BTreeMap<String, SerdeSchema>
@@ -94,13 +94,13 @@ impl SerdeSchema {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
         "null" => Ok(Schema {
-          type_: Type::Null
+          type_: SchemaType::Null
         }),
         "boolean" => Ok(Schema {
-          type_: Type::Boolean
+          type_: SchemaType::Boolean
         }),
         "number" | "integer" => Ok(Schema {
-          type_: Type::Number {
+          type_: SchemaType::Number {
             multiple_of: self.multiple_of,
             minimum: self.minimum,
             exclusive_minimum: self.exclusive_minimum.unwrap_or(false),
@@ -109,7 +109,7 @@ impl SerdeSchema {
           }
         }),
         "string" => Ok(Schema {
-          type_: Type::String {
+          type_: SchemaType::String {
             min_length: self.min_length,
             max_length: self.max_length,
             pattern: self.pattern.map_or(None, |pattern| Regex::new(&pattern).ok())
@@ -118,7 +118,7 @@ impl SerdeSchema {
         "array" => {
           if let Some(items) = self.items {
             Ok(Schema {
-              type_: Type::Array {
+              type_: SchemaType::Array {
                 items: Box::new(try!(items.to_schema()))
               }
             })
@@ -127,7 +127,7 @@ impl SerdeSchema {
           }
         },
         "object" => Ok(Schema {
-          type_: Type::Object {
+          type_: SchemaType::Object {
             required: self.required.unwrap_or(vec![]),
             additional_properties: self.additional_properties.unwrap_or(false),
             properties: {
@@ -147,7 +147,7 @@ impl SerdeSchema {
       None => {
         if let Some(enum_) = self.enum_ {
           Ok(Schema {
-            type_: Type::Enum(enum_.into_iter().map(|s| Value::String(s)).collect())
+            type_: SchemaType::Enum(enum_.into_iter().map(|s| Value::String(s)).collect())
           })
         } else {
           Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
@@ -161,25 +161,25 @@ impl SerdeSchema {
 mod tests {
   use std::path::PathBuf;
   use regex::Regex;
-  use schema::{Definition, Schema, Type, from_file};
+  use schema::{Definition, Schema, SchemaType, from_file};
 
   lazy_static! {
     static ref BASIC_DEFINITION: Definition = Definition {
       types: linear_map! {
         S!("person") => Schema {
-          type_: Type::Object {
+          type_: SchemaType::Object {
             required: vec![S!("email")],
             additional_properties: false,
             properties: linear_map! {
               S!("email") => Schema {
-                type_: Type::String {
+                type_: SchemaType::String {
                   min_length: Some(4),
                   max_length: Some(256),
                   pattern: Some(Regex::new(r".+@.+\..+").unwrap())
                 }
               },
               S!("name") => Schema {
-                type_: Type::String {
+                type_: SchemaType::String {
                   min_length: Some(2),
                   max_length: Some(64),
                   pattern: None
@@ -189,26 +189,26 @@ mod tests {
           }
         },
         S!("post") => Schema {
-          type_: Type::Object {
+          type_: SchemaType::Object {
             required: vec![S!("headline")],
             additional_properties: false,
             properties: linear_map! {
               S!("headline") => Schema {
-                type_: Type::String {
+                type_: SchemaType::String {
                   min_length: Some(4),
                   max_length: Some(1024),
                   pattern: None
                 }
               },
               S!("text") => Schema {
-                type_: Type::String {
+                type_: SchemaType::String {
                   min_length: None,
                   max_length: Some(65536),
                   pattern: None
                 }
               },
               S!("topic") => Schema {
-                type_: Type::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
+                type_: SchemaType::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
               }
             }
           }
