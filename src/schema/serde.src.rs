@@ -42,14 +42,20 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
 /// Type used to deserialize data files into a usable definition type.
 #[derive(Deserialize)]
 struct SerdeDefinition {
-  data: SerdeSchema
+  types: BTreeMap<String, SerdeSchema>
 }
 
 impl SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
   fn to_definition(self) -> Result<Definition, Error> {
     Ok(Definition {
-      data: try!(self.data.to_schema())
+      types: {
+        let mut types = LinearMap::new();
+        for (key, value) in self.types.into_iter() {
+          types.insert(key.to_string(), try!(value.to_schema()));
+        }
+        types
+      }
     })
   }
 }
@@ -145,46 +151,38 @@ mod tests {
 
   lazy_static! {
     static ref BASIC_DEFINITION: Definition = Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          S!("people") => Schema::Array {
-            items: Box::new(Schema::Object {
-              required: vec![S!("email")],
-              additional_properties: false,
-              properties: linear_map! {
-                S!("email") => Schema::String {
-                  min_length: Some(4),
-                  max_length: Some(256),
-                  pattern: Some(Regex::new(r".+@.+\..+").unwrap())
-                },
-                S!("name") => Schema::String {
-                  min_length: Some(2),
-                  max_length: Some(64),
-                  pattern: None
-                }
-              }
-            })
-          },
-          S!("posts") => Schema::Array {
-            items: Box::new(Schema::Object {
-              required: vec![S!("headline")],
-              additional_properties: false,
-              properties: linear_map! {
-                S!("headline") => Schema::String {
-                  min_length: Some(4),
-                  max_length: Some(1024),
-                  pattern: None
-                },
-                S!("text") => Schema::String {
-                  min_length: None,
-                  max_length: Some(65536),
-                  pattern: None
-                },
-                S!("topic") => Schema::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
-              }
-            })
+      types: linear_map! {
+        S!("person") => Schema::Object {
+          required: vec![S!("email")],
+          additional_properties: false,
+          properties: linear_map! {
+            S!("email") => Schema::String {
+              min_length: Some(4),
+              max_length: Some(256),
+              pattern: Some(Regex::new(r".+@.+\..+").unwrap())
+            },
+            S!("name") => Schema::String {
+              min_length: Some(2),
+              max_length: Some(64),
+              pattern: None
+            }
+          }
+        },
+        S!("post") => Schema::Object {
+          required: vec![S!("headline")],
+          additional_properties: false,
+          properties: linear_map! {
+            S!("headline") => Schema::String {
+              min_length: Some(4),
+              max_length: Some(1024),
+              pattern: None
+            },
+            S!("text") => Schema::String {
+              min_length: None,
+              max_length: Some(65536),
+              pattern: None
+            },
+            S!("topic") => Schema::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
           }
         }
       }
