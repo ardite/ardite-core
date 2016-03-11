@@ -5,14 +5,14 @@ use linear_map::LinearMap;
 use value::{Key, Pointer, Value};
 
 /// Specifies a positive numeric range of data.
-pub struct Range(Bound<u64>, Bound<u64>);
+pub struct Range(Bound, Bound);
 
 /// Taken from unstable [Rust][1]. When stable we should use it.
 ///
 /// [1]: http://doc.rust-lang.org/std/collections/enum.Bound.html
-pub enum Bound<T> {
-  Included(T),
-  Excluded(T),
+pub enum Bound {
+  Included(u64),
+  Excluded(u64),
   Unbounded
 }
 
