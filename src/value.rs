@@ -34,6 +34,18 @@ pub enum Value {
   Array(Vec<Value>)
 }
 
+/// A lazy stream of values.
+pub struct ValueStream;
+
+impl Iterator for ValueStream {
+  type Item = Value;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    // TODO: implement.
+    unimplemented!();
+  }
+}
+
 impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
   pub fn get(&self, mut pointer: Pointer) -> Option<Value> {
@@ -63,7 +75,7 @@ impl Value {
       }
     }
   }
-  
+
   /// Converts a value into a JSON string for distribution.
   pub fn to_json(self) -> String {
     match self {
@@ -170,7 +182,7 @@ mod tests {
     assert_eq!(array.get(point!["length"]), None);
     assert_eq!(array.get(point!["3", "0", "1"]), Some(vi64!(2)));
   }
-  
+
   #[test]
   fn test_to_json() {
     assert_eq!(&vnull!().to_json(), "null");

@@ -2,7 +2,39 @@
 
 use std::convert::From;
 use linear_map::LinearMap;
-use value::{Key, Pointer};
+use value::{Key, Pointer, Value};
+
+/// Specifies a positive numeric range of data.
+pub struct Range(Bound<u64>, Bound<u64>);
+
+/// Taken from unstable [Rust][1]. When stable we should use it.
+///
+/// [1]: http://doc.rust-lang.org/std/collections/enum.Bound.html
+pub enum Bound<T> {
+  Included(T),
+  Excluded(T),
+  Unbounded
+}
+
+/// A condition which will resolve to a boolean value after comparing a certain
+/// value with a set rule.
+// TODO: Add standard conditions.
+pub enum Condition {
+  /// The condition always passes.
+  True,
+  /// The condition always fails.
+  False,
+  /// Inverts a condition.
+  Not(Box<Condition>),
+  /// Composes many conditions. They all must be true for the condition to be
+  /// true.
+  And(Vec<Condition>),
+  /// Composes many conditions. Only one must be true for the condition to be
+  /// true.
+  Or(Vec<Condition>),
+  /// If the compared value is exactly equal to this one, the condition passes.
+  Equal(Value)
+}
 
 /// Specifies a complex driver query. The query is structured like a tree
 /// except each node is unaware of its name (or if it even has a name). It
