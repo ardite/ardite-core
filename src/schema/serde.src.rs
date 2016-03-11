@@ -11,7 +11,7 @@ use regex::Regex;
 use serde_json;
 use serde_yaml;
 use error::{Error, ErrorCode};
-use schema::{Definition, Schema, SchemaType};
+use schema::{Definition, Type, Schema, SchemaType};
 use value::Value;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -52,7 +52,7 @@ impl SerdeDefinition {
       types: {
         let mut types = LinearMap::new();
         for (key, value) in self.types.into_iter() {
-          types.insert(key.to_string(), try!(value.to_schema()));
+          types.insert(key.to_string(), Type { schema: try!(value.to_schema()) });
         }
         types
       }
@@ -159,71 +159,17 @@ impl SerdeSchema {
 
 #[cfg(test)]
 mod tests {
+  use super::from_file;
   use std::path::PathBuf;
-  use regex::Regex;
-  use schema::{Definition, Schema, SchemaType, from_file};
-
-  lazy_static! {
-    static ref BASIC_DEFINITION: Definition = Definition {
-      types: linear_map! {
-        S!("person") => Schema {
-          type_: SchemaType::Object {
-            required: vec![S!("email")],
-            additional_properties: false,
-            properties: linear_map! {
-              S!("email") => Schema {
-                type_: SchemaType::String {
-                  min_length: Some(4),
-                  max_length: Some(256),
-                  pattern: Some(Regex::new(r".+@.+\..+").unwrap())
-                }
-              },
-              S!("name") => Schema {
-                type_: SchemaType::String {
-                  min_length: Some(2),
-                  max_length: Some(64),
-                  pattern: None
-                }
-              }
-            }
-          }
-        },
-        S!("post") => Schema {
-          type_: SchemaType::Object {
-            required: vec![S!("headline")],
-            additional_properties: false,
-            properties: linear_map! {
-              S!("headline") => Schema {
-                type_: SchemaType::String {
-                  min_length: Some(4),
-                  max_length: Some(1024),
-                  pattern: None
-                }
-              },
-              S!("text") => Schema {
-                type_: SchemaType::String {
-                  min_length: None,
-                  max_length: Some(65536),
-                  pattern: None
-                }
-              },
-              S!("topic") => Schema {
-                type_: SchemaType::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
-              }
-            }
-          }
-        }
-      }
-    };
-  }
+  use schema::definition::create_basic;
 
   #[test]
   fn test_basic_json() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), *BASIC_DEFINITION);
+    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), create_basic());
   }
 
   #[test]
   fn test_basic_yaml() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), *BASIC_DEFINITION);
+    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), create_basic());
   }
 }
