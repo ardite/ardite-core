@@ -11,7 +11,7 @@ use regex::Regex;
 use serde_json;
 use serde_yaml;
 use error::{Error, ErrorCode};
-use schema::{Definition, Schema};
+use schema::{Definition, Type, Schema, SchemaType};
 use value::Value;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -39,17 +39,23 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   }
 }
 
-/// Type used to deserialize data files into a usable definition type.
+/// SchemaType used to deserialize data files into a usable definition type.
 #[derive(Deserialize)]
 struct SerdeDefinition {
-  data: SerdeSchema
+  types: BTreeMap<String, SerdeSchema>
 }
 
 impl SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
   fn to_definition(self) -> Result<Definition, Error> {
     Ok(Definition {
-      data: try!(self.data.to_schema())
+      types: {
+        let mut types = LinearMap::new();
+        for (key, value) in self.types.into_iter() {
+          types.insert(key.to_string(), Type { schema: try!(value.to_schema()) });
+        }
+        types
+      }
     })
   }
 }
@@ -87,38 +93,50 @@ impl SerdeSchema {
   fn to_schema(self) -> Result<Schema, Error> {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
-        "null" => Ok(Schema::Null),
-        "boolean" => Ok(Schema::Boolean),
-        "number" | "integer" => Ok(Schema::Number {
-          multiple_of: self.multiple_of,
-          minimum: self.minimum,
-          exclusive_minimum: self.exclusive_minimum.unwrap_or(false),
-          maximum: self.maximum,
-          exclusive_maximum: self.exclusive_maximum.unwrap_or(false)
+        "null" => Ok(Schema {
+          type_: SchemaType::Null
         }),
-        "string" => Ok(Schema::String {
-          min_length: self.min_length,
-          max_length: self.max_length,
-          pattern: self.pattern.map_or(None, |pattern| Regex::new(&pattern).ok())
+        "boolean" => Ok(Schema {
+          type_: SchemaType::Boolean
+        }),
+        "number" | "integer" => Ok(Schema {
+          type_: SchemaType::Number {
+            multiple_of: self.multiple_of,
+            minimum: self.minimum,
+            exclusive_minimum: self.exclusive_minimum.unwrap_or(false),
+            maximum: self.maximum,
+            exclusive_maximum: self.exclusive_maximum.unwrap_or(false)
+          }
+        }),
+        "string" => Ok(Schema {
+          type_: SchemaType::String {
+            min_length: self.min_length,
+            max_length: self.max_length,
+            pattern: self.pattern.map_or(None, |pattern| Regex::new(&pattern).ok())
+          }
         }),
         "array" => {
           if let Some(items) = self.items {
-            Ok(Schema::Array {
-              items: Box::new(try!(items.to_schema()))
+            Ok(Schema {
+              type_: SchemaType::Array {
+                items: Box::new(try!(items.to_schema()))
+              }
             })
           } else {
             Err(Error::validation("Missing `items` property for type 'array'.", "Add a schema at `items`."))
           }
         },
-        "object" => Ok(Schema::Object {
-          required: self.required.unwrap_or(vec![]),
-          additional_properties: self.additional_properties.unwrap_or(false),
-          properties: {
-            let mut map = LinearMap::new();
-            for (key, definition) in self.properties.unwrap_or(BTreeMap::new()) {
-              map.insert(key, try!(definition.to_schema()));
+        "object" => Ok(Schema {
+          type_: SchemaType::Object {
+            required: self.required.unwrap_or(vec![]),
+            additional_properties: self.additional_properties.unwrap_or(false),
+            properties: {
+              let mut map = LinearMap::new();
+              for (key, definition) in self.properties.unwrap_or(BTreeMap::new()) {
+                map.insert(key, try!(definition.to_schema()));
+              }
+              map
             }
-            map
           }
         }),
         _ => Err(Error::validation(
@@ -128,7 +146,9 @@ impl SerdeSchema {
       },
       None => {
         if let Some(enum_) = self.enum_ {
-          Ok(Schema::Enum(enum_.into_iter().map(|s| Value::String(s)).collect()))
+          Ok(Schema {
+            type_: SchemaType::Enum(enum_.into_iter().map(|s| Value::String(s)).collect())
+          })
         } else {
           Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
         }
@@ -139,65 +159,17 @@ impl SerdeSchema {
 
 #[cfg(test)]
 mod tests {
+  use super::from_file;
   use std::path::PathBuf;
-  use regex::Regex;
-  use schema::{Definition, Schema, from_file};
-
-  lazy_static! {
-    static ref BASIC_DEFINITION: Definition = Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          S!("people") => Schema::Array {
-            items: Box::new(Schema::Object {
-              required: vec![S!("email")],
-              additional_properties: false,
-              properties: linear_map! {
-                S!("email") => Schema::String {
-                  min_length: Some(4),
-                  max_length: Some(256),
-                  pattern: Some(Regex::new(r".+@.+\..+").unwrap())
-                },
-                S!("name") => Schema::String {
-                  min_length: Some(2),
-                  max_length: Some(64),
-                  pattern: None
-                }
-              }
-            })
-          },
-          S!("posts") => Schema::Array {
-            items: Box::new(Schema::Object {
-              required: vec![S!("headline")],
-              additional_properties: false,
-              properties: linear_map! {
-                S!("headline") => Schema::String {
-                  min_length: Some(4),
-                  max_length: Some(1024),
-                  pattern: None
-                },
-                S!("text") => Schema::String {
-                  min_length: None,
-                  max_length: Some(65536),
-                  pattern: None
-                },
-                S!("topic") => Schema::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
-              }
-            })
-          }
-        }
-      }
-    };
-  }
+  use schema::definition::create_basic;
 
   #[test]
   fn test_basic_json() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), *BASIC_DEFINITION);
+    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), create_basic());
   }
 
   #[test]
   fn test_basic_yaml() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), *BASIC_DEFINITION);
+    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), create_basic());
   }
 }
