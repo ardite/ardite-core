@@ -99,7 +99,7 @@ impl From<IOError> for Error {
   fn from(error: IOError) -> Self {
     Error {
       code: ErrorCode::Internal,
-      message: error.description().to_string(),
+      message: error.description().to_owned(),
       hint: None
     }
   }
@@ -107,18 +107,18 @@ impl From<IOError> for Error {
 
 impl From<JSONError> for Error {
   fn from(error: JSONError) -> Self {
-    match &error {
-      &JSONError::Syntax(_, line, column) => {
+    match error {
+      JSONError::Syntax(_, line, column) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: error.description().to_string(),
+          message: error.description().to_owned(),
           hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
       _ => {
         Error {
           code: ErrorCode::Internal,
-          message: error.description().to_string(),
+          message: error.description().to_owned(),
           hint: None
         }
       }
@@ -128,18 +128,18 @@ impl From<JSONError> for Error {
 
 impl From<YAMLError> for Error {
   fn from(error: YAMLError) -> Self {
-    match &error {
-      &YAMLError::Custom(ref message) => {
+    match error {
+      YAMLError::Custom(ref message) => {
         Error {
           code: ErrorCode::BadRequest,
           message: message.clone(),
-          hint: Some("Make sure your YAML syntax is correct.".to_string())
+          hint: Some("Make sure your YAML syntax is correct.".to_owned())
         }
       },
       _ => {
         Error {
           code: ErrorCode::Internal,
-          message: error.description().to_string(),
+          message: error.description().to_owned(),
           hint: None
         }
       }

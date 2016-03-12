@@ -40,29 +40,29 @@ pub struct Schema {
 impl Schema {
   /// Gets a nested schema at a certain point.
   pub fn get(&self, mut pointer: Pointer) -> Option<Self> {
-    if pointer.len() == 0 {
+    if pointer.is_empty() {
       Some(self.clone())
     } else {
-      match &self.type_ {
-        &SchemaType::Null => None,
-        &SchemaType::Boolean => None,
-        &SchemaType::Number{..} => None,
-        &SchemaType::String{..} => None,
-        &SchemaType::Array{ref items} => {
+      match self.type_ {
+        SchemaType::Array{ref items} => {
           if INTEGER_RE.is_match(&pointer.remove(0)) {
             items.get(pointer)
           } else {
             None
           }
         },
-        &SchemaType::Object{ref properties,..} => {
+        SchemaType::Object{ref properties,..} => {
           if let Some(schema) = properties.get(&pointer.remove(0)) {
             schema.get(pointer)
           } else {
             None
           }
         },
-        &SchemaType::Enum(_) => None
+        SchemaType::Null |
+        SchemaType::Boolean |
+        SchemaType::Number{..} |
+        SchemaType::String{..} |
+        SchemaType::Enum(_) => None
       }
     }
   }
@@ -73,44 +73,38 @@ impl Schema {
   pub fn validate_query(&self, query: &Query) -> Result<(), Error> {
     static NO_PRIMITIVE_HINT: &'static str = "Try not querying specific properties of a primitive like `null` or `boolean`.";
     match (&self.type_, query) {
-      (&SchemaType::Null, &Query::All) => Ok(()),
       (&SchemaType::Null, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query null.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Boolean, &Query::All) => Ok(()),
       (&SchemaType::Boolean, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a boolean.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Number{..}, &Query::All) => Ok(()),
       (&SchemaType::Number{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a number.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::String{..}, &Query::All) => Ok(()),
       (&SchemaType::String{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Array{..}, &Query::All) => Ok(()),
       (&SchemaType::Array{ref items}, &Query::Keys(ref query_properties)) => {
         match query_properties.keys().map(|key| {
-          if !INTEGER_RE.is_match(key) {
-            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-          } else {
+          if INTEGER_RE.is_match(key) {
             items.validate_query(&query_properties.get(key).unwrap())
+          } else {
+            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
           }
         }).find(|r| r.is_err()) {
           None => Ok(()),
           Some(error) => error
         }
       },
-      (&SchemaType::Object{..}, &Query::All) => Ok(()),
       (&SchemaType::Object{ref properties, ref additional_properties,..}, &Query::Keys(ref query_properties)) => {
         match query_properties.keys().map(|key| {
           if let Some(property_schema) = properties.get(key) {
             property_schema.validate_query(&query_properties.get(key).unwrap())
-          } else if !additional_properties {
-            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
-          } else {
+          } else if *additional_properties {
             Ok(())
+          } else {
+            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
           }
         }).find(|r| r.is_err()) {
           None => Ok(()),
           Some(error) => error
         }
       },
-      (&SchemaType::Enum(_), &Query::All) => Ok(()),
-      (&SchemaType::Enum(_), &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT))
+      (&SchemaType::Enum(_), &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT)),
+      (_, &Query::All) => Ok(())
     }
   }
 }

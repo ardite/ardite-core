@@ -49,14 +49,9 @@ impl Iterator for ValueStream {
 impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
   pub fn get(&self, mut pointer: Pointer) -> Option<Value> {
-    match self {
-      &Value::Null => if pointer.len() == 0 { Some(self.clone()) } else { None },
-      &Value::Boolean(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
-      &Value::I64(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
-      &Value::F64(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
-      &Value::String(_) => if pointer.len() == 0 { Some(self.clone()) } else { None },
-      &Value::Object(ref map) => {
-        if pointer.len() == 0 {
+    match *self {
+      Value::Object(ref map) => {
+        if pointer.is_empty() {
           Some(self.clone())
         } else if let Some(value) = map.get(&pointer.remove(0)) {
           value.get(pointer)
@@ -64,28 +59,29 @@ impl Value {
           None
         }
       },
-      &Value::Array(ref vec) => {
-        if pointer.len() == 0 {
+      Value::Array(ref vec) => {
+        if pointer.is_empty() {
           Some(self.clone())
         } else if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
           value.get(pointer)
         } else {
           None
         }
-      }
+      },
+      _ => if pointer.is_empty() { Some(self.clone()) } else { None }
     }
   }
 
   /// Converts a value into a JSON string for distribution.
-  pub fn to_json(self) -> String {
-    match self {
-      Value::Null => "null".to_string(),
-      Value::Boolean(value) => if value { "true".to_string() } else { "false".to_string() },
+  pub fn to_json(&self) -> String {
+    match *self {
+      Value::Null => "null".to_owned(),
+      Value::Boolean(value) => if value { "true".to_owned() } else { "false".to_owned() },
       Value::I64(value) => value.to_string(),
       Value::F64(value) => value.to_string(),
-      Value::String(value) => "\"".to_string() + &escape_string_for_json(value) + "\"",
-      Value::Object(map) => {
-        let mut json = "{".to_string();
+      Value::String(ref value) => "\"".to_owned() + &escape_string_for_json(value) + "\"",
+      Value::Object(ref map) => {
+        let mut json = "{".to_owned();
         for (key, value) in map {
           json.push_str("\"");
           json.push_str(&escape_string_for_json(key));
@@ -98,8 +94,8 @@ impl Value {
         json.push_str("}");
         json
       },
-      Value::Array(vec) => {
-        let mut json = "[".to_string();
+      Value::Array(ref vec) => {
+        let mut json = "[".to_owned();
         for item in vec {
           json.push_str(&item.to_json());
           json.push_str(",");
@@ -115,7 +111,7 @@ impl Value {
 
 /// Takes a string and escapes it for use within a JSON encoded object. Read,
 /// inside quotes.
-fn escape_string_for_json(string: String) -> String {
+fn escape_string_for_json(string: &str) -> String {
   string.replace("\"", "\\\"").replace("\n", "\\n")
 }
 

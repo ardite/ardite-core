@@ -23,18 +23,18 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
     "json" => {
       let reader = BufReader::new(file);
       let data: SerdeDefinition = try!(serde_json::from_reader(reader));
-      Ok(try!(data.to_definition()))
+      Ok(try!(data.into()))
     },
     "yml" => {
       let mut string = String::new();
       try!(file.read_to_string(&mut string));
       let data: SerdeDefinition = try!(serde_yaml::from_str(&string));
-      Ok(try!(data.to_definition()))
+      Ok(try!(data.into()))
     },
     _ => Err(Error::new(
       ErrorCode::NotAcceptable,
       format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
-      Some(format!("Use a recognizable file extension like '.json' or '.yml'."))
+      Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
     ))
   }
 }
@@ -45,14 +45,14 @@ struct SerdeDefinition {
   types: BTreeMap<String, SerdeSchema>
 }
 
-impl SerdeDefinition {
+impl Into<Result<Definition, Error>> for SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
-  fn to_definition(self) -> Result<Definition, Error> {
+  fn into(self) -> Result<Definition, Error> {
     Ok(Definition {
       types: {
         let mut types = LinearMap::new();
         for (key, value) in self.types.into_iter() {
-          types.insert(key.to_string(), Type { schema: try!(value.to_schema()) });
+          types.insert(key.to_owned(), Type { schema: try!(value.into()) });
         }
         types
       }
@@ -88,9 +88,9 @@ struct SerdeSchema {
   enum_: Option<Vec<String>>
 }
 
-impl SerdeSchema {
+impl Into<Result<Schema, Error>> for SerdeSchema {
   /// Transforms the intermediary type into the useful type.
-  fn to_schema(self) -> Result<Schema, Error> {
+  fn into(self) -> Result<Schema, Error> {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
         "null" => Ok(Schema {
@@ -119,7 +119,7 @@ impl SerdeSchema {
           if let Some(items) = self.items {
             Ok(Schema {
               type_: SchemaType::Array {
-                items: Box::new(try!(items.to_schema()))
+                items: Box::new(try!((*items).into()))
               }
             })
           } else {
@@ -128,12 +128,12 @@ impl SerdeSchema {
         },
         "object" => Ok(Schema {
           type_: SchemaType::Object {
-            required: self.required.unwrap_or(vec![]),
+            required: self.required.unwrap_or_else(|| vec![]),
             additional_properties: self.additional_properties.unwrap_or(false),
             properties: {
               let mut map = LinearMap::new();
-              for (key, definition) in self.properties.unwrap_or(BTreeMap::new()) {
-                map.insert(key, try!(definition.to_schema()));
+              for (key, definition) in self.properties.unwrap_or_default() {
+                map.insert(key, try!(definition.into()));
               }
               map
             }
@@ -147,7 +147,7 @@ impl SerdeSchema {
       None => {
         if let Some(enum_) = self.enum_ {
           Ok(Schema {
-            type_: SchemaType::Enum(enum_.into_iter().map(|s| Value::String(s)).collect())
+            type_: SchemaType::Enum(enum_.into_iter().map(Value::String).collect())
           })
         } else {
           Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
