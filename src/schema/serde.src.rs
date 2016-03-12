@@ -52,7 +52,10 @@ impl Into<Result<Definition, Error>> for SerdeDefinition {
       types: {
         let mut types = LinearMap::new();
         for (key, value) in self.types.into_iter() {
-          types.insert(key.to_owned(), Type { schema: try!(value.into()) });
+          types.insert(key.to_owned(), Type {
+            name: key,
+            schema: try!(value.into())
+          });
         }
         types
       }

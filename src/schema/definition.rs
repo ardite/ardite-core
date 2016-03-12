@@ -15,6 +15,8 @@ pub struct Definition {
 /// Represents a high-level database type.
 #[derive(PartialEq, Debug)]
 pub struct Type {
+  /// The name of the custom type.
+  pub name: String,
   /// The schema used to validate data which claims to be of this type.
   pub schema: Schema
 }
@@ -30,6 +32,7 @@ pub fn create_basic() -> Definition {
   Definition {
     types: linear_map! {
       str!("person") => Type {
+        name: str!("person"),
         schema: Schema {
           type_: SchemaType::Object {
             required: vec![str!("email")],
@@ -54,6 +57,7 @@ pub fn create_basic() -> Definition {
         }
       },
       str!("post") => Type {
+        name: str!("post"),
         schema: Schema {
           type_: SchemaType::Object {
             required: vec![str!("headline")],
