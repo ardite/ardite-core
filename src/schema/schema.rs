@@ -58,7 +58,11 @@ impl Schema {
             None
           }
         },
-        _ => None
+        SchemaType::Null |
+        SchemaType::Boolean |
+        SchemaType::Number{..} |
+        SchemaType::String{..} |
+        SchemaType::Enum(_) => None
       }
     }
   }

@@ -73,20 +73,20 @@ impl Value {
   }
 
   /// Converts a value into a JSON string for distribution.
-  pub fn into_json(self) -> String {
-    match self {
+  pub fn to_json(&self) -> String {
+    match *self {
       Value::Null => "null".to_owned(),
       Value::Boolean(value) => if value { "true".to_owned() } else { "false".to_owned() },
       Value::I64(value) => value.to_string(),
       Value::F64(value) => value.to_string(),
-      Value::String(value) => "\"".to_owned() + &escape_string_for_json(value) + "\"",
-      Value::Object(map) => {
+      Value::String(ref value) => "\"".to_owned() + &escape_string_for_json(value) + "\"",
+      Value::Object(ref map) => {
         let mut json = "{".to_owned();
         for (key, value) in map {
           json.push_str("\"");
           json.push_str(&escape_string_for_json(key));
           json.push_str("\":");
-          json.push_str(&value.into_json());
+          json.push_str(&value.to_json());
           json.push_str(",");
         }
         // Remove the last comma.
@@ -94,10 +94,10 @@ impl Value {
         json.push_str("}");
         json
       },
-      Value::Array(vec) => {
+      Value::Array(ref vec) => {
         let mut json = "[".to_owned();
         for item in vec {
-          json.push_str(&item.into_json());
+          json.push_str(&item.to_json());
           json.push_str(",");
         }
         // Remove the last comma.
@@ -111,7 +111,7 @@ impl Value {
 
 /// Takes a string and escapes it for use within a JSON encoded object. Read,
 /// inside quotes.
-fn escape_string_for_json(string: String) -> String {
+fn escape_string_for_json(string: &str) -> String {
   string.replace("\"", "\\\"").replace("\n", "\\n")
 }
 
@@ -180,20 +180,20 @@ mod tests {
   }
 
   #[test]
-  fn test_into_json() {
-    assert_eq!(&vnull!().into_json(), "null");
-    assert_eq!(&vbool!(true).into_json(), "true");
-    assert_eq!(&vbool!(false).into_json(), "false");
-    assert_eq!(&vi64!(7).into_json(), "7");
-    assert_eq!(&vf64!(6.667).into_json(), "6.667");
-    assert_eq!(&vstring!("Hello,\n\"world\"!").into_json(), r#""Hello,\n\"world\"!""#);
+  fn test_to_json() {
+    assert_eq!(&vnull!().to_json(), "null");
+    assert_eq!(&vbool!(true).to_json(), "true");
+    assert_eq!(&vbool!(false).to_json(), "false");
+    assert_eq!(&vi64!(7).to_json(), "7");
+    assert_eq!(&vf64!(6.667).to_json(), "6.667");
+    assert_eq!(&vstring!("Hello,\n\"world\"!").to_json(), r#""Hello,\n\"world\"!""#);
     assert_eq!(&vobject! {
       "hello" => vstring!("world"),
       "foo" => vbool!(true),
       "goodbye" => vobject! {
         "moon" => vi64!(2)
       }
-    }.into_json(), r#"{"hello":"world","foo":true,"goodbye":{"moon":2}}"#);
+    }.to_json(), r#"{"hello":"world","foo":true,"goodbye":{"moon":2}}"#);
     assert_eq!(&varray![
       vstring!("world"),
       vf64!(3.333),
@@ -204,6 +204,6 @@ mod tests {
       vnull!(),
       varray![vi64!(1), vi64!(2), vi64!(3)],
       vnull!()
-    ].into_json(), r#"["world",3.333,{"hello":"world"},null,null,[1,2,3],null]"#);
+    ].to_json(), r#"["world",3.333,{"hello":"world"},null,null,[1,2,3],null]"#);
   }
 }
