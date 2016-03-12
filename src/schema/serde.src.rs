@@ -23,13 +23,13 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
     "json" => {
       let reader = BufReader::new(file);
       let data: SerdeDefinition = try!(serde_json::from_reader(reader));
-      Ok(try!(data.into_definition()))
+      Ok(try!(data.into()))
     },
     "yml" => {
       let mut string = String::new();
       try!(file.read_to_string(&mut string));
       let data: SerdeDefinition = try!(serde_yaml::from_str(&string));
-      Ok(try!(data.into_definition()))
+      Ok(try!(data.into()))
     },
     _ => Err(Error::new(
       ErrorCode::NotAcceptable,
@@ -45,14 +45,14 @@ struct SerdeDefinition {
   types: BTreeMap<String, SerdeSchema>
 }
 
-impl SerdeDefinition {
+impl Into<Result<Definition, Error>> for SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
-  fn into_definition(self) -> Result<Definition, Error> {
+  fn into(self) -> Result<Definition, Error> {
     Ok(Definition {
       types: {
         let mut types = LinearMap::new();
         for (key, value) in self.types.into_iter() {
-          types.insert(key.to_owned(), Type { schema: try!(value.into_schema()) });
+          types.insert(key.to_owned(), Type { schema: try!(value.into()) });
         }
         types
       }
@@ -88,9 +88,9 @@ struct SerdeSchema {
   enum_: Option<Vec<String>>
 }
 
-impl SerdeSchema {
+impl Into<Result<Schema, Error>> for SerdeSchema {
   /// Transforms the intermediary type into the useful type.
-  fn into_schema(self) -> Result<Schema, Error> {
+  fn into(self) -> Result<Schema, Error> {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
         "null" => Ok(Schema {
@@ -119,7 +119,7 @@ impl SerdeSchema {
           if let Some(items) = self.items {
             Ok(Schema {
               type_: SchemaType::Array {
-                items: Box::new(try!(items.into_schema()))
+                items: Box::new(try!((*items).into()))
               }
             })
           } else {
@@ -128,12 +128,12 @@ impl SerdeSchema {
         },
         "object" => Ok(Schema {
           type_: SchemaType::Object {
-            required: self.required.unwrap_or(vec![]),
+            required: self.required.unwrap_or_else(|| vec![]),
             additional_properties: self.additional_properties.unwrap_or(false),
             properties: {
               let mut map = LinearMap::new();
               for (key, definition) in self.properties.unwrap_or_default() {
-                map.insert(key, try!(definition.into_schema()));
+                map.insert(key, try!(definition.into()));
               }
               map
             }
