@@ -18,7 +18,6 @@ pub enum Bound {
 
 /// A condition which will resolve to a boolean value after comparing a certain
 /// value with a set rule.
-// TODO: Add standard conditions.
 pub enum Condition {
   /// The condition always passes.
   True,
