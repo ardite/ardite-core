@@ -29,20 +29,20 @@ pub fn create_basic() -> Definition {
 
   Definition {
     types: linear_map! {
-      S!("person") => Type {
+      str!("person") => Type {
         schema: Schema {
           type_: SchemaType::Object {
-            required: vec![S!("email")],
+            required: vec![str!("email")],
             additional_properties: false,
             properties: linear_map! {
-              S!("email") => Schema {
+              str!("email") => Schema {
                 type_: SchemaType::String {
                   min_length: Some(4),
                   max_length: Some(256),
                   pattern: Some(Regex::new(r".+@.+\..+").unwrap())
                 }
               },
-              S!("name") => Schema {
+              str!("name") => Schema {
                 type_: SchemaType::String {
                   min_length: Some(2),
                   max_length: Some(64),
@@ -53,27 +53,27 @@ pub fn create_basic() -> Definition {
           }
         }
       },
-      S!("post") => Type {
+      str!("post") => Type {
         schema: Schema {
           type_: SchemaType::Object {
-            required: vec![S!("headline")],
+            required: vec![str!("headline")],
             additional_properties: false,
             properties: linear_map! {
-              S!("headline") => Schema {
+              str!("headline") => Schema {
                 type_: SchemaType::String {
                   min_length: Some(4),
                   max_length: Some(1024),
                   pattern: None
                 }
               },
-              S!("text") => Schema {
+              str!("text") => Schema {
                 type_: SchemaType::String {
                   min_length: None,
                   max_length: Some(65536),
                   pattern: None
                 }
               },
-              S!("topic") => Schema {
+              str!("topic") => Schema {
                 type_: SchemaType::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
               }
             }

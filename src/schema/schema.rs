@@ -226,16 +226,16 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          S!("hello") => Schema { type_: SchemaType::Boolean },
-          S!("world") => Schema { type_: SchemaType::Boolean },
-          S!("5") => Schema { type_: SchemaType::Boolean },
-          S!("goodbye") => Schema {
+          str!("hello") => Schema { type_: SchemaType::Boolean },
+          str!("world") => Schema { type_: SchemaType::Boolean },
+          str!("5") => Schema { type_: SchemaType::Boolean },
+          str!("goodbye") => Schema {
             type_: SchemaType::Object {
               required: vec![],
               additional_properties: false,
               properties: linear_map! {
-                S!("hello") => Schema { type_: SchemaType::Boolean },
-                S!("world") => Schema { type_: SchemaType::Boolean }
+                str!("hello") => Schema { type_: SchemaType::Boolean },
+                str!("world") => Schema { type_: SchemaType::Boolean }
               }
             }
           }
@@ -290,23 +290,23 @@ mod tests {
     };
     assert!(array_null.validate_query(&Query::All).is_ok());
     assert!(array_null.validate_query(&Query::Keys(linear_map! {
-      S!("1") => Query::All
+      str!("1") => Query::All
     })).is_ok());
     array_null.validate_query(&Query::Keys(linear_map! {
-      S!("1") => Query::Keys(linear_map! {})
+      str!("1") => Query::Keys(linear_map! {})
     })).unwrap_err().assert_message(r"Cannot deeply query null\.");
     assert!(array_bool.validate_query(&Query::Keys(linear_map! {
-      S!("1") => Query::All,
-      S!("2") => Query::All,
-      S!("3") => Query::All,
-      S!("50") => Query::All,
-      S!("9999999999999") => Query::All
+      str!("1") => Query::All,
+      str!("2") => Query::All,
+      str!("3") => Query::All,
+      str!("50") => Query::All,
+      str!("9999999999999") => Query::All
     })).is_ok());
     array_null.validate_query(&Query::Keys(linear_map! {
-      S!("hello") => Query::All
+      str!("hello") => Query::All
     })).unwrap_err().assert_message("non-integer \"hello\"");
     array_bool.validate_query(&Query::Keys(linear_map! {
-      S!("1") => Query::Keys(linear_map! {})
+      str!("1") => Query::Keys(linear_map! {})
     })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
   }
 
@@ -317,16 +317,16 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          S!("hello") => Schema { type_: SchemaType::Boolean },
-          S!("world") => Schema { type_: SchemaType::Boolean },
-          S!("5") => Schema { type_: SchemaType::Boolean },
-          S!("goodbye") => Schema {
+          str!("hello") => Schema { type_: SchemaType::Boolean },
+          str!("world") => Schema { type_: SchemaType::Boolean },
+          str!("5") => Schema { type_: SchemaType::Boolean },
+          str!("goodbye") => Schema {
             type_: SchemaType::Object {
               required: vec![],
               additional_properties: false,
               properties: linear_map! {
-                S!("hello") => Schema { type_: SchemaType::Boolean },
-                S!("world") => Schema { type_: SchemaType::Boolean }
+                str!("hello") => Schema { type_: SchemaType::Boolean },
+                str!("world") => Schema { type_: SchemaType::Boolean }
               }
             }
           }
@@ -338,38 +338,38 @@ mod tests {
         required: vec![],
         additional_properties: true,
         properties: linear_map! {
-          S!("hello") => Schema { type_: SchemaType::Boolean },
-          S!("world") => Schema { type_: SchemaType::Boolean }
+          str!("hello") => Schema { type_: SchemaType::Boolean },
+          str!("world") => Schema { type_: SchemaType::Boolean }
         }
       }
     };
     assert!(object.validate_query(&Query::Keys(linear_map! {
-      S!("world") => Query::All,
-      S!("5") => Query::All,
-      S!("goodbye") => Query::All
+      str!("world") => Query::All,
+      str!("5") => Query::All,
+      str!("goodbye") => Query::All
     })).is_ok());
     object.validate_query(&Query::Keys(linear_map! {
-      S!("hello") => Query::All,
-      S!("moon") => Query::All
+      str!("hello") => Query::All,
+      str!("moon") => Query::All
     })).unwrap_err().assert_message("Cannot query object property \"moon\".");
     object.validate_query(&Query::Keys(linear_map! {
-      S!("hello") => Query::Keys(linear_map! {})
+      str!("hello") => Query::Keys(linear_map! {})
     })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
     assert!(object.validate_query(&Query::Keys(linear_map! {
-      S!("goodbye") => Query::Keys(linear_map! {
-        S!("hello") => Query::All
+      str!("goodbye") => Query::Keys(linear_map! {
+        str!("hello") => Query::All
       })
     })).is_ok());
     object.validate_query(&Query::Keys(linear_map! {
-      S!("goodbye") => Query::Keys(linear_map! {
-        S!("hello") => Query::Keys(linear_map! {})
+      str!("goodbye") => Query::Keys(linear_map! {
+        str!("hello") => Query::Keys(linear_map! {})
       })
     })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
     assert!(object_additional.validate_query(&Query::Keys(linear_map! {
-      S!("world") => Query::All,
-      S!("5") => Query::All,
-      S!("goodbye") => Query::All,
-      S!("moon") => Query::All
+      str!("world") => Query::All,
+      str!("5") => Query::All,
+      str!("goodbye") => Query::All,
+      str!("moon") => Query::All
     })).is_ok());
   }
 }

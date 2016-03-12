@@ -14,7 +14,7 @@ macro_rules! linear_map {
   };
 }
 
-macro_rules! S {
+macro_rules! str {
   ($value:expr) => {
     String::from($value)
   }
@@ -25,7 +25,7 @@ macro_rules! point {
     {
       let mut _vec = Vec::new();
       $(
-        _vec.push(S!($key));
+        _vec.push(str!($key));
       )*
       _vec
     }
@@ -58,7 +58,7 @@ macro_rules! vf64 {
 
 macro_rules! vstring {
   ($value:expr) => {
-    $crate::value::Value::String(S!($value))
+    $crate::value::Value::String(str!($value))
   }
 }
 
@@ -67,7 +67,7 @@ macro_rules! vobject {
     {
       let mut _map = ::linear_map::LinearMap::new();
       $(
-        _map.insert(S!($key), $value);
+        _map.insert(str!($key), $value);
       )*
       $crate::value::Value::Object(_map)
     }

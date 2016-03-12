@@ -65,14 +65,14 @@ mod tests {
   #[test]
   fn test_from_pointer() {
     assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Keys(linear_map! {
-      S!("hello") => Query::Keys(linear_map! {
-        S!("good") => Query::Keys(linear_map! {
-          S!("world") => Query::All
+      str!("hello") => Query::Keys(linear_map! {
+        str!("good") => Query::Keys(linear_map! {
+          str!("world") => Query::All
         })
       })
     }));
     assert_eq!(Query::from(point!["good"]), Query::Keys(linear_map! {
-      S!("good") => Query::All
+      str!("good") => Query::All
     }));
     assert_eq!(Query::from(point![]), Query::All);
   }

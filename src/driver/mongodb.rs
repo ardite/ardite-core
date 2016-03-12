@@ -175,7 +175,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          S!("foo") => Schema::Boolean
+          str!("foo") => Schema::Boolean
         }
       }
     }).is_err());
@@ -184,7 +184,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          S!("foo") => Schema::Array {
+          str!("foo") => Schema::Array {
             items: Box::new(Schema::Boolean)
           }
         }
@@ -195,7 +195,7 @@ mod tests {
         required: vec![],
         additional_properties: false,
         properties: linear_map! {
-          S!("foo") => Schema::Array {
+          str!("foo") => Schema::Array {
             items: Box::new(Schema::Object {
               required: vec![],
               additional_properties: true,
@@ -214,10 +214,10 @@ mod tests {
     driver.db.drop_collection(coll_name).unwrap();
     let collection = driver.db.collection(coll_name);
     let mut doc1 = Document::new();
-    doc1.insert(S!("title"), Bson::String(S!("Back to the future!")));
-    doc1.insert(S!("foo"), Bson::String(S!("bar")));
+    doc1.insert(str!("title"), Bson::String(str!("Back to the future!")));
+    doc1.insert(str!("foo"), Bson::String(str!("bar")));
     let mut doc2 = Document::new();
-    doc2.insert(S!("buz"), Bson::String(S!("baz")));
+    doc2.insert(str!("buz"), Bson::String(str!("baz")));
     let id1 = collection.insert_one(doc1, None).unwrap().inserted_id.unwrap();
     let id2 = collection.insert_one(doc2, None).unwrap().inserted_id.unwrap();
     assert!(driver.query(Query::Value).is_err());
