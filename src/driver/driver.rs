@@ -10,7 +10,16 @@ pub trait Driver {
   /// the driver is ready to roll!
   fn connect(uri: &str) -> Result<Self, Error> where Self: Sized;
 
-  // TODO: doc.
+  /// Lazily read some values from the driver.
+  ///
+  /// Designed against a couple of database specifications. Including the
+  /// following:
+  ///
+  /// - [SQL `SELECT` statement][1].
+  /// - [MongoDB `find` command][2].
+  ///
+  /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
+  /// [2]: https://docs.mongodb.org/manual/reference/command/find/
   fn read(
     &self,
     type_: &Type,
