@@ -3,7 +3,7 @@
 use error::Error;
 use query::{Condition, Range, Query};
 use schema::Type;
-use value::ValueStream;
+use value::ValueIter;
 
 pub trait Driver {
   /// Connects to a driver and returns a driver instance. After calling this
@@ -17,5 +17,5 @@ pub trait Driver {
     condition: Condition,
     range: Range,
     query: Query
-  ) -> Result<ValueStream, Error>;
+  ) -> Result<ValueIter, Error>;
 }

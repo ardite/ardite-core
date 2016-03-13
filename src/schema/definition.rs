@@ -13,7 +13,7 @@ pub struct Definition {
 }
 
 /// Represents a high-level database type.
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Type {
   /// The name of the custom type.
   pub name: String,

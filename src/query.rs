@@ -4,16 +4,21 @@ use std::convert::From;
 use linear_map::LinearMap;
 use value::{Key, Pointer, Value};
 
-/// Specifies a positive numeric range of data.
-pub struct Range(Bound, Bound);
+/// Specifies a positive integer range in a traditional SQL format.
+pub struct Range {
+  /// How many items should be included in this range.
+  pub limit: Option<u64>,
+  /// How many items should be skipped from the full set in this range.
+  pub skip: Option<u64>
+}
 
-/// Taken from unstable [Rust][1]. When stable we should use it.
-///
-/// [1]: http://doc.rust-lang.org/std/collections/enum.Bound.html
-pub enum Bound {
-  Included(u64),
-  Excluded(u64),
-  Unbounded
+impl Default for Range {
+  fn default() -> Range {
+    Range {
+      limit: None,
+      skip: None
+    }
+  }
 }
 
 /// A condition which will resolve to a boolean value after comparing a certain
@@ -31,8 +36,16 @@ pub enum Condition {
   /// Composes many conditions. Only one must be true for the condition to be
   /// true.
   Or(Vec<Condition>),
+  /// Partial conditions on some keys of an object.
+  Keys(LinearMap<Key, Condition>),
   /// If the compared value is exactly equal to this one, the condition passes.
   Equal(Value)
+}
+
+impl Default for Condition {
+  fn default() -> Condition {
+    Condition::True
+  }
 }
 
 /// Specifies a complex driver query. The query is structured like a tree
@@ -44,6 +57,12 @@ pub enum Query {
   All,
   /// Queries some partial properties of an object.
   Keys(LinearMap<Key, Query>)
+}
+
+impl Default for Query {
+  fn default() -> Query {
+    Query::All
+  }
 }
 
 impl From<Pointer> for Query {

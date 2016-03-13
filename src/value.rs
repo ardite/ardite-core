@@ -11,6 +11,13 @@ pub type Key = String;
 /// Represents a JSON pointer to a document property.
 pub type Pointer = Vec<Key>;
 
+/// Represents a JSON object. Backed by a linear map to maintain order and have
+/// high performance for small objects.
+pub type Object = LinearMap<Key, Value>;
+
+/// Represents a JSON array.
+pub type Array = Vec<Value>;
+
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
 ///
@@ -29,21 +36,9 @@ pub enum Value {
   String(String),
   /// A map of key/value pairs. Stored as a vector of tuples for performance
   /// and to maintain key ordering.
-  Object(LinearMap<Key, Value>),
+  Object(Object),
   /// A list of values. Just a value, but using *only* integer keys.
-  Array(Vec<Value>)
-}
-
-/// A lazy stream of values.
-pub struct ValueStream;
-
-impl Iterator for ValueStream {
-  type Item = Value;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    // TODO: implement.
-    unimplemented!();
-  }
+  Array(Array)
 }
 
 impl Value {
@@ -113,6 +108,29 @@ impl Value {
 /// inside quotes.
 fn escape_string_for_json(string: &str) -> String {
   string.replace("\"", "\\\"").replace("\n", "\\n")
+}
+
+// TODO: doc
+pub struct ValueIter<'a> {
+  iter: Box<Iterator<Item=Value> + 'a>
+}
+
+impl<'a> ValueIter<'a> {
+  // TODO: doc
+  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
+    ValueIter {
+      iter: Box::new(iter)
+    }
+  }
+}
+
+impl<'a> Iterator for ValueIter<'a> {
+  type Item = Value;
+
+  #[inline]
+  fn next(&mut self) -> Option<Value> {
+    self.iter.next()
+  }
 }
 
 #[cfg(test)]
