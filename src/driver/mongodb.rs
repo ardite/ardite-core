@@ -84,16 +84,11 @@ impl From<MongoDBError> for Error {
   }
 }
 
-impl Value {
-  fn to_bson(self) -> Bson {
-    self.into()
-  }
-}
-
 impl From<Bson> for Value {
   /// Transformation of bson to a value. Some information is lost for
   /// non-standard types like `RegExp`, `JavaScriptCodeWithScope`, and
   /// `Binary`. The `Binary` type is completely ignored.
+  #[allow(match_same_arms)]
   fn from(bson: Bson) -> Value {
     match bson {
       Bson::FloatingPoint(value) => Value::F64(value),
@@ -124,7 +119,7 @@ impl Into<Bson> for Value {
       Value::F64(value) => Bson::FloatingPoint(value),
       Value::String(value) => Bson::String(value),
       Value::Object(object) => Value::Object(object).into(),
-      Value::Array(array) => Bson::Array(array.into_iter().map(Value::to_bson).collect())
+      Value::Array(array) => Bson::Array(array.into_iter().map(Value::into).collect())
     }
   }
 }
@@ -198,7 +193,10 @@ fn condition_to_filter(condition: Condition) -> Bson {
     Condition::Or(conds) => bson!({
       "$or" => (Bson::Array(conds.into_iter().map(condition_to_filter).collect()))
     }),
-    Condition::Equal(value) => bson!({ "$eq" => (value.to_bson()) })
+    Condition::Equal(value) => {
+      let bson_value: Bson = value.into();
+      bson!({ "$eq" => bson_value })
+    }
   }
 }
 
