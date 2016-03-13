@@ -92,7 +92,7 @@ impl Value {
 impl From<Bson> for Value {
   /// Transformation of bson to a value. Some information is lost for
   /// non-standard types like `RegExp`, `JavaScriptCodeWithScope`, and
-  /// `Binary`.
+  /// `Binary`. The `Binary` type is completely ignored.
   fn from(bson: Bson) -> Value {
     match bson {
       Bson::FloatingPoint(value) => Value::F64(value),
@@ -107,7 +107,6 @@ impl From<Bson> for Value {
       Bson::I32(value) => Value::I64(i64::from(value)),
       Bson::I64(value) => Value::I64(value),
       Bson::TimeStamp(value) => Value::I64(i64::from(value)),
-      // TODO: Actual transformation of binary type.
       Bson::Binary(_, _) => Value::Null,
       Bson::ObjectId(object_id) => Value::String(object_id.to_string()),
       Bson::UtcDatetime(time) => Value::String(time.to_rfc3339())
