@@ -4,23 +4,6 @@ use std::convert::From;
 use linear_map::LinearMap;
 use value::{Key, Pointer, Value};
 
-/// Specifies a positive integer range in a traditional SQL format.
-pub struct Range {
-  /// How many items should be included in this range.
-  pub limit: Option<u64>,
-  /// How many items should be skipped from the full set in this range.
-  pub skip: Option<u64>
-}
-
-impl Default for Range {
-  fn default() -> Range {
-    Range {
-      limit: None,
-      skip: None
-    }
-  }
-}
-
 /// A condition which will resolve to a boolean value after comparing a certain
 /// value with a set rule.
 pub enum Condition {
@@ -45,6 +28,23 @@ pub enum Condition {
 impl Default for Condition {
   fn default() -> Condition {
     Condition::True
+  }
+}
+
+/// Specifies a positive integer range in a traditional SQL format.
+pub struct Range {
+  /// How many items should be included in this range.
+  pub limit: Option<u64>,
+  /// How many items should be skipped from the full set in this range.
+  pub skip: Option<u64>
+}
+
+impl Default for Range {
+  fn default() -> Range {
+    Range {
+      limit: None,
+      skip: None
+    }
   }
 }
 
