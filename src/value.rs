@@ -103,14 +103,15 @@ fn escape_string_for_json(string: &str) -> String {
   string.replace("\"", "\\\"").replace("\n", "\\n")
 }
 
-// TODO: doc
+/// An iterator of values. Used by drivers to convert their own iterator
+/// implementations into a single type.
 pub struct ValueIter<'a> {
   iter: Box<Iterator<Item=Value> + 'a>
 }
 
 impl<'a> ValueIter<'a> {
-  // TODO: doc
-  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
+  /// Create a new value iterator.
+  pub fn new<I, V>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
     ValueIter {
       iter: Box::new(iter)
     }
