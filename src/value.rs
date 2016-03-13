@@ -11,13 +11,6 @@ pub type Key = String;
 /// Represents a JSON pointer to a document property.
 pub type Pointer = Vec<Key>;
 
-/// Represents a JSON object. Backed by a linear map to maintain order and have
-/// high performance for small objects.
-pub type Object = LinearMap<Key, Value>;
-
-/// Represents a JSON array.
-pub type Array = Vec<Value>;
-
 /// Various value types. Based on types in the [JSON standard][1] (see section
 /// 5).
 ///
@@ -34,11 +27,11 @@ pub enum Value {
   F64(f64),
   /// A list of characters.
   String(String),
-  /// A map of key/value pairs. Stored as a vector of tuples for performance
-  /// and to maintain key ordering.
-  Object(Object),
+  /// A map of key/value pairs. Backed by a linear map to maintain order and
+  /// have high performance for small objects.
+  Object(LinearMap<Key, Value>),
   /// A list of values. Just a value, but using *only* integer keys.
-  Array(Array)
+  Array(Vec<Value>)
 }
 
 impl Value {

@@ -10,7 +10,7 @@ use schema::Type;
 use driver::Driver;
 use error::Error;
 use query::{Range, Condition, Query};
-use value::{Key, Pointer, Value, Object, ValueIter};
+use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
   database: Database
@@ -130,7 +130,7 @@ impl Into<Bson> for Value {
 
 impl From<Document> for Value {
   fn from(document: Document) -> Value {
-    let mut object = Object::new();
+    let mut object = LinearMap::new();
     for (key, value) in document.into_iter() {
       object.insert(key.clone(), Value::from(value));
     }
