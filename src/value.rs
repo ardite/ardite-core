@@ -27,23 +27,11 @@ pub enum Value {
   F64(f64),
   /// A list of characters.
   String(String),
-  /// A map of key/value pairs. Stored as a vector of tuples for performance
-  /// and to maintain key ordering.
+  /// A map of key/value pairs. Backed by a linear map to maintain order and
+  /// have high performance for small objects.
   Object(LinearMap<Key, Value>),
   /// A list of values. Just a value, but using *only* integer keys.
   Array(Vec<Value>)
-}
-
-/// A lazy stream of values.
-pub struct ValueStream;
-
-impl Iterator for ValueStream {
-  type Item = Value;
-
-  fn next(&mut self) -> Option<Self::Item> {
-    // TODO: implement.
-    unimplemented!();
-  }
 }
 
 impl Value {
@@ -113,6 +101,30 @@ impl Value {
 /// inside quotes.
 fn escape_string_for_json(string: &str) -> String {
   string.replace("\"", "\\\"").replace("\n", "\\n")
+}
+
+/// An iterator of values. Used by drivers to convert their own iterator
+/// implementations into a single type.
+pub struct ValueIter<'a> {
+  iter: Box<Iterator<Item=Value> + 'a>
+}
+
+impl<'a> ValueIter<'a> {
+  /// Create a new value iterator.
+  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
+    ValueIter {
+      iter: Box::new(iter)
+    }
+  }
+}
+
+impl<'a> Iterator for ValueIter<'a> {
+  type Item = Value;
+
+  #[inline]
+  fn next(&mut self) -> Option<Value> {
+    self.iter.next()
+  }
 }
 
 #[cfg(test)]

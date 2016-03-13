@@ -65,7 +65,7 @@ macro_rules! vstring {
 macro_rules! vobject {
   ($($key:expr => $value:expr),*) => {
     {
-      let mut _map = ::linear_map::LinearMap::new();
+      let mut _map: ::linear_map::LinearMap<$crate::value::Key, $crate::value::Value> = ::linear_map::LinearMap::new();
       $(
         _map.insert(str!($key), $value);
       )*

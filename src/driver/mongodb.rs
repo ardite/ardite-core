@@ -1,30 +1,28 @@
-extern crate bson;
-extern crate mongodb;
-
 use std::error::Error as ErrorTrait;
-use std::ops::Deref;
+use bson::{Bson, Document};
 use linear_map::LinearMap;
-use self::bson::{Bson, Document};
-use self::mongodb::{Client, ThreadedClient, Error as MongoDBError};
-use self::mongodb::connstring;
-use self::mongodb::db::{Database, ThreadedDatabase};
-use schema::{Definition, Schema};
+use mongodb::{Client, ThreadedClient, CommandType};
+use mongodb::common::{ReadPreference, ReadMode};
+use mongodb::connstring;
+use mongodb::db::{Database, ThreadedDatabase};
+use mongodb::error::Error as MongoDBError;
+use schema::Type;
 use driver::Driver;
-use error::{Error, ErrorCode};
-use patch::Patch;
-use query::{Query, Selection};
-use value::Value;
+use error::Error;
+use query::{Range, SortRule, Condition, Query};
+use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
-  db: Database
+  database: Database
 }
 
 impl Driver for MongoDriver {
   fn connect(uri: &str) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
+
     if let Some(db_name) = config.clone().database {
       Ok(MongoDriver {
-        db: try!(Client::with_config(config, None, None)).db(&db_name)
+        database: try!(Client::with_config(config, None, None)).db(&db_name)
       })
     } else {
       Err(Error::validation(
@@ -33,78 +31,50 @@ impl Driver for MongoDriver {
       ))
     }
   }
-  
-  fn validate_definition(definition: &Definition) -> Result<(), Error> {
-    match &definition.data {
-      &Schema::Object{ref properties,..} => {
-        for (key, value) in properties {
-          match value {
-            &Schema::Array{ref items} => {
-              match items.deref() {
-                &Schema::Object{..} => (),
-                _ => return Err(Error::validation(
-                  format!("Items for collection '{}' must be an object.", key),
-                  format!("The MongoDB driver only supports inserting objects into collections, try changing the schema type of the '{}' collection to reflect this.", key)
-                ))
-              }
-            },
-            _ => return Err(Error::validation(
-              format!("Schema type for the '{}' property must be an array.", key),
-              format!("The MongoDB driver only supports array collections as the first level data types, try changing the '{}' property in your schema to reflect this.", key)
-            ))
-          }
+
+  fn read(
+    &self,
+    type_: &Type,
+    condition: Condition,
+    sort: Vec<SortRule>,
+    range: Range,
+    query: Query
+  ) -> Result<ValueIter, Error> {
+    let cursor = try!(self.database.command_cursor(
+      {
+        let mut spec = doc! {
+          "find" => (type_.name.to_owned()),
+          "filter" => (condition_to_filter(condition)),
+          "sort" => (sort_rules_to_sort(sort)),
+          "projection" => (query_to_projection(query))
+        };
+        if let Some(limit) = range.limit() {
+          spec.insert("limit", limit);
         }
+        if let Some(skip) = range.skip() {
+          spec.insert("skip", skip);
+        }
+        spec
       },
-      _ => return Err(Error::validation(
-        "Root data schema is not object.",
-        "The MongoDB driver only supports an object as the root data type, try changing your schema to reflect this."
-      ))
-    }
-    Ok(())
-  }
-  
-  // TODO: Better inline documentation.
-  fn query(&self, query: Query) -> Result<Value, Error> {
-    match query {
-      Query::Value => Err(Error::new(
-        ErrorCode::Forbidden,
-        "Can’t query the entire MongoDB database.",
-        Some("Query something more specfic instead of the entire database.")
-      )),
-      Query::Object(collection_queries) => {
-        // First level is the collection.
-        let mut object = LinearMap::new();
-        for (Selection::Key(coll_name), query) in collection_queries {
-          let collection = self.db.collection(&coll_name);
-          match query {
-            // TODO: Make this a range error when implementing selection by
-            // range.
-            Query::Value => {
-              let mut cursor = try!(collection.find(None, None));
-              let mut values = Vec::new();
-              if let Some(Err(error)) = cursor.find(|entry| match entry {
-                &Ok(ref document) => { values.push(Value::from(document.clone())); false },
-                &Err(_) => true
-              }) {
-                return Err(Error::from(error));
-              } else {
-                object.insert(coll_name, Value::Array(values));
-              }
-            },
-            // TODO: When implementing collections consider not using the
-            // MongoDB `_id` property as the key.
-            Query::Object(_) => {
-              
-            }
-          }
-        }
-        Ok(Value::Object(object))
+      CommandType::Find,
+      ReadPreference {
+        // Nearest read mode was chosen as we don’t care *too* much about stale
+        // data in large usecases. Performance is more important to us. For a
+        // reference on what all the read modes do, see the [documentation][1].
+        //
+        // Also read more about our [targeted use case][2].
+        //
+        // [1]: https://docs.mongodb.org/manual/reference/read-preference/#read-preference-modes
+        // [2]: https://docs.mongodb.org/manual/reference/read-preference/#minimize-latency
+        mode: ReadMode::Nearest,
+        // Tag sets? Seems to me like they [can be ignored][1] for our use.
+        //
+        // [1]: https://docs.mongodb.org/manual/tutorial/configure-replica-set-tag-sets/
+        tag_sets: vec![]
       }
-    }
-  }
-  
-  fn patch(&self, _: Vec<Patch>) -> Result<Value, Error> {
-    Err(Error::unimplemented("Patching not implemented for MongoDB driver."))
+    ));
+
+    Ok(ValueIter::new(cursor.filter_map(Result::ok).map(Value::from)))
   }
 }
 
@@ -114,24 +84,16 @@ impl From<MongoDBError> for Error {
   }
 }
 
-impl From<Document> for Value {
-  fn from(document: Document) -> Self {
-    let mut map = LinearMap::new();
-    for key in &document.keys {
-      if let Some(value) = document.get(key) {
-        map.insert(key.clone(), Value::from(value.clone()));
-      }
-    }
-    Value::Object(map)
-  }
-}
-
 impl From<Bson> for Value {
-  fn from(bson: Bson) -> Self {
+  /// Transformation of bson to a value. Some information is lost for
+  /// non-standard types like `RegExp`, `JavaScriptCodeWithScope`, and
+  /// `Binary`. The `Binary` type is completely ignored.
+  #[allow(match_same_arms)]
+  fn from(bson: Bson) -> Value {
     match bson {
-      Bson::FloatingPoint(value) => Value::F64(f64::from(value)),
+      Bson::FloatingPoint(value) => Value::F64(value),
       Bson::String(value) => Value::String(value),
-      Bson::Array(values) => Value::Array(values.into_iter().map(|v| Value::from(v)).collect()),
+      Bson::Array(array) => Value::Array(array.into_iter().map(Value::from).collect()),
       Bson::Document(document) => Value::from(document),
       Bson::Boolean(value) => Value::Boolean(value),
       Bson::Null => Value::Null,
@@ -139,9 +101,8 @@ impl From<Bson> for Value {
       Bson::JavaScriptCode(value) => Value::String(value),
       Bson::JavaScriptCodeWithScope(value, _) => Value::String(value),
       Bson::I32(value) => Value::I64(i64::from(value)),
-      Bson::I64(value) => Value::I64(i64::from(value)),
+      Bson::I64(value) => Value::I64(value),
       Bson::TimeStamp(value) => Value::I64(i64::from(value)),
-      // TODO: Actual transformation of binary type.
       Bson::Binary(_, _) => Value::Null,
       Bson::ObjectId(object_id) => Value::String(object_id.to_string()),
       Bson::UtcDatetime(time) => Value::String(time.to_rfc3339())
@@ -149,92 +110,506 @@ impl From<Bson> for Value {
   }
 }
 
+impl Into<Bson> for Value {
+  fn into(self) -> Bson {
+    match self {
+      Value::Null => Bson::Null,
+      Value::Boolean(value) => Bson::Boolean(value),
+      Value::I64(value) => Bson::I64(value),
+      Value::F64(value) => Bson::FloatingPoint(value),
+      Value::String(value) => Bson::String(value),
+      Value::Object(object) => Value::Object(object).into(),
+      Value::Array(array) => Bson::Array(array.into_iter().map(Value::into).collect())
+    }
+  }
+}
+
+impl From<Document> for Value {
+  fn from(document: Document) -> Value {
+    let mut object = LinearMap::new();
+    for (key, value) in document.into_iter() {
+      object.insert(key.clone(), Value::from(value));
+    }
+    Value::Object(object)
+  }
+}
+
+impl Into<Document> for Value {
+  fn into(self) -> Document {
+    match self {
+      Value::Object(object) => {
+        let mut document = Document::new();
+        for (key, value) in object.into_iter() {
+          document.insert(key, value);
+        }
+        document
+      },
+      _ => Document::new()
+    }
+  }
+}
+
+/// Transforms an Ardite condition to a MongoDB filter as specified by the
+/// MongoDB spec.
+fn condition_to_filter(condition: Condition) -> Bson {
+  match condition {
+    // Because we want nested `Condition::Keys` to be represented as
+    // dot-deliniated pointers (`a.b.c`) we must make sure that
+    // `condition_to_filter` is only called for the highest level
+    // `Condition::Keys`. For `Condition::Keys` inside `Condition::Keys` there
+    // is special logic to get a flat filter document.
+    Condition::Keys(keys) => {
+      // This `add_keys` function is that special logic.
+      fn add_keys(document: &mut Document, pointer: Pointer, keys: LinearMap<Key, Condition>) {
+        // For all of the keys:
+        for (key, condition) in keys {
+          // Create a new pointer from the parent pointer where the head is
+          // the key we are looping over.
+          let mut sub_pointer = pointer.clone();
+          sub_pointer.push(key);
+
+          if let Condition::Keys(sub_keys) = condition {
+            // If the sub condition is another `Condition::Keys`, run this
+            // function again instead of running `condition_to_filter`.
+            add_keys(document, sub_pointer, sub_keys);
+          } else {
+            // Otherwise, insert the filter into the document at the
+            // `sub_pointer`.
+            document.insert(sub_pointer.join("."), condition_to_filter(condition));
+          }
+        }
+      }
+
+      let mut document = Document::new();
+      add_keys(&mut document, vec![], keys);
+      Bson::Document(document)
+    },
+    Condition::True => bson!({ "$where" => "true" }),
+    Condition::False => bson!({ "$where" => "false" }),
+    Condition::Not(cond) => bson!({ "$not" => (condition_to_filter(*cond)) }),
+    Condition::And(conds) => bson!({
+      "$and" => (Bson::Array(conds.into_iter().map(condition_to_filter).collect()))
+    }),
+    Condition::Or(conds) => bson!({
+      "$or" => (Bson::Array(conds.into_iter().map(condition_to_filter).collect()))
+    }),
+    Condition::Equal(value) => {
+      let bson_value: Bson = value.into();
+      bson!({ "$eq" => bson_value })
+    }
+  }
+}
+
+/// Transform an Ardite sort to a MongoDB sort.
+fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
+  let mut document = Document::new();
+  for sort_rule in sort_rules {
+    document.insert(sort_rule.property().join("."), if sort_rule.is_descending() { -1 } else { 1 });
+  }
+  Bson::Document(document)
+}
+
+/// Transform an Ardite query to a MongoDB projection.
+fn query_to_projection(query: Query) -> Bson {
+  // The `add_keys` function is so that we can have a flat document with
+  // dot-deliniated pointers as keys instead of a nested document.
+  fn add_keys(document: &mut Document, pointer: Pointer, query: Query) {
+    match query {
+      Query::All => { document.insert(pointer.join("."), 1); },
+      Query::Keys(keys) => {
+        for (key, sub_query) in keys.into_iter() {
+          let mut sub_pointer = pointer.clone();
+          sub_pointer.push(key);
+          add_keys(document, sub_pointer, sub_query)
+        }
+      }
+    }
+  }
+
+  let mut document = Document::new();
+  document.insert("_id", 0);
+
+  if query == Query::All {
+    Bson::Document(document)
+  } else {
+    add_keys(&mut document, vec![], query);
+    Bson::Document(document)
+  }
+}
+
 #[cfg(test)]
 mod tests {
-  use super::bson::{Bson, Document};
-  use super::mongodb::db::{ThreadedDatabase};
-  use definition::Definition;
-  use definition::schema::Schema;
+  use super::{query_to_projection, sort_rules_to_sort, condition_to_filter};
+  use bson::{Bson, Document};
+  use mongodb::coll::Collection;
+  use mongodb::db::ThreadedDatabase;
   use driver::Driver;
   use driver::mongodb::MongoDriver;
-  use query::{Query, Selection};
+  use query::{Range, SortRule, Condition, Query};
+  use schema::{Definition, Type, Schema, SchemaType};
   use value::Value;
-  
+
   #[test]
-  fn test_validate_definition() {
-    assert!(MongoDriver::validate_definition(&Definition { data: Schema::Boolean }).is_err());
-    assert!(MongoDriver::validate_definition(&Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {}
-      }
-    }).is_ok());
-    assert!(MongoDriver::validate_definition(&Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          str!("foo") => Schema::Boolean
-        }
-      }
-    }).is_err());
-    assert!(MongoDriver::validate_definition(&Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          str!("foo") => Schema::Array {
-            items: Box::new(Schema::Boolean)
-          }
-        }
-      }
-    }).is_err());
-    assert!(MongoDriver::validate_definition(&Definition {
-      data: Schema::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          str!("foo") => Schema::Array {
-            items: Box::new(Schema::Object {
-              required: vec![],
-              additional_properties: true,
-              properties: linear_map! {}
-            })
-          }
-        }
-      }
-    }).is_ok());
-  }
-  
-  #[test]
-  fn test_database() {
-    let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
-    let coll_name = "ardite_test_collection";
-    driver.db.drop_collection(coll_name).unwrap();
-    let collection = driver.db.collection(coll_name);
-    let mut doc1 = Document::new();
-    doc1.insert(str!("title"), Bson::String(str!("Back to the future!")));
-    doc1.insert(str!("foo"), Bson::String(str!("bar")));
-    let mut doc2 = Document::new();
-    doc2.insert(str!("buz"), Bson::String(str!("baz")));
-    let id1 = collection.insert_one(doc1, None).unwrap().inserted_id.unwrap();
-    let id2 = collection.insert_one(doc2, None).unwrap().inserted_id.unwrap();
-    assert!(driver.query(Query::Value).is_err());
-    assert_eq!(driver.query(Query::Object(linear_map! {
-      Selection::Key(coll_name.to_string()) => Query::Value
-    })).unwrap(), vobject! {
-      coll_name => varray![
-        vobject! {
-          "_id" => Value::from(id1),
-          "title" => vstring!("Back to the future!"),
-          "foo" => vstring!("bar")
-        }, vobject! {
-          "_id" => Value::from(id2),
-          "buz" => vstring!("baz")
+  fn test_condition_to_filter() {
+    let condition = Condition::Or(vec![
+      Condition::True,
+      Condition::False,
+      Condition::And(vec![
+        Condition::Not(Box::new(Condition::Equal(Value::String(str!("hello"))))),
+        Condition::Equal(Value::I64(42))
+      ]),
+      Condition::Keys(linear_map! {
+        str!("a") => Condition::False,
+        str!("b") => Condition::Keys(linear_map! {
+          str!("c") => Condition::Equal(Value::I64(4)),
+          str!("d") => Condition::Keys(linear_map! {
+            str!("e") => Condition::True
+          })
+        })
+      })
+    ]);
+    let filter = bson!({
+      "$or" => [
+        { "$where" => "true" },
+        { "$where" => "false" },
+        {
+          "$and" => [
+            { "$not" => { "$eq" => "hello" } },
+            { "$eq" => 42i64 }
+          ]
+        },
+        {
+          "a" => { "$where" => "false" },
+          "b.c" => { "$eq" => 4i64 },
+          "b.d.e" => { "$where" => "true" }
         }
       ]
     });
-    driver.db.drop_collection(coll_name).unwrap();
+    assert_eq!(condition_to_filter(condition), filter);
+  }
+
+  #[test]
+  fn test_sort_rules_to_sort() {
+    let sort = vec![
+      SortRule::new(point!["hello", "world"], true),
+      SortRule::new(point!["a"], false)
+    ];
+    let sort_bson = bson!({ "hello.world" => 1, "a" => (-1) });
+    assert_eq!(sort_rules_to_sort(sort), sort_bson);
+  }
+
+  #[test]
+  fn test_query_to_projection() {
+    let query = Query::Keys(linear_map! {
+      str!("a") => Query::All,
+      str!("b") => Query::All,
+      str!("c") => Query::Keys(linear_map! {
+        str!("d") => Query::All,
+        str!("e") => Query::Keys(linear_map! {
+          str!("f") => Query::Keys(linear_map! {
+            str!("g") => Query::All
+          }),
+          str!("h") => Query::All
+        })
+      }),
+      str!("i") => Query::All,
+      str!("hello") => Query::Keys(linear_map! {
+        str!("world") => Query::All
+      }),
+      str!("goodbye") => Query::All
+    });
+    let projection = bson!({
+      "_id" => 0,
+      "a" => 1,
+      "b" => 1,
+      "c.d" => 1,
+      "c.e.f.g" => 1,
+      "c.e.h" => 1,
+      "i" => 1,
+      "hello.world" => 1,
+      "goodbye" => 1
+    });
+    assert_eq!(query_to_projection(query), projection);
+  }
+
+  fn doc_a() -> Document {
+    doc! {
+      "a" => 1,
+      "b" => 2,
+      "c" => 3,
+      "d" => 4
+    }
+  }
+
+  fn doc_b() -> Document {
+    doc! {
+      "b" => 2,
+      "c" => 4,
+      "hello" => "world",
+      "doc_a" => (Bson::Document(doc_a()))
+    }
+  }
+
+  fn doc_c() -> Document {
+    doc! {
+      "a" => 1,
+      "c" => 3,
+      "doc_b" => (Bson::Document(doc_b()))
+    }
+  }
+
+  fn val_a() -> Value { Value::from(doc_a()) }
+  fn val_b() -> Value { Value::from(doc_b()) }
+  fn val_c() -> Value { Value::from(doc_c()) }
+
+  #[allow(dead_code)]
+  struct Fixtures {
+    definition: Definition,
+    type_: Type,
+    driver: MongoDriver,
+    collection_name: String,
+    collection: Collection
+  }
+
+  fn get_fixtures(name: &str) -> Fixtures {
+    let collection_name = format!("ardite_test_{}", name);
+
+    let type_ = Type {
+      name: collection_name.clone(),
+      schema: Schema {
+        type_: SchemaType::Object {
+          required: vec![],
+          additional_properties: true,
+          properties: linear_map! {}
+        }
+      }
+    };
+
+    let definition = Definition {
+      types: linear_map! {
+        collection_name.clone() => type_.clone()
+      }
+    };
+
+    let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
+    driver.database.drop_collection(&collection_name).unwrap();
+    let collection = driver.database.collection(&collection_name);
+    collection.insert_many(vec![doc_a(), doc_b(), doc_c()], None).unwrap();
+
+    Fixtures {
+      definition: definition,
+      type_: type_,
+      driver: driver,
+      collection_name: collection_name,
+      collection: collection
+    }
+  }
+
+  #[test]
+  fn test_read_all() {
+    let fixtures = get_fixtures("read_all");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_b(), val_c()]
+    );
+  }
+
+  #[test]
+  fn test_read_condition() {
+    let fixtures = get_fixtures("read_condition");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Condition::False,
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Condition::And(vec![Condition::True, Condition::False]),
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Condition::Or(vec![Condition::True, Condition::False]),
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_b(), val_c()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Condition::Keys(linear_map! {
+          str!("c") => Condition::Equal(Value::I64(3))
+        }),
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_c()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Condition::Keys(linear_map! {
+          str!("doc_b") => Condition::Keys(linear_map! {
+            str!("doc_a") => Condition::Keys(linear_map! {
+              str!("d") => Condition::Equal(Value::I64(4))
+            })
+          })
+        }),
+        Default::default(),
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_c()]
+    );
+  }
+
+  #[test]
+  fn test_read_sort() {
+    let fixtures = get_fixtures("read_sort");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        vec![SortRule::new(point!["c"], true)],
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_c(), val_b()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        vec![SortRule::new(point!["c"], false)],
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_b(), val_a(), val_c()]
+    );
+  }
+
+  #[test]
+  fn test_read_range() {
+    let fixtures = get_fixtures("read_range");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Range::new(None, Some(2)),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_b()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Range::new(Some(1), Some(1)),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_b()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Range::new(Some(1), None),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_b(), val_c()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Range::new(Some(2), Some(40)),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_c()]
+    );
+  }
+
+  #[test]
+  fn test_read_query() {
+    let fixtures = get_fixtures("read_query");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Query::All
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_b(), val_c()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        Default::default(),
+        Default::default(),
+        Query::Keys(linear_map! {
+          str!("a") => Query::All,
+          str!("c") => Query::All,
+          str!("hello") => Query::All,
+          str!("doc_a") => Query::Keys(linear_map! {
+            str!("b") => Query::All
+          }),
+          str!("doc_b") => Query::Keys(linear_map! {
+            str!("hello") => Query::All,
+            str!("doc_a") => Query::Keys(linear_map! {
+              str!("b") => Query::All
+            })
+          })
+        })
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![
+        vobject! {
+          "a" => vi64!(1),
+          "c" => vi64!(3)
+        },
+        vobject! {
+          "c" => vi64!(4),
+          "hello" => vstring!("world"),
+          "doc_a" => vobject! {
+            "b" => vi64!(2)
+          }
+        },
+        vobject! {
+          "a" => vi64!(1),
+          "c" => vi64!(3),
+          "doc_b" => vobject! {
+            "hello" => vstring!("world"),
+            "doc_a" => vobject! {
+              "b" => vi64!(2)
+            }
+          }
+        }
+      ]
+    );
   }
 }

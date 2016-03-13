@@ -1,4 +1,5 @@
 //! Format for defining the shape of data in an Ardite Schema Definition.
+// TODO: Remove `pub` fields and add a DSL for building schemas.
 
 use linear_map::LinearMap;
 use regex::Regex;
