@@ -9,7 +9,7 @@ use mongodb::error::Error as MongoDBError;
 use schema::Type;
 use driver::Driver;
 use error::Error;
-use query::{Range, Condition, Query};
+use query::{Range, SortRule, SortDirection, Condition, Query};
 use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
@@ -36,6 +36,7 @@ impl Driver for MongoDriver {
     &self,
     type_: &Type,
     condition: Condition,
+    sort: Vec<SortRule>,
     range: Range,
     query: Query
   ) -> Result<ValueIter, Error> {
@@ -44,7 +45,7 @@ impl Driver for MongoDriver {
         let mut spec = doc! {
           "find" => (type_.name.to_owned()),
           "filter" => (condition_to_filter(condition)),
-          // "sort" => TODO,
+          "sort" => (sort_rules_to_sort(sort)),
           "projection" => (query_to_projection(query))
         };
         if let Some(limit) = range.limit {
@@ -201,6 +202,18 @@ fn condition_to_filter(condition: Condition) -> Bson {
   }
 }
 
+/// Transform an Ardite sort to a MongoDB sort.
+fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
+  let mut document = Document::new();
+  for sort_rule in sort_rules {
+    document.insert(sort_rule.property.join("."), match sort_rule.direction {
+      SortDirection::Ascending => 1,
+      SortDirection::Descending => -1
+    });
+  }
+  Bson::Document(document)
+}
+
 /// Transform an Ardite query to a MongoDB projection.
 fn query_to_projection(query: Query) -> Bson {
   // The `add_keys` function is so that we can have a flat document with
@@ -231,13 +244,13 @@ fn query_to_projection(query: Query) -> Bson {
 
 #[cfg(test)]
 mod tests {
-  use super::{query_to_projection, condition_to_filter};
+  use super::{query_to_projection, sort_rules_to_sort, condition_to_filter};
   use bson::{Bson, Document};
   use mongodb::coll::Collection;
   use mongodb::db::ThreadedDatabase;
   use driver::Driver;
   use driver::mongodb::MongoDriver;
-  use query::{Range, Condition, Query};
+  use query::{Range, SortRule, SortDirection, Condition, Query};
   use schema::{Definition, Type, Schema, SchemaType};
   use value::Value;
 
@@ -278,6 +291,22 @@ mod tests {
       ]
     });
     assert_eq!(condition_to_filter(condition), filter);
+  }
+
+  #[test]
+  fn test_sort_rules_to_sort() {
+    let sort = vec![
+      SortRule {
+        property: vec![str!("hello"), str!("world")],
+        direction: SortDirection::Ascending
+      },
+      SortRule {
+        property: vec![str!("a")],
+        direction: SortDirection::Descending
+      }
+    ];
+    let sort_bson = bson!({ "hello.world" => 1, "a" => (-1) });
+    assert_eq!(sort_rules_to_sort(sort), sort_bson);
   }
 
   #[test]
@@ -395,6 +424,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
+        Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_a(), val_b(), val_c()]
@@ -409,6 +439,7 @@ mod tests {
         &fixtures.type_,
         Condition::False,
         Default::default(),
+        Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![]
@@ -418,6 +449,7 @@ mod tests {
         &fixtures.type_,
         Condition::And(vec![Condition::True, Condition::False]),
         Default::default(),
+        Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![]
@@ -426,6 +458,7 @@ mod tests {
       fixtures.driver.read(
         &fixtures.type_,
         Condition::Or(vec![Condition::True, Condition::False]),
+        Default::default(),
         Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
@@ -437,6 +470,7 @@ mod tests {
         Condition::Keys(linear_map! {
           str!("c") => Condition::Equal(Value::I64(3))
         }),
+        Default::default(),
         Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
@@ -453,9 +487,35 @@ mod tests {
           })
         }),
         Default::default(),
+        Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_c()]
+    );
+  }
+
+  #[test]
+  fn test_read_sort() {
+    let fixtures = get_fixtures("read_sort");
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        vec![SortRule { property: vec![str!("c")], direction: SortDirection::Ascending }],
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_a(), val_c(), val_b()]
+    );
+    assert_eq!(
+      fixtures.driver.read(
+        &fixtures.type_,
+        Default::default(),
+        vec![SortRule { property: vec![str!("c")], direction: SortDirection::Descending }],
+        Default::default(),
+        Default::default()
+      ).unwrap().collect::<Vec<Value>>(),
+      vec![val_b(), val_a(), val_c()]
     );
   }
 
@@ -465,6 +525,7 @@ mod tests {
     assert_eq!(
       fixtures.driver.read(
         &fixtures.type_,
+        Default::default(),
         Default::default(),
         Range {
           limit: Some(2),
@@ -478,6 +539,7 @@ mod tests {
       fixtures.driver.read(
         &fixtures.type_,
         Default::default(),
+        Default::default(),
         Range {
           limit: Some(1),
           skip: Some(1)
@@ -490,6 +552,7 @@ mod tests {
       fixtures.driver.read(
         &fixtures.type_,
         Default::default(),
+        Default::default(),
         Range {
           limit: None,
           skip: Some(1)
@@ -501,6 +564,7 @@ mod tests {
     assert_eq!(
       fixtures.driver.read(
         &fixtures.type_,
+        Default::default(),
         Default::default(),
         Range {
           limit: Some(40),
@@ -520,6 +584,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
+        Default::default(),
         Query::All
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_a(), val_b(), val_c()]
@@ -527,6 +592,7 @@ mod tests {
     assert_eq!(
       fixtures.driver.read(
         &fixtures.type_,
+        Default::default(),
         Default::default(),
         Default::default(),
         Query::Keys(linear_map! {

@@ -111,7 +111,7 @@ pub struct ValueIter<'a> {
 
 impl<'a> ValueIter<'a> {
   /// Create a new value iterator.
-  pub fn new<I, V>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
+  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
     ValueIter {
       iter: Box::new(iter)
     }

@@ -1,7 +1,7 @@
 //! The driver trait which all drivers will implement.
 
 use error::Error;
-use query::{Condition, Range, Query};
+use query::{Condition, SortRule, Range, Query};
 use schema::Type;
 use value::ValueIter;
 
@@ -15,6 +15,7 @@ pub trait Driver {
     &self,
     type_: &Type,
     condition: Condition,
+    sort: Vec<SortRule>,
     range: Range,
     query: Query
   ) -> Result<ValueIter, Error>;

@@ -31,6 +31,20 @@ impl Default for Condition {
   }
 }
 
+/// Specifies the order in which a property of a value should be ordered.
+pub struct SortRule {
+  /// The exacty property to order by.
+  pub property: Pointer,
+  /// The direction to order the property in.
+  pub direction: SortDirection
+}
+
+/// The direction in which an order occurs.
+pub enum SortDirection {
+  Ascending,
+  Descending
+}
+
 /// Specifies a positive integer range in a traditional SQL format.
 pub struct Range {
   /// How many items should be included in this range.
