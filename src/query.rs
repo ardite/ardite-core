@@ -34,13 +34,47 @@ impl Default for Condition {
 /// Specifies the order in which a property of a value should be ordered.
 pub struct SortRule {
   /// The exacty property to order by.
-  pub property: Pointer,
+  property: Pointer,
   /// The direction to order the property in.
-  pub direction: SortDirection
+  direction: SortDirection
+}
+
+impl SortRule {
+  /// Create a new sorting rule from the property pointer and a boolean
+  /// specifying if we are ascending or descending.
+  pub fn new(property: Pointer, ascending: bool) -> Self {
+    SortRule {
+      property: property,
+      direction: if ascending { SortDirection::Ascending } else { SortDirection::Descending }
+    }
+  }
+
+  /// Get the property the struct is sorting against.
+  pub fn property(&self) -> Pointer {
+    self.property.clone()
+  }
+
+  /// Is the struct sorting the property in ascending order?
+  pub fn is_ascending(&self) -> bool {
+    if let SortDirection::Ascending = self.direction {
+      true
+    } else {
+      false
+    }
+  }
+
+  /// Is the struct sorting the property in descending order?
+  pub fn is_descending(&self) -> bool {
+    if let SortDirection::Descending = self.direction {
+      true
+    } else {
+      false
+    }
+  }
 }
 
 /// The direction in which an order occurs.
-pub enum SortDirection {
+enum SortDirection {
   Ascending,
   Descending
 }
@@ -48,17 +82,34 @@ pub enum SortDirection {
 /// Specifies a positive integer range in a traditional SQL format.
 pub struct Range {
   /// How many items should be included in this range.
-  pub limit: Option<u64>,
+  limit: Option<u64>,
   /// How many items should be skipped from the full set in this range.
-  pub skip: Option<u64>
+  skip: Option<u64>
+}
+
+impl Range {
+  /// Creates a new range from a limit and a skip.
+  pub fn new(skip: Option<u64>, limit: Option<u64>) -> Self {
+    Range {
+      limit: limit,
+      skip: skip
+    }
+  }
+
+  /// Get the limit of the range.
+  pub fn limit(&self) -> Option<u64> {
+    self.limit
+  }
+
+  /// Get how many items the range skips over.
+  pub fn skip(&self) -> Option<u64> {
+    self.skip
+  }
 }
 
 impl Default for Range {
   fn default() -> Range {
-    Range {
-      limit: None,
-      skip: None
-    }
+    Range::new(None, None)
   }
 }
 

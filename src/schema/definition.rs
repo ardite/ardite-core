@@ -1,4 +1,5 @@
 //! Contains the full definition of a data system which Ardite will use.
+// TODO: Remove `pub` fields and add a DSL for building definitions.
 
 use linear_map::LinearMap;
 use schema::Schema;

@@ -11,7 +11,7 @@ use serde_yaml::error::Error as YAMLError;
 /// The code of an error. Designed to easily map to [HTTP status codes][1].
 ///
 /// [1]: http://www.restapitutorial.com/httpstatuscodes.html
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ErrorCode {
   /// A bad syntax was used. Maps to 400.
   BadRequest = 400,
@@ -53,6 +53,21 @@ impl Error {
       message: message.into(),
       hint: hint.map(|string| string.into())
     }
+  }
+
+  /// Get the code for the error.
+  pub fn code(&self) -> ErrorCode {
+    self.code.to_owned()
+  }
+
+  /// Get the message for the error.
+  pub fn message(&self) -> String {
+    self.message.to_owned()
+  }
+
+  /// Get the hint—for the error (see what I did there?).
+  pub fn hint(&self) -> Option<String> {
+    self.hint.to_owned()
   }
 
   /// Convenience function for saying a thing failed validation.

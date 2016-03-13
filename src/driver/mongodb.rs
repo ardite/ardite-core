@@ -9,7 +9,7 @@ use mongodb::error::Error as MongoDBError;
 use schema::Type;
 use driver::Driver;
 use error::Error;
-use query::{Range, SortRule, SortDirection, Condition, Query};
+use query::{Range, SortRule, Condition, Query};
 use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
@@ -48,10 +48,10 @@ impl Driver for MongoDriver {
           "sort" => (sort_rules_to_sort(sort)),
           "projection" => (query_to_projection(query))
         };
-        if let Some(limit) = range.limit {
+        if let Some(limit) = range.limit() {
           spec.insert("limit", limit);
         }
-        if let Some(skip) = range.skip {
+        if let Some(skip) = range.skip() {
           spec.insert("skip", skip);
         }
         spec
@@ -206,10 +206,7 @@ fn condition_to_filter(condition: Condition) -> Bson {
 fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
   let mut document = Document::new();
   for sort_rule in sort_rules {
-    document.insert(sort_rule.property.join("."), match sort_rule.direction {
-      SortDirection::Ascending => 1,
-      SortDirection::Descending => -1
-    });
+    document.insert(sort_rule.property().join("."), if sort_rule.is_descending() { -1 } else { 1 });
   }
   Bson::Document(document)
 }
@@ -250,7 +247,7 @@ mod tests {
   use mongodb::db::ThreadedDatabase;
   use driver::Driver;
   use driver::mongodb::MongoDriver;
-  use query::{Range, SortRule, SortDirection, Condition, Query};
+  use query::{Range, SortRule, Condition, Query};
   use schema::{Definition, Type, Schema, SchemaType};
   use value::Value;
 
@@ -296,14 +293,8 @@ mod tests {
   #[test]
   fn test_sort_rules_to_sort() {
     let sort = vec![
-      SortRule {
-        property: vec![str!("hello"), str!("world")],
-        direction: SortDirection::Ascending
-      },
-      SortRule {
-        property: vec![str!("a")],
-        direction: SortDirection::Descending
-      }
+      SortRule::new(point!["hello", "world"], true),
+      SortRule::new(point!["a"], false)
     ];
     let sort_bson = bson!({ "hello.world" => 1, "a" => (-1) });
     assert_eq!(sort_rules_to_sort(sort), sort_bson);
@@ -501,7 +492,7 @@ mod tests {
       fixtures.driver.read(
         &fixtures.type_,
         Default::default(),
-        vec![SortRule { property: vec![str!("c")], direction: SortDirection::Ascending }],
+        vec![SortRule::new(point!["c"], true)],
         Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
@@ -511,7 +502,7 @@ mod tests {
       fixtures.driver.read(
         &fixtures.type_,
         Default::default(),
-        vec![SortRule { property: vec![str!("c")], direction: SortDirection::Descending }],
+        vec![SortRule::new(point!["c"], false)],
         Default::default(),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
@@ -527,10 +518,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
-        Range {
-          limit: Some(2),
-          skip: None
-        },
+        Range::new(None, Some(2)),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_a(), val_b()]
@@ -540,10 +528,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
-        Range {
-          limit: Some(1),
-          skip: Some(1)
-        },
+        Range::new(Some(1), Some(1)),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_b()]
@@ -553,10 +538,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
-        Range {
-          limit: None,
-          skip: Some(1)
-        },
+        Range::new(Some(1), None),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_b(), val_c()]
@@ -566,10 +548,7 @@ mod tests {
         &fixtures.type_,
         Default::default(),
         Default::default(),
-        Range {
-          limit: Some(40),
-          skip: Some(2)
-        },
+        Range::new(Some(2), Some(40)),
         Default::default()
       ).unwrap().collect::<Vec<Value>>(),
       vec![val_c()]
