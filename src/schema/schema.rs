@@ -59,6 +59,7 @@ impl Schema {
             None
           }
         },
+        SchemaType::None |
         SchemaType::Null |
         SchemaType::Boolean |
         SchemaType::Number{..} |
@@ -105,6 +106,7 @@ impl Schema {
         }
       },
       (&SchemaType::Enum(_), &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT)),
+      (&SchemaType::None, _) |
       (_, &Query::All) => Ok(())
     }
   }
@@ -117,6 +119,10 @@ impl Schema {
 /// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
 #[derive(PartialEq, Clone, Debug)]
 pub enum SchemaType {
+  /// There is no schema. No validations should occur. Does not represent the
+  /// abscense of any value, only represents that a schema does not define the
+  /// data structure at this point.
+  None,
   /// Represents the absence of any value.
   Null,
   /// Represents a binary true/false value.
@@ -173,8 +179,8 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert_eq!(Schema { type_: SchemaType::Null }.get(point![]).unwrap(), Schema { type_: SchemaType::Null });
-    assert!(Schema { type_: SchemaType::Null }.get(point!["hello"]).is_none());
+    assert_eq!(Schema { type_: SchemaType::None }.get(point![]).unwrap(), Schema { type_: SchemaType::None });
+    assert!(Schema { type_: SchemaType::None }.get(point!["hello"]).is_none());
     assert_eq!(Schema { type_: SchemaType::Boolean }.get(point![]).unwrap(), Schema { type_: SchemaType::Boolean });
     assert!(Schema { type_: SchemaType::Boolean }.get(point!["hello"]).is_none());
     assert!(Schema {
@@ -199,7 +205,7 @@ mod tests {
   fn test_get_array() {
     let array_none = Schema {
       type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::Null })
+        items: Box::new(Schema { type_: SchemaType::None })
       }
     };
     let array_bool = Schema {
@@ -207,7 +213,7 @@ mod tests {
         items: Box::new(Schema { type_: SchemaType::Boolean })
       }
     };
-    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema { type_: SchemaType::Null });
+    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema { type_: SchemaType::None });
     assert!(array_none.get(point!["asd"]).is_none());
     assert_eq!(array_bool.get(point!["1"]).unwrap(), Schema { type_: SchemaType::Boolean });
     assert_eq!(array_bool.get(point!["9999999"]).unwrap(), Schema { type_: SchemaType::Boolean });
@@ -244,6 +250,19 @@ mod tests {
   }
 
   #[test]
+  fn test_query_none() {
+    assert_eq!(Schema { type_: SchemaType::None }.validate_query(&Query::All).is_ok(), true);
+    assert_eq!(Schema { type_: SchemaType::None }.validate_query(&Query::Keys(linear_map! {
+      str!("s@#f&/Ij)82h(;pa0]") => Query::All,
+      str!("123") => Query::All,
+      str!("hello") => Query::All,
+      str!("nested") => Query::Keys(linear_map! {
+        str!("yo") => Query::All
+      })
+    })).is_ok(), true);
+  }
+
+  #[test]
   fn test_query_primitive() {
     assert!(Schema { type_: SchemaType::Null }.validate_query(&Query::All).is_ok());
     let obj_query = Query::Keys(linear_map! {});
@@ -273,9 +292,9 @@ mod tests {
 
   #[test]
   fn test_query_array() {
-    let array_null = Schema {
+    let array_none = Schema {
       type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::Null })
+        items: Box::new(Schema { type_: SchemaType::None })
       }
     };
     let array_bool = Schema {
@@ -283,13 +302,13 @@ mod tests {
         items: Box::new(Schema { type_: SchemaType::Boolean })
       }
     };
-    assert!(array_null.validate_query(&Query::All).is_ok());
-    assert!(array_null.validate_query(&Query::Keys(linear_map! {
+    assert!(array_none.validate_query(&Query::All).is_ok());
+    assert!(array_none.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::All
     })).is_ok());
-    array_null.validate_query(&Query::Keys(linear_map! {
+    assert!(array_none.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::Keys(linear_map! {})
-    })).unwrap_err().assert_message(r"Cannot deeply query null\.");
+    })).is_ok());
     assert!(array_bool.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::All,
       str!("2") => Query::All,
@@ -297,7 +316,7 @@ mod tests {
       str!("50") => Query::All,
       str!("9999999999999") => Query::All
     })).is_ok());
-    array_null.validate_query(&Query::Keys(linear_map! {
+    array_none.validate_query(&Query::Keys(linear_map! {
       str!("hello") => Query::All
     })).unwrap_err().assert_message("non-integer \"hello\"");
     array_bool.validate_query(&Query::Keys(linear_map! {
