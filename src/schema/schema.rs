@@ -158,6 +158,47 @@ impl Schema {
     }
   }
 
+  /// Create a schema which validates a string.
+  pub fn string() -> Self {
+    Schema {
+      type_: SchemaType::String {
+        min_length: None,
+        max_length: None,
+        pattern: None
+      }
+    }
+  }
+
+  /// Create a schema which validates an array. It takes another schema to
+  /// validate all of the child properties.
+  pub fn array() -> Self {
+    Schema {
+      type_: SchemaType::Array {
+        items: Box::new(Schema::none())
+      }
+    }
+  }
+
+  /// Create a schema which validates an object.
+  pub fn object() -> Self {
+    Schema {
+      type_: SchemaType::Object {
+        required: vec![],
+        additional_properties: false,
+        properties: LinearMap::new()
+      }
+    }
+  }
+
+  /// Creates a schema which validates enumerated values.
+  pub fn enum_<V>(values: Vec<V>) -> Self where V: Into<Value> {
+    Schema {
+      type_: SchemaType::Enum {
+        values: values.into_iter().map(Into::into).collect()
+      }
+    }
+  }
+
   pub fn set_multiple_of(&mut self, multiple_of: f32) -> bool {
     unimplemented!();
   }
@@ -198,17 +239,6 @@ impl Schema {
     unimplemented!();
   }
 
-  /// Create a schema which validates a string.
-  pub fn string() -> Self {
-    Schema {
-      type_: SchemaType::String {
-        min_length: None,
-        max_length: None,
-        pattern: None
-      }
-    }
-  }
-
   pub fn set_min_length(&mut self, min_length: u64) -> bool {
     unimplemented!();
   }
@@ -233,33 +263,12 @@ impl Schema {
     unimplemented!();
   }
 
-  /// Create a schema which validates an array. It takes another schema to
-  /// validate all of the child properties.
-  pub fn array() -> Self {
-    Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema::none())
-      }
-    }
-  }
-
   pub fn set_items(&self, schema: Schema) -> Option<Schema> {
     unimplemented!();
   }
 
   pub fn items(&self) -> Option<Schema> {
     unimplemented!();
-  }
-
-  /// Create a schema which validates an object.
-  pub fn object() -> Self {
-    Schema {
-      type_: SchemaType::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: LinearMap::new()
-      }
-    }
   }
 
   pub fn add_property<K>(&mut self, key: K, schema: Schema) -> bool where K: Into<Key> {
@@ -284,15 +293,6 @@ impl Schema {
 
   pub fn additional_properties(&self) -> bool {
     unimplemented!();
-  }
-
-  /// Creates a schema which validates enumerated values.
-  pub fn enum_<V>(values: Vec<V>) -> Self where V: Into<Value> {
-    Schema {
-      type_: SchemaType::Enum {
-        values: values.into_iter().map(Into::into).collect()
-      }
-    }
   }
 
   pub fn enum_values(&self) -> Vec<Value> {
