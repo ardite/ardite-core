@@ -110,7 +110,9 @@ impl Schema {
       (_, &Query::All) => Ok(())
     }
   }
+}
 
+impl Schema {
   /// Create a schema which does not run any validations.
   pub fn none() -> Self {
     Schema {
@@ -198,7 +200,30 @@ impl Schema {
       }
     }
   }
+}
 
+macro_rules! is_schema_type {
+  ($this:expr, $variant:ident) => {
+    match $this.type_ {
+      SchemaType::$variant{..} => true,
+      _ => false
+    }
+  }
+}
+
+// Functions for detecting the type of a schema.
+impl Schema {
+  pub fn is_none(&self)    -> bool { is_schema_type!(self, None)    }
+  pub fn is_null(&self)    -> bool { is_schema_type!(self, Null)    }
+  pub fn is_boolean(&self) -> bool { is_schema_type!(self, Boolean) }
+  pub fn is_number(&self)  -> bool { is_schema_type!(self, Number)  }
+  pub fn is_string(&self)  -> bool { is_schema_type!(self, String)  }
+  pub fn is_array(&self)   -> bool { is_schema_type!(self, Array)   }
+  pub fn is_object(&self)  -> bool { is_schema_type!(self, Object)  }
+  pub fn is_enum(&self)    -> bool { is_schema_type!(self, Enum)    }
+}
+
+impl Schema {
   pub fn set_multiple_of(&mut self, multiple_of: f32) -> bool {
     unimplemented!();
   }
