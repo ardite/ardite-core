@@ -6,12 +6,11 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::path::PathBuf;
 use std::fs::File;
-use linear_map::LinearMap;
 use regex::Regex;
 use serde_json;
 use serde_yaml;
 use error::{Error, ErrorCode};
-use schema::{Definition, Type, Schema, SchemaType};
+use schema::{Definition, Type, Schema};
 use value::Value;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -51,9 +50,7 @@ impl Into<Result<Definition, Error>> for SerdeDefinition {
     let mut definition = Definition::new();
 
     for (key, value) in self.types.into_iter() {
-      let mut type_ = Type::new(key);
-      type_.set_schema(try!(value.into()));
-      definition.add_type(type_);
+      definition.add_type(Type::new(key, try!(value.into())));
     }
 
     Ok(definition)
@@ -93,52 +90,38 @@ impl Into<Result<Schema, Error>> for SerdeSchema {
   fn into(self) -> Result<Schema, Error> {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
-        "null" => Ok(Schema {
-          type_: SchemaType::Null
-        }),
-        "boolean" => Ok(Schema {
-          type_: SchemaType::Boolean
-        }),
-        "number" | "integer" => Ok(Schema {
-          type_: SchemaType::Number {
-            multiple_of: self.multiple_of,
-            minimum: self.minimum,
-            exclusive_minimum: self.exclusive_minimum.unwrap_or(false),
-            maximum: self.maximum,
-            exclusive_maximum: self.exclusive_maximum.unwrap_or(false)
-          }
-        }),
-        "string" => Ok(Schema {
-          type_: SchemaType::String {
-            min_length: self.min_length,
-            max_length: self.max_length,
-            pattern: self.pattern.map_or(None, |pattern| Regex::new(&pattern).ok())
-          }
-        }),
-        "array" => {
-          if let Some(items) = self.items {
-            Ok(Schema {
-              type_: SchemaType::Array {
-                items: Box::new(try!((*items).into()))
-              }
-            })
-          } else {
-            Err(Error::validation("Missing `items` property for type 'array'.", "Add a schema at `items`."))
-          }
+        "null" => Ok(Schema::null()),
+        "boolean" => Ok(Schema::boolean()),
+        type_ @ "number" | type_ @ "integer" => {
+          let mut schema = if type_ == "integer" { Schema::integer() } else { Schema::number() };
+          if let Some(multiple_of) = self.multiple_of { schema.set_multiple_of(multiple_of); }
+          if let Some(minimum) = self.minimum { schema.set_minimum(minimum); }
+          if let Some(maximum) = self.maximum { schema.set_maximum(maximum); }
+          if self.exclusive_minimum.unwrap_or(false) { schema.enable_exclusive_minimum(); }
+          if self.exclusive_maximum.unwrap_or(false) { schema.enable_exclusive_maximum(); }
+          Ok(schema)
         },
-        "object" => Ok(Schema {
-          type_: SchemaType::Object {
-            required: self.required.unwrap_or_else(|| vec![]),
-            additional_properties: self.additional_properties.unwrap_or(false),
-            properties: {
-              let mut map = LinearMap::new();
-              for (key, definition) in self.properties.unwrap_or_default() {
-                map.insert(key, try!(definition.into()));
-              }
-              map
-            }
+        "string" => {
+          let mut schema = Schema::string();
+          if let Some(min_length) = self.min_length { schema.set_min_length(min_length); }
+          if let Some(max_length) = self.max_length { schema.set_min_length(max_length); }
+          if let Some(pattern) = self.pattern.and_then(|p| Regex::new(&p).ok()) { schema.set_pattern(pattern); }
+          Ok(schema)
+        },
+        "array" => {
+          let mut schema = Schema::array();
+          if let Some(items) = self.items { schema.set_items(try!((*items).into())); }
+          Ok(schema)
+        },
+        "object" => {
+          let mut schema = Schema::object();
+          schema.set_required(self.required.unwrap_or_else(|| vec![]));
+          if self.additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
+          for (key, definition) in self.properties.unwrap_or_default() {
+            schema.add_property(key, try!(definition.into()));
           }
-        }),
+          Ok(schema)
+        },
         _ => Err(Error::validation(
           format!("Invalid type '{}'.", type_),
           format!("Use a permitted type like 'string' and not '{}'.", type_)
@@ -146,9 +129,7 @@ impl Into<Result<Schema, Error>> for SerdeSchema {
       },
       None => {
         if let Some(enum_) = self.enum_ {
-          Ok(Schema {
-            type_: SchemaType::Enum(enum_.into_iter().map(Value::String).collect())
-          })
+          Ok(Schema::enum_(enum_.into_iter().map(Value::String).collect()))
         } else {
           Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
         }

@@ -105,6 +105,33 @@ impl Value {
   }
 }
 
+impl<V> From<Option<V>> for Value where V: Into<Value> {
+  fn from(option: Option<V>) -> Self {
+    match option {
+      None => Value::Null,
+      Some(value) => value.into()
+    }
+  }
+}
+
+impl From<bool> for Value {
+  fn from(boolean: bool) -> Self {
+    Value::Boolean(boolean)
+  }
+}
+
+impl From<String> for Value {
+  fn from(string: String) -> Self {
+    Value::String(string)
+  }
+}
+
+impl<'a> From<&'a str> for Value {
+  fn from(string: &'a str) -> Self {
+    Value::from(string.to_owned())
+  }
+}
+
 /// Takes a string and escapes it for use within a JSON encoded object. Read,
 /// inside quotes.
 fn escape_string_for_json(string: &str) -> String {

@@ -1,6 +1,6 @@
 //! Contains the full definition of a data system which Ardite will use.
 
-use schema::{Schema, SchemaType};
+use schema::Schema;
 use value::Key;
 
 /// The definition object which contains all necessary information to
@@ -36,18 +36,11 @@ pub struct Type {
 
 impl Type {
   /// Create a new instance of `Type`.
-  pub fn new<I>(name: I) -> Self where I: Into<Key> {
+  pub fn new<I>(name: I, schema: Schema) -> Self where I: Into<Key> {
     Type {
       name: name.into(),
-      schema: Schema {
-        type_: SchemaType::None
-      }
+      schema: schema
     }
-  }
-
-  /// Set the schema for `Type`.
-  pub fn set_schema(&mut self, schema: Schema) {
-    self.schema = schema;
   }
 }
 
@@ -57,63 +50,46 @@ impl Type {
 #[cfg(test)]
 pub fn create_basic() -> Definition {
   use regex::Regex;
-  use schema::{Schema, SchemaType};
+  use schema::Schema;
 
   let mut definition = Definition::new();
-  let mut person_type = Type::new("person");
-  let mut post_type = Type::new("post");
 
-  person_type.set_schema(Schema {
-    type_: SchemaType::Object {
-      required: vec![str!("email")],
-      additional_properties: false,
-      properties: linear_map! {
-        str!("email") => Schema {
-          type_: SchemaType::String {
-            min_length: Some(4),
-            max_length: Some(256),
-            pattern: Some(Regex::new(r".+@.+\..+").unwrap())
-          }
-        },
-        str!("name") => Schema {
-          type_: SchemaType::String {
-            min_length: Some(2),
-            max_length: Some(64),
-            pattern: None
-          }
-        }
-      }
-    }
-  });
+  definition.add_type(Type::new("person", {
+    let mut person = Schema::object();
+    person.set_required(vec!["email"]);
+    person.add_property("email", {
+      let mut email = Schema::string();
+      email.set_min_length(4);
+      email.set_max_length(256);
+      email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
+      email
+    });
+    person.add_property("name", {
+      let mut name = Schema::string();
+      name.set_min_length(2);
+      name.set_max_length(64);
+      name
+    });
+    person
+  }));
 
-  post_type.set_schema(Schema {
-    type_: SchemaType::Object {
-      required: vec![str!("headline")],
-      additional_properties: false,
-      properties: linear_map! {
-        str!("headline") => Schema {
-          type_: SchemaType::String {
-            min_length: Some(4),
-            max_length: Some(1024),
-            pattern: None
-          }
-        },
-        str!("text") => Schema {
-          type_: SchemaType::String {
-            min_length: None,
-            max_length: Some(65536),
-            pattern: None
-          }
-        },
-        str!("topic") => Schema {
-          type_: SchemaType::Enum(vec![vstring!("showcase"), vstring!("help"), vstring!("ama")])
-        }
-      }
-    }
-  });
-
-  definition.add_type(person_type);
-  definition.add_type(post_type);
+  definition.add_type(Type::new("post", {
+    let mut post = Schema::object();
+    post.set_required(vec!["headline"]);
+    post.add_property("headline", {
+      let mut headline = Schema::string();
+      headline.set_min_length(4);
+      headline.set_max_length(1024);
+      headline
+    });
+    post.add_property("text", {
+      let mut text = Schema::string();
+      text.set_max_length(65536);
+      text
+    });
+    post.add_property("topic", Schema::enum_(vec!["showcase", "help", "ama"]));
+    post
+  }));
 
   definition
 }

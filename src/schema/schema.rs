@@ -35,7 +35,7 @@ lazy_static! {
 /// [1]: http://json-schema.org
 #[derive(PartialEq, Clone, Debug)]
 pub struct Schema {
-  pub type_: SchemaType
+  type_: SchemaType
 }
 
 impl Schema {
@@ -64,7 +64,7 @@ impl Schema {
         SchemaType::Boolean |
         SchemaType::Number{..} |
         SchemaType::String{..} |
-        SchemaType::Enum(_) => None
+        SchemaType::Enum{..} => None
       }
     }
   }
@@ -105,10 +105,198 @@ impl Schema {
           Some(error) => error
         }
       },
-      (&SchemaType::Enum(_), &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT)),
+      (&SchemaType::Enum{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT)),
       (&SchemaType::None, _) |
       (_, &Query::All) => Ok(())
     }
+  }
+
+  /// Create a schema which does not run any validations.
+  pub fn none() -> Self {
+    Schema {
+      type_: SchemaType::None
+    }
+  }
+
+  /// Create a schema which ensures the value is null and only null.
+  pub fn null() -> Self {
+    Schema {
+      type_: SchemaType::Null
+    }
+  }
+
+  /// Create a schema which validates a boolean primitive type.
+  pub fn boolean() -> Self {
+    Schema {
+      type_: SchemaType::Boolean
+    }
+  }
+
+  /// Create a schema which validates a number.
+  pub fn number() -> Self {
+    Schema {
+      type_: SchemaType::Number {
+        multiple_of: None,
+        minimum: None,
+        exclusive_minimum: false,
+        maximum: None,
+        exclusive_maximum: false
+      }
+    }
+  }
+
+  /// Create a schema which validates an integer.
+  pub fn integer() -> Self {
+    Schema {
+      type_: SchemaType::Number {
+        multiple_of: Some(1f32),
+        minimum: None,
+        exclusive_minimum: false,
+        maximum: None,
+        exclusive_maximum: false
+      }
+    }
+  }
+
+  pub fn set_multiple_of(&mut self, multiple_of: f32) -> bool {
+    unimplemented!();
+  }
+
+  pub fn set_minimum(&mut self, minimum: f64) -> bool {
+    unimplemented!();
+  }
+
+  pub fn enable_exclusive_minimum(&mut self) -> bool {
+    unimplemented!();
+  }
+
+  pub fn set_maximum(&mut self, maximum: f64) -> bool {
+    unimplemented!();
+  }
+
+  pub fn enable_exclusive_maximum(&mut self) -> bool {
+    unimplemented!();
+  }
+
+  pub fn multiple_of(&self) -> Option<f64> {
+    unimplemented!();
+  }
+
+  pub fn minimum(&self) -> Option<f64> {
+    unimplemented!();
+  }
+
+  pub fn exclusive_minimum(&self) -> bool {
+    unimplemented!();
+  }
+
+  pub fn maximum(&self) -> Option<f64> {
+    unimplemented!();
+  }
+
+  pub fn exclusive_maximum(&self) -> bool {
+    unimplemented!();
+  }
+
+  /// Create a schema which validates a string.
+  pub fn string() -> Self {
+    Schema {
+      type_: SchemaType::String {
+        min_length: None,
+        max_length: None,
+        pattern: None
+      }
+    }
+  }
+
+  pub fn set_min_length(&mut self, min_length: u64) -> bool {
+    unimplemented!();
+  }
+
+  pub fn set_max_length(&mut self, max_length: u64) -> bool {
+    unimplemented!();
+  }
+
+  pub fn set_pattern(&mut self, pattern: Regex) -> bool {
+    unimplemented!();
+  }
+
+  pub fn min_length(&self) -> Option<u64> {
+    unimplemented!();
+  }
+
+  pub fn max_length(&self) -> Option<u64> {
+    unimplemented!();
+  }
+
+  pub fn pattern(&self) -> Option<Regex> {
+    unimplemented!();
+  }
+
+  /// Create a schema which validates an array. It takes another schema to
+  /// validate all of the child properties.
+  pub fn array() -> Self {
+    Schema {
+      type_: SchemaType::Array {
+        items: Box::new(Schema::none())
+      }
+    }
+  }
+
+  pub fn set_items(&self, schema: Schema) -> Option<Schema> {
+    unimplemented!();
+  }
+
+  pub fn items(&self) -> Option<Schema> {
+    unimplemented!();
+  }
+
+  /// Create a schema which validates an object.
+  pub fn object() -> Self {
+    Schema {
+      type_: SchemaType::Object {
+        required: vec![],
+        additional_properties: false,
+        properties: LinearMap::new()
+      }
+    }
+  }
+
+  pub fn add_property<K>(&mut self, key: K, schema: Schema) -> bool where K: Into<Key> {
+    unimplemented!();
+  }
+
+  pub fn set_required<K>(&mut self, required: Vec<K>) -> bool where K: Into<Key> {
+    unimplemented!();
+  }
+
+  pub fn enable_additional_properties(&mut self) -> bool {
+    unimplemented!();
+  }
+
+  pub fn properties(&self) -> LinearMap<Key, Schema> {
+    unimplemented!();
+  }
+
+  pub fn required(&self) -> Vec<Key> {
+    unimplemented!();
+  }
+
+  pub fn additional_properties(&self) -> bool {
+    unimplemented!();
+  }
+
+  /// Creates a schema which validates enumerated values.
+  pub fn enum_<V>(values: Vec<V>) -> Self where V: Into<Value> {
+    Schema {
+      type_: SchemaType::Enum {
+        values: values.into_iter().map(Into::into).collect()
+      }
+    }
+  }
+
+  pub fn enum_values(&self) -> Vec<Value> {
+    unimplemented!();
   }
 }
 
@@ -118,7 +306,7 @@ impl Schema {
 ///
 /// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
 #[derive(PartialEq, Clone, Debug)]
-pub enum SchemaType {
+enum SchemaType {
   /// There is no schema. No validations should occur. Does not represent the
   /// abscense of any value, only represents that a schema does not define the
   /// data structure at this point.
@@ -169,7 +357,10 @@ pub enum SchemaType {
   /// Represents a value which *must* be one of the defined values. An enum is
   /// considered a primitive type as if it is a single value is a higher order
   /// type, no variation is allowed.
-  Enum(Vec<Value>)
+  Enum {
+    /// The available values.
+    values: Vec<Value>
+  }
 }
 
 impl Default for SchemaType {
@@ -180,85 +371,53 @@ impl Default for SchemaType {
 
 #[cfg(test)]
 mod tests {
-  use schema::{Schema, SchemaType};
+  use schema::Schema;
   use query::Query;
 
   #[test]
   fn test_get_primitive() {
-    assert_eq!(Schema { type_: SchemaType::None }.get(point![]).unwrap(), Schema { type_: SchemaType::None });
-    assert!(Schema { type_: SchemaType::None }.get(point!["hello"]).is_none());
-    assert_eq!(Schema { type_: SchemaType::Boolean }.get(point![]).unwrap(), Schema { type_: SchemaType::Boolean });
-    assert!(Schema { type_: SchemaType::Boolean }.get(point!["hello"]).is_none());
-    assert!(Schema {
-      type_: SchemaType::Number {
-        multiple_of: None,
-        minimum: None,
-        exclusive_minimum: false,
-        maximum: None,
-        exclusive_maximum: false
-      }
-    }.get(point!["hello"]).is_none());
-    assert!(Schema {
-      type_: SchemaType::String {
-        min_length: None,
-        max_length: None,
-        pattern: None
-      }
-    }.get(point!["hello"]).is_none());
+    assert_eq!(Schema::none().get(point![]).unwrap(), Schema::none());
+    assert!(Schema::none().get(point!["hello"]).is_none());
+    assert_eq!(Schema::boolean().get(point![]).unwrap(), Schema::boolean());
+    assert!(Schema::boolean().get(point!["hello"]).is_none());
+    assert!(Schema::number().get(point!["hello"]).is_none());
+    assert!(Schema::string().get(point!["hello"]).is_none());
   }
 
   #[test]
   fn test_get_array() {
-    let array_none = Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::None })
-      }
-    };
-    let array_bool = Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::Boolean })
-      }
-    };
-    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema { type_: SchemaType::None });
+    let array_none = Schema::array();
+    let mut array_bool = Schema::array();
+    array_bool.set_items(Schema::boolean());
+    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema::none());
     assert!(array_none.get(point!["asd"]).is_none());
-    assert_eq!(array_bool.get(point!["1"]).unwrap(), Schema { type_: SchemaType::Boolean });
-    assert_eq!(array_bool.get(point!["9999999"]).unwrap(), Schema { type_: SchemaType::Boolean });
+    assert_eq!(array_bool.get(point!["1"]).unwrap(), Schema::boolean());
+    assert_eq!(array_bool.get(point!["9999999"]).unwrap(), Schema::boolean());
     assert!(array_bool.get(point!["asd"]).is_none());
   }
 
   #[test]
   fn test_get_object() {
-    let object = Schema {
-      type_: SchemaType::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          str!("hello") => Schema { type_: SchemaType::Boolean },
-          str!("world") => Schema { type_: SchemaType::Boolean },
-          str!("5") => Schema { type_: SchemaType::Boolean },
-          str!("goodbye") => Schema {
-            type_: SchemaType::Object {
-              required: vec![],
-              additional_properties: false,
-              properties: linear_map! {
-                str!("hello") => Schema { type_: SchemaType::Boolean },
-                str!("world") => Schema { type_: SchemaType::Boolean }
-              }
-            }
-          }
-        }
-      }
-    };
+    let mut object = Schema::object();
+    object.add_property("hello", Schema::boolean());
+    object.add_property("world", Schema::boolean());
+    object.add_property("5", Schema::boolean());
+    object.add_property("goodbye", {
+      let mut goodbye = Schema::object();
+      goodbye.add_property("hello", Schema::boolean());
+      goodbye.add_property("world", Schema::boolean());
+      goodbye
+    });
     assert!(object.get(point!["yo"]).is_none());
-    assert_eq!(object.get(point!["hello"]).unwrap(), Schema { type_: SchemaType::Boolean });
-    assert_eq!(object.get(point!["goodbye", "world"]).unwrap(), Schema { type_: SchemaType::Boolean });
+    assert_eq!(object.get(point!["hello"]).unwrap(), Schema::boolean());
+    assert_eq!(object.get(point!["goodbye", "world"]).unwrap(), Schema::boolean());
     assert!(object.get(point!["goodbye", "yo"]).is_none());
   }
 
   #[test]
   fn test_query_none() {
-    assert_eq!(Schema { type_: SchemaType::None }.validate_query(&Query::All).is_ok(), true);
-    assert_eq!(Schema { type_: SchemaType::None }.validate_query(&Query::Keys(linear_map! {
+    assert_eq!(Schema::none().validate_query(&Query::All).is_ok(), true);
+    assert_eq!(Schema::none().validate_query(&Query::Keys(linear_map! {
       str!("s@#f&/Ij)82h(;pa0]") => Query::All,
       str!("123") => Query::All,
       str!("hello") => Query::All,
@@ -270,44 +429,20 @@ mod tests {
 
   #[test]
   fn test_query_primitive() {
-    assert!(Schema { type_: SchemaType::Null }.validate_query(&Query::All).is_ok());
+    assert!(Schema::null().validate_query(&Query::All).is_ok());
     let obj_query = Query::Keys(linear_map! {});
-    Schema { type_: SchemaType::Null }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema { type_: SchemaType::Boolean }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema {
-      type_: SchemaType::Number {
-        multiple_of: None,
-        minimum: None,
-        exclusive_minimum: false,
-        maximum: None,
-        exclusive_maximum: false
-      }
-    }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema {
-      type_: SchemaType::String {
-        min_length: None,
-        max_length: None,
-        pattern: None
-      }
-    }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema { type_: SchemaType::Enum(vec![
-      vbool!(true),
-      vbool!(false)
-    ]) }.validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::null().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::boolean().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::number().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::string().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
   }
 
   #[test]
   fn test_query_array() {
-    let array_none = Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::None })
-      }
-    };
-    let array_bool = Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema { type_: SchemaType::Boolean })
-      }
-    };
+    let array_none = Schema::array();
+    let mut array_bool = Schema::array();
+    array_bool.set_items(Schema::boolean());
     assert!(array_none.validate_query(&Query::All).is_ok());
     assert!(array_none.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::All
@@ -332,37 +467,20 @@ mod tests {
 
   #[test]
   fn test_query_object() {
-    let object = Schema {
-      type_: SchemaType::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: linear_map! {
-          str!("hello") => Schema { type_: SchemaType::Boolean },
-          str!("world") => Schema { type_: SchemaType::Boolean },
-          str!("5") => Schema { type_: SchemaType::Boolean },
-          str!("goodbye") => Schema {
-            type_: SchemaType::Object {
-              required: vec![],
-              additional_properties: false,
-              properties: linear_map! {
-                str!("hello") => Schema { type_: SchemaType::Boolean },
-                str!("world") => Schema { type_: SchemaType::Boolean }
-              }
-            }
-          }
-        }
-      }
-    };
-    let object_additional = Schema {
-      type_: SchemaType::Object {
-        required: vec![],
-        additional_properties: true,
-        properties: linear_map! {
-          str!("hello") => Schema { type_: SchemaType::Boolean },
-          str!("world") => Schema { type_: SchemaType::Boolean }
-        }
-      }
-    };
+    let mut object = Schema::object();
+    object.add_property("hello", Schema::boolean());
+    object.add_property("world", Schema::boolean());
+    object.add_property("5", Schema::boolean());
+    object.add_property("goodbye", {
+      let mut goodbye = Schema::object();
+      goodbye.add_property("hello", Schema::boolean());
+      goodbye.add_property("world", Schema::boolean());
+      goodbye
+    });
+    let mut object_additional = Schema::object();
+    object_additional.enable_additional_properties();
+    object_additional.add_property("hello", Schema::boolean());
+    object_additional.add_property("world", Schema::boolean());
     assert!(object.validate_query(&Query::Keys(linear_map! {
       str!("world") => Query::All,
       str!("5") => Query::All,
