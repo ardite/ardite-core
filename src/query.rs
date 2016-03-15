@@ -26,7 +26,7 @@ pub enum Condition {
 }
 
 impl Default for Condition {
-  fn default() -> Condition {
+  fn default() -> Self {
     Condition::True
   }
 }
@@ -108,7 +108,7 @@ impl Range {
 }
 
 impl Default for Range {
-  fn default() -> Range {
+  fn default() -> Self {
     Range::new(None, None)
   }
 }
@@ -125,7 +125,7 @@ pub enum Query {
 }
 
 impl Default for Query {
-  fn default() -> Query {
+  fn default() -> Self {
     Query::All
   }
 }

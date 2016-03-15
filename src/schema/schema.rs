@@ -172,6 +172,12 @@ pub enum SchemaType {
   Enum(Vec<Value>)
 }
 
+impl Default for SchemaType {
+  fn default() -> Self {
+    SchemaType::None
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use schema::{Schema, SchemaType};

@@ -48,18 +48,15 @@ struct SerdeDefinition {
 impl Into<Result<Definition, Error>> for SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
   fn into(self) -> Result<Definition, Error> {
-    Ok(Definition {
-      types: {
-        let mut types = LinearMap::new();
-        for (key, value) in self.types.into_iter() {
-          types.insert(key.to_owned(), Type {
-            name: key,
-            schema: try!(value.into())
-          });
-        }
-        types
-      }
-    })
+    let mut definition = Definition::new();
+
+    for (key, value) in self.types.into_iter() {
+      let mut type_ = Type::new(key);
+      type_.set_schema(try!(value.into()));
+      definition.add_type(type_);
+    }
+
+    Ok(definition)
   }
 }
 
