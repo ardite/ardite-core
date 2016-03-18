@@ -82,7 +82,7 @@ impl Schema {
 
   /// Creates a schema which validates enumerated values.
   pub fn enum_<V>(values: Vec<V>) -> SchemaEnum where V: Into<Value> {
-    SchemaEnum::new()
+    SchemaEnum::new(values.into_iter().map(Into::into).collect())
   }
 }
 
@@ -432,9 +432,9 @@ pub struct SchemaEnum {
 }
 
 impl SchemaEnum {
-  pub fn new() -> Self {
+  pub fn new(values: Vec<Value>) -> Self {
     SchemaEnum {
-      values: Vec::new()
+      values: values
     }
   }
 
