@@ -22,6 +22,11 @@ impl Definition {
   pub fn add_type(&mut self, type_: Type) {
     self.types.push(type_);
   }
+
+  /// Gets type of a certain name.
+  pub fn find_type<K>(&self, name: K) -> Option<&Type> where K: Into<Key> {
+    unimplemented!();
+  }
 }
 
 /// Represents a high-level database type.
@@ -50,6 +55,16 @@ impl Type {
 
   /// Set the schema for the type with a pre-boxed schema.
   pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
+    unimplemented!();
+  }
+
+  /// Gets the name of the type.
+  pub fn name(&self) -> Key {
+    self.name.to_owned()
+  }
+
+  /// Gets the schema of the type.
+  pub fn schema(&self) -> Option<&Schema> {
     unimplemented!();
   }
 }

@@ -43,7 +43,7 @@ impl Driver for MongoDriver {
     let cursor = try!(self.database.command_cursor(
       {
         let mut spec = doc! {
-          "find" => (type_.name.to_owned()),
+          "find" => (type_.name()),
           "filter" => (condition_to_filter(condition)),
           "sort" => (sort_rules_to_sort(sort)),
           "projection" => (query_to_projection(query))
@@ -246,7 +246,7 @@ mod tests {
   use driver::Driver;
   use driver::mongodb::MongoDriver;
   use query::{Range, SortRule, Condition, Query};
-  use schema::{Definition, Type, Schema, SchemaType};
+  use schema::{Definition, Type, Schema};
   use value::Value;
 
   #[test]
@@ -363,9 +363,9 @@ mod tests {
   fn val_c() -> Value { Value::from(doc_c()) }
 
   #[allow(dead_code)]
-  struct Fixtures {
+  struct Fixtures<'a> {
     definition: Definition,
-    type_: Type,
+    type_: &'a Type,
     driver: MongoDriver,
     collection_name: String,
     collection: Collection
@@ -374,22 +374,11 @@ mod tests {
   fn get_fixtures(name: &str) -> Fixtures {
     let collection_name = format!("ardite_test_{}", name);
 
-    let type_ = Type {
-      name: collection_name.clone(),
-      schema: Schema {
-        type_: SchemaType::Object {
-          required: vec![],
-          additional_properties: true,
-          properties: linear_map! {}
-        }
-      }
-    };
-
-    let definition = Definition {
-      types: linear_map! {
-        collection_name.clone() => type_.clone()
-      }
-    };
+    let mut definition = Definition::new();
+    let mut type_ = Type::new(collection_name.clone());
+    type_.set_schema(Schema::object());
+    definition.add_type(type_);
+    let type_ref = definition.find_type(collection_name.clone()).unwrap();
 
     let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
     driver.database.drop_collection(&collection_name).unwrap();
@@ -398,7 +387,7 @@ mod tests {
 
     Fixtures {
       definition: definition,
-      type_: type_,
+      type_: type_ref,
       driver: driver,
       collection_name: collection_name,
       collection: collection
@@ -410,7 +399,7 @@ mod tests {
     let fixtures = get_fixtures("read_all");
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Default::default(),
@@ -425,7 +414,7 @@ mod tests {
     let fixtures = get_fixtures("read_condition");
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Condition::False,
         Default::default(),
         Default::default(),
@@ -435,7 +424,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Condition::And(vec![Condition::True, Condition::False]),
         Default::default(),
         Default::default(),
@@ -445,7 +434,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Condition::Or(vec![Condition::True, Condition::False]),
         Default::default(),
         Default::default(),
@@ -455,7 +444,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Condition::Keys(linear_map! {
           str!("c") => Condition::Equal(Value::I64(3))
         }),
@@ -467,7 +456,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Condition::Keys(linear_map! {
           str!("doc_b") => Condition::Keys(linear_map! {
             str!("doc_a") => Condition::Keys(linear_map! {
@@ -488,7 +477,7 @@ mod tests {
     let fixtures = get_fixtures("read_sort");
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         vec![SortRule::new(point!["c"], true)],
         Default::default(),
@@ -498,7 +487,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         vec![SortRule::new(point!["c"], false)],
         Default::default(),
@@ -513,7 +502,7 @@ mod tests {
     let fixtures = get_fixtures("read_range");
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Range::new(None, Some(2)),
@@ -523,7 +512,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Range::new(Some(1), Some(1)),
@@ -533,7 +522,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Range::new(Some(1), None),
@@ -543,7 +532,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Range::new(Some(2), Some(40)),
@@ -558,7 +547,7 @@ mod tests {
     let fixtures = get_fixtures("read_query");
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Default::default(),
@@ -568,7 +557,7 @@ mod tests {
     );
     assert_eq!(
       fixtures.driver.read(
-        &fixtures.type_,
+        fixtures.type_,
         Default::default(),
         Default::default(),
         Default::default(),
