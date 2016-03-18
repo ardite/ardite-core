@@ -5,10 +5,18 @@
 
 use linear_map::LinearMap;
 
-/// The atomic level of a pointer.
+/// The type which represents the key for maps used throughout the Ardite
+/// codebase.
+///
+/// Functions similarly to an object key in JavaScript.
 pub type Key = String;
 
-/// Represents a JSON pointer to a document property.
+/// Represents a [JSON pointer][1] to a document property. Examples of a
+/// pointer in this context include `/hello/world` or `/a/b/c/d`.
+///
+/// These pointers are represented as a list of keys.
+///
+/// [1]: https://duckduckgo.com/?q=json+pointer&atb=v1&ia=about
 pub type Pointer = Vec<Key>;
 
 /// Various value types. Based on types in the [JSON standard][1] (see section
