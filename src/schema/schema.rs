@@ -33,214 +33,173 @@ lazy_static! {
 ///    required.
 ///
 /// [1]: http://json-schema.org
-#[derive(PartialEq, Clone, Debug)]
-pub struct Schema {
-  type_: SchemaType
-}
-
-impl Schema {
-  /// Gets a nested schema at a certain point.
-  pub fn get(&self, mut pointer: Pointer) -> Option<Self> {
-    if pointer.is_empty() {
-      Some(self.clone())
-    } else {
-      match self.type_ {
-        SchemaType::Array{ref items} => {
-          if INTEGER_RE.is_match(&pointer.remove(0)) {
-            items.get(pointer)
-          } else {
-            None
-          }
-        },
-        SchemaType::Object{ref properties,..} => {
-          if let Some(schema) = properties.get(&pointer.remove(0)) {
-            schema.get(pointer)
-          } else {
-            None
-          }
-        },
-        SchemaType::None |
-        SchemaType::Null |
-        SchemaType::Boolean |
-        SchemaType::Number{..} |
-        SchemaType::String{..} |
-        SchemaType::Enum{..} => None
-      }
-    }
-  }
+pub trait Schema {
+  /// Used to get a nested schema at a certain point.
+  fn get(&self, mut pointer: Pointer) -> Option<&Schema>;
 
   /// Validates a query that a user would like to make on the database by
   /// comparing it to the schema. Mostly checks that all properties described
   /// in the query are accessible according to the schema.
-  pub fn validate_query(&self, query: &Query) -> Result<(), Error> {
-    static NO_PRIMITIVE_HINT: &'static str = "Try not querying specific properties of a primitive like `null` or `boolean`.";
-    match (&self.type_, query) {
-      (&SchemaType::Null, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query null.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Boolean, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a boolean.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Number{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a number.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::String{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query a string.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::Array{ref items}, &Query::Keys(ref query_properties)) => {
-        match query_properties.keys().map(|key| {
-          if INTEGER_RE.is_match(key) {
-            items.validate_query(&query_properties.get(key).unwrap())
-          } else {
-            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-          }
-        }).find(|r| r.is_err()) {
-          None => Ok(()),
-          Some(error) => error
-        }
-      },
-      (&SchemaType::Object{ref properties, ref additional_properties,..}, &Query::Keys(ref query_properties)) => {
-        match query_properties.keys().map(|key| {
-          if let Some(property_schema) = properties.get(key) {
-            property_schema.validate_query(&query_properties.get(key).unwrap())
-          } else if *additional_properties {
-            Ok(())
-          } else {
-            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
-          }
-        }).find(|r| r.is_err()) {
-          None => Ok(()),
-          Some(error) => error
-        }
-      },
-      (&SchemaType::Enum{..}, &Query::Keys(_)) => Err(Error::validation("Cannot deeply query an enum.", NO_PRIMITIVE_HINT)),
-      (&SchemaType::None, _) |
-      (_, &Query::All) => Ok(())
-    }
-  }
+  fn validate_query(&self, query: &Query) -> Result<(), Error>;
 }
 
 impl Schema {
   /// Create a schema which does not run any validations.
-  pub fn none() -> Self {
-    Schema {
-      type_: SchemaType::None
-    }
+  pub fn none() -> SchemaNone {
+    SchemaNone::new()
   }
 
   /// Create a schema which ensures the value is null and only null.
-  pub fn null() -> Self {
-    Schema {
-      type_: SchemaType::Null
-    }
+  pub fn null() -> SchemaNull {
+    SchemaNull::new()
   }
 
   /// Create a schema which validates a boolean primitive type.
-  pub fn boolean() -> Self {
-    Schema {
-      type_: SchemaType::Boolean
-    }
+  pub fn boolean() -> SchemaBoolean {
+    SchemaBoolean::new()
   }
 
   /// Create a schema which validates a number.
-  pub fn number() -> Self {
-    Schema {
-      type_: SchemaType::Number {
-        multiple_of: None,
-        minimum: None,
-        exclusive_minimum: false,
-        maximum: None,
-        exclusive_maximum: false
-      }
-    }
-  }
-
-  /// Create a schema which validates an integer.
-  pub fn integer() -> Self {
-    Schema {
-      type_: SchemaType::Number {
-        multiple_of: Some(1f32),
-        minimum: None,
-        exclusive_minimum: false,
-        maximum: None,
-        exclusive_maximum: false
-      }
-    }
+  pub fn number() -> SchemaNumber {
+    SchemaNumber::new()
   }
 
   /// Create a schema which validates a string.
-  pub fn string() -> Self {
-    Schema {
-      type_: SchemaType::String {
-        min_length: None,
-        max_length: None,
-        pattern: None
-      }
-    }
+  pub fn string() -> SchemaString {
+    SchemaString::new()
   }
 
   /// Create a schema which validates an array. It takes another schema to
   /// validate all of the child properties.
-  pub fn array() -> Self {
-    Schema {
-      type_: SchemaType::Array {
-        items: Box::new(Schema::none())
-      }
-    }
+  pub fn array() -> SchemaArray {
+    SchemaArray::new()
   }
 
   /// Create a schema which validates an object.
-  pub fn object() -> Self {
-    Schema {
-      type_: SchemaType::Object {
-        required: vec![],
-        additional_properties: false,
-        properties: LinearMap::new()
-      }
-    }
+  pub fn object() -> SchemaObject {
+    SchemaObject::new()
   }
 
   /// Creates a schema which validates enumerated values.
-  pub fn enum_<V>(values: Vec<V>) -> Self where V: Into<Value> {
-    Schema {
-      type_: SchemaType::Enum {
-        values: values.into_iter().map(Into::into).collect()
-      }
+  pub fn enum_<V>(values: Vec<V>) -> SchemaEnum where V: Into<Value> {
+    SchemaEnum::new()
+  }
+}
+
+trait SchemaPrimitive {}
+
+impl<T> Schema for T where T: SchemaPrimitive + 'static {
+  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+    if pointer.is_empty() {
+      Some(self)
+    } else {
+      None
+    }
+  }
+
+  fn validate_query(&self, query: &Query) -> Result<(), Error> {
+    match *query {
+      Query::All => Ok(()),
+      Query::Keys(_) => Err(Error::validation(
+        "Cannot deeply query a primitive value.",
+        "Try not querying specific properties of a primitive like `null` or `boolean`."
+      ))
     }
   }
 }
 
-macro_rules! is_schema_type {
-  ($this:expr, $variant:ident) => {
-    match $this.type_ {
-      SchemaType::$variant{..} => true,
-      _ => false
+/// There is no schema. No validations should occur. Does not represent the
+/// abscense of any value, only represents that a schema does not define the
+/// data structure at this point.
+pub struct SchemaNone;
+
+impl SchemaNone {
+  pub fn new() -> Self {
+    SchemaNone
+  }
+}
+
+impl Schema for SchemaNone {
+  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+    if pointer.is_empty() {
+      Some(self)
+    } else {
+      None
     }
   }
+
+  fn validate_query(&self, query: &Query) -> Result<(), Error> {
+    Ok(())
+  }
 }
 
-// Functions for detecting the type of a schema.
-impl Schema {
-  pub fn is_none(&self)    -> bool { is_schema_type!(self, None)    }
-  pub fn is_null(&self)    -> bool { is_schema_type!(self, Null)    }
-  pub fn is_boolean(&self) -> bool { is_schema_type!(self, Boolean) }
-  pub fn is_number(&self)  -> bool { is_schema_type!(self, Number)  }
-  pub fn is_string(&self)  -> bool { is_schema_type!(self, String)  }
-  pub fn is_array(&self)   -> bool { is_schema_type!(self, Array)   }
-  pub fn is_object(&self)  -> bool { is_schema_type!(self, Object)  }
-  pub fn is_enum(&self)    -> bool { is_schema_type!(self, Enum)    }
+/// Represents the absence of any value.
+pub struct SchemaNull;
+
+impl SchemaNull {
+  pub fn new() -> Self {
+    SchemaNull
+  }
 }
 
-impl Schema {
-  pub fn set_multiple_of(&mut self, multiple_of: f32) -> bool {
+impl SchemaPrimitive for SchemaNull {}
+
+/// Represents a binary true/false value.
+pub struct SchemaBoolean;
+
+impl SchemaBoolean {
+  pub fn new() -> Self {
+    SchemaBoolean
+  }
+}
+
+impl SchemaPrimitive for SchemaBoolean {}
+
+/// Represents a numeric type.
+pub struct SchemaNumber {
+  /// Forces the number to be a multiple of another. This helps in specifying
+  /// integers if this value is `Some(1)` for example.
+  multiple_of: Option<f32>,
+  /// The minimum value the number can be.
+  minimum: Option<f64>,
+  /// Whether or not the minimum value should be included when validating.
+  /// Default is `false`.
+  exclusive_minimum: bool,
+  /// The maximum value the number can be.
+  maximum: Option<f64>,
+  /// Whether or not the maximum value should be included when validating.
+  /// Default is `false`.
+  exclusive_maximum: bool
+}
+
+impl SchemaNumber {
+  pub fn new() -> Self {
+    SchemaNumber {
+      multiple_of: None,
+      minimum: None,
+      exclusive_minimum: false,
+      maximum: None,
+      exclusive_maximum: false
+    }
+  }
+
+  pub fn set_multiple_of<N>(&mut self, multiple_of: N) where N: Into<f32> {
     unimplemented!();
   }
 
-  pub fn set_minimum(&mut self, minimum: f64) -> bool {
+  pub fn set_minimum(&mut self, minimum: f64) {
     unimplemented!();
   }
 
-  pub fn enable_exclusive_minimum(&mut self) -> bool {
+  pub fn enable_exclusive_minimum(&mut self) {
     unimplemented!();
   }
 
-  pub fn set_maximum(&mut self, maximum: f64) -> bool {
+  pub fn set_maximum(&mut self, maximum: f64) {
     unimplemented!();
   }
 
-  pub fn enable_exclusive_maximum(&mut self) -> bool {
+  pub fn enable_exclusive_maximum(&mut self) {
     unimplemented!();
   }
 
@@ -263,16 +222,38 @@ impl Schema {
   pub fn exclusive_maximum(&self) -> bool {
     unimplemented!();
   }
+}
 
-  pub fn set_min_length(&mut self, min_length: u64) -> bool {
+impl SchemaPrimitive for SchemaNumber {}
+
+/// Represents a string type.
+pub struct SchemaString {
+  /// The mimimum length of characters in the string.
+  min_length: Option<u64>,
+  /// The maximum length of characters in the string.
+  max_length: Option<u64>,
+  /// A regular expression pattern to validate the string against.
+  pattern: Option<Regex>
+}
+
+impl SchemaString {
+  pub fn new() -> Self {
+    SchemaString {
+      min_length: None,
+      max_length: None,
+      pattern: None
+    }
+  }
+
+  pub fn set_min_length(&mut self, min_length: u64) {
     unimplemented!();
   }
 
-  pub fn set_max_length(&mut self, max_length: u64) -> bool {
+  pub fn set_max_length(&mut self, max_length: u64) {
     unimplemented!();
   }
 
-  pub fn set_pattern(&mut self, pattern: Regex) -> bool {
+  pub fn set_pattern(&mut self, pattern: Regex) {
     unimplemented!();
   }
 
@@ -287,28 +268,114 @@ impl Schema {
   pub fn pattern(&self) -> Option<Regex> {
     unimplemented!();
   }
+}
 
-  pub fn set_items(&self, schema: Schema) -> Option<Schema> {
+impl SchemaPrimitive for SchemaString {}
+
+/// Represents a set of any type.
+pub struct SchemaArray {
+  /// A schema which all items in the array must match.
+  items: Option<Box<Schema>>
+}
+
+impl SchemaArray {
+  pub fn new() -> Self {
+    SchemaArray {
+      items: None
+    }
+  }
+
+  pub fn set_items<S>(&mut self, schema: S) where S: Schema {
     unimplemented!();
   }
 
-  pub fn items(&self) -> Option<Schema> {
+  pub fn set_boxed_items(&mut self, schema: Box<Schema>) {
     unimplemented!();
   }
 
-  pub fn add_property<K>(&mut self, key: K, schema: Schema) -> bool where K: Into<Key> {
+  pub fn items(&self) -> Option<&Schema> {
+    unimplemented!();
+  }
+}
+
+impl Schema for SchemaArray {
+  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+    if pointer.is_empty() {
+      Some(self)
+    } else {
+      if INTEGER_RE.is_match(&pointer.remove(0)) {
+        if let Some(ref items) = self.items {
+          items.get(pointer)
+        } else {
+          None
+        }
+      } else {
+        None
+      }
+    }
+  }
+
+  fn validate_query(&self, query: &Query) -> Result<(), Error> {
+    match *query {
+      Query::All => Ok(()),
+      Query::Keys(ref query_properties) => {
+        let err_key = query_properties.keys().map(|key| {
+          if INTEGER_RE.is_match(key) {
+            if let Some(ref items) = self.items {
+              items.validate_query(&query_properties.get(key).unwrap())
+            } else {
+              Ok(())
+            }
+          } else {
+            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
+          }
+        }).find(|r| r.is_err());
+        match err_key {
+          None => Ok(()),
+          Some(error) => error
+        }
+      }
+    }
+  }
+}
+
+/// Represents a set of key/value pairs.
+pub struct SchemaObject {
+  /// Schemas associated to the object properties.
+  properties: LinearMap<Key, Box<Schema>>,
+  /// Properties that are required to be in the object.
+  required: Vec<Key>,
+  /// Whether or not there may be extra properties outside of the ones
+  /// defined by the properties map.
+  additional_properties: bool
+}
+
+impl SchemaObject {
+  pub fn new() -> Self {
+    SchemaObject {
+      properties: LinearMap::new(),
+      required: Vec::new(),
+      additional_properties: false
+    }
+  }
+
+  pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema {
     unimplemented!();
   }
 
-  pub fn set_required<K>(&mut self, required: Vec<K>) -> bool where K: Into<Key> {
+  pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
     unimplemented!();
   }
 
-  pub fn enable_additional_properties(&mut self) -> bool {
+  pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> {
     unimplemented!();
   }
 
-  pub fn properties(&self) -> LinearMap<Key, Schema> {
+  pub fn enable_additional_properties(&mut self) {
+    unimplemented!();
+  }
+
+  pub fn properties(&self) -> LinearMap<Key, &Schema> {
     unimplemented!();
   }
 
@@ -319,91 +386,76 @@ impl Schema {
   pub fn additional_properties(&self) -> bool {
     unimplemented!();
   }
+}
 
-  pub fn enum_values(&self) -> Vec<Value> {
+impl Schema for SchemaObject {
+  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+    if pointer.is_empty() {
+      Some(self)
+    } else {
+      if let Some(schema) = self.properties.get(&pointer.remove(0)) {
+        schema.get(pointer)
+      } else {
+        None
+      }
+    }
+  }
+
+  fn validate_query(&self, query: &Query) -> Result<(), Error> {
+    match *query {
+      Query::All => Ok(()),
+      Query::Keys(ref query_properties) => {
+        let err_key = query_properties.keys().map(|key| {
+          if let Some(property_schema) = self.properties.get(key) {
+            property_schema.validate_query(&query_properties.get(key).unwrap())
+          } else if self.additional_properties {
+            Ok(())
+          } else {
+            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
+          }
+        }).find(|r| r.is_err());
+        match err_key {
+          None => Ok(()),
+          Some(error) => error
+        }
+      }
+    }
+  }
+}
+
+/// Represents a value which *must* be one of the defined values. An enum is
+/// considered a primitive type as if it is a single value is a higher order
+/// type, no variation is allowed.
+pub struct SchemaEnum {
+  /// The available values.
+  values: Vec<Value>
+}
+
+impl SchemaEnum {
+  pub fn new() -> Self {
+    SchemaEnum {
+      values: Vec::new()
+    }
+  }
+
+  pub fn values(&self) -> Vec<Value> {
     unimplemented!();
   }
 }
 
-/// SchemaType specific validations for values. A reference
-/// on JSON Schema type-specific validations used in this enum may be found
-/// [here][1].
-///
-/// [1]: http://spacetelescope.github.io/understanding-json-schema/reference/type.html
-#[derive(PartialEq, Clone, Debug)]
-enum SchemaType {
-  /// There is no schema. No validations should occur. Does not represent the
-  /// abscense of any value, only represents that a schema does not define the
-  /// data structure at this point.
-  None,
-  /// Represents the absence of any value.
-  Null,
-  /// Represents a binary true/false value.
-  Boolean,
-  /// Represents a numeric type.
-  Number {
-    /// Forces the number to be a multiple of another. This helps in specifying
-    /// integers if this value is `Some(1)` for example.
-    multiple_of: Option<f32>,
-    /// The minimum value the number can be.
-    minimum: Option<f64>,
-    /// Whether or not the minimum value should be included when validating.
-    /// Default is `false`.
-    exclusive_minimum: bool,
-    /// The maximum value the number can be.
-    maximum: Option<f64>,
-    /// Whether or not the maximum value should be included when validating.
-    /// Default is `false`.
-    exclusive_maximum: bool
-  },
-  String {
-    /// The mimimum length of characters in the string.
-    min_length: Option<u64>,
-    /// The maximum length of characters in the string.
-    max_length: Option<u64>,
-    /// A regular expression pattern to validate the string against.
-    pattern: Option<Regex>
-  },
-  /// Represents a set of any type.
-  Array {
-    /// A schema which all items in the array must match.
-    items: Box<Schema>
-  },
-  /// Represents a set of key/value pairs.
-  Object {
-    /// Schemas associated to the object properties.
-    properties: LinearMap<Key, Schema>,
-    /// Properties that are required to be in the object.
-    required: Vec<Key>,
-    /// Whether or not there may be extra properties outside of the ones
-    /// defined by the properties map.
-    additional_properties: bool
-  },
-  /// Represents a value which *must* be one of the defined values. An enum is
-  /// considered a primitive type as if it is a single value is a higher order
-  /// type, no variation is allowed.
-  Enum {
-    /// The available values.
-    values: Vec<Value>
-  }
-}
-
-impl Default for SchemaType {
-  fn default() -> Self {
-    SchemaType::None
-  }
-}
+impl SchemaPrimitive for SchemaEnum {}
 
 #[cfg(test)]
 mod tests {
+  use super::SchemaNone;
   use schema::Schema;
   use query::Query;
 
   #[test]
   fn test_get_primitive() {
-    assert_eq!(Schema::none().get(point![]).unwrap(), Schema::none());
+    assert!(Schema::none().get(point![]).is_some());
     assert!(Schema::none().get(point!["hello"]).is_none());
-    assert_eq!(Schema::boolean().get(point![]).unwrap(), Schema::boolean());
+    assert!(Schema::boolean().get(point![]).is_some());
     assert!(Schema::boolean().get(point!["hello"]).is_none());
     assert!(Schema::number().get(point!["hello"]).is_none());
     assert!(Schema::string().get(point!["hello"]).is_none());
@@ -414,10 +466,10 @@ mod tests {
     let array_none = Schema::array();
     let mut array_bool = Schema::array();
     array_bool.set_items(Schema::boolean());
-    assert_eq!(array_none.get(point!["1"]).unwrap(), Schema::none());
+    assert!(array_none.get(point!["1"]).is_some());
     assert!(array_none.get(point!["asd"]).is_none());
-    assert_eq!(array_bool.get(point!["1"]).unwrap(), Schema::boolean());
-    assert_eq!(array_bool.get(point!["9999999"]).unwrap(), Schema::boolean());
+    assert!(array_bool.get(point!["1"]).is_some());
+    assert!(array_bool.get(point!["9999999"]).is_some());
     assert!(array_bool.get(point!["asd"]).is_none());
   }
 
@@ -434,22 +486,22 @@ mod tests {
       goodbye
     });
     assert!(object.get(point!["yo"]).is_none());
-    assert_eq!(object.get(point!["hello"]).unwrap(), Schema::boolean());
-    assert_eq!(object.get(point!["goodbye", "world"]).unwrap(), Schema::boolean());
+    assert!(object.get(point!["hello"]).is_some());
+    assert!(object.get(point!["goodbye", "world"]).is_some());
     assert!(object.get(point!["goodbye", "yo"]).is_none());
   }
 
   #[test]
   fn test_query_none() {
-    assert_eq!(Schema::none().validate_query(&Query::All).is_ok(), true);
-    assert_eq!(Schema::none().validate_query(&Query::Keys(linear_map! {
+    assert!(Schema::none().validate_query(&Query::All).is_ok());
+    assert!(Schema::none().validate_query(&Query::Keys(linear_map! {
       str!("s@#f&/Ij)82h(;pa0]") => Query::All,
       str!("123") => Query::All,
       str!("hello") => Query::All,
       str!("nested") => Query::Keys(linear_map! {
         str!("yo") => Query::All
       })
-    })).is_ok(), true);
+    })).is_ok());
   }
 
   #[test]

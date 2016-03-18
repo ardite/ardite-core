@@ -22,13 +22,13 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
     "json" => {
       let reader = BufReader::new(file);
       let data: SerdeDefinition = try!(serde_json::from_reader(reader));
-      Ok(try!(data.into()))
+      Ok(try!(data.into_definition()))
     },
     "yml" => {
       let mut string = String::new();
       try!(file.read_to_string(&mut string));
       let data: SerdeDefinition = try!(serde_yaml::from_str(&string));
-      Ok(try!(data.into()))
+      Ok(try!(data.into_definition()))
     },
     _ => Err(Error::new(
       ErrorCode::NotAcceptable,
@@ -44,13 +44,15 @@ struct SerdeDefinition {
   types: BTreeMap<String, SerdeSchema>
 }
 
-impl Into<Result<Definition, Error>> for SerdeDefinition {
+impl SerdeDefinition {
   /// Transforms the intermediary type into the useful type.
-  fn into(self) -> Result<Definition, Error> {
+  fn into_definition(self) -> Result<Definition, Error> {
     let mut definition = Definition::new();
 
     for (key, value) in self.types.into_iter() {
-      definition.add_type(Type::new(key, try!(value.into())));
+      let mut type_ = Type::new(key);
+      type_.set_boxed_schema(try!(value.into_schema()));
+      definition.add_type(type_);
     }
 
     Ok(definition)
@@ -85,42 +87,43 @@ struct SerdeSchema {
   enum_: Option<Vec<String>>
 }
 
-impl Into<Result<Schema, Error>> for SerdeSchema {
+impl SerdeSchema {
   /// Transforms the intermediary type into the useful type.
-  fn into(self) -> Result<Schema, Error> {
+  fn into_schema(self) -> Result<Box<Schema>, Error> {
     match self.type_ {
       Some(type_) => match type_.as_ref() {
-        "null" => Ok(Schema::null()),
-        "boolean" => Ok(Schema::boolean()),
+        "null" => Ok(Box::new(Schema::null())),
+        "boolean" => Ok(Box::new(Schema::boolean())),
         type_ @ "number" | type_ @ "integer" => {
-          let mut schema = if type_ == "integer" { Schema::integer() } else { Schema::number() };
-          if let Some(multiple_of) = self.multiple_of { schema.set_multiple_of(multiple_of); }
+          let mut schema = Schema::number();
+          if type_ == "integer" { schema.set_multiple_of(1.0); }
+          else if let Some(multiple_of) = self.multiple_of { schema.set_multiple_of(multiple_of); }
           if let Some(minimum) = self.minimum { schema.set_minimum(minimum); }
           if let Some(maximum) = self.maximum { schema.set_maximum(maximum); }
           if self.exclusive_minimum.unwrap_or(false) { schema.enable_exclusive_minimum(); }
           if self.exclusive_maximum.unwrap_or(false) { schema.enable_exclusive_maximum(); }
-          Ok(schema)
+          Ok(Box::new(schema))
         },
         "string" => {
           let mut schema = Schema::string();
           if let Some(min_length) = self.min_length { schema.set_min_length(min_length); }
           if let Some(max_length) = self.max_length { schema.set_min_length(max_length); }
           if let Some(pattern) = self.pattern.and_then(|p| Regex::new(&p).ok()) { schema.set_pattern(pattern); }
-          Ok(schema)
+          Ok(Box::new(schema))
         },
         "array" => {
           let mut schema = Schema::array();
-          if let Some(items) = self.items { schema.set_items(try!((*items).into())); }
-          Ok(schema)
+          if let Some(items) = self.items { schema.set_boxed_items(try!((*items).into_schema())); }
+          Ok(Box::new(schema))
         },
         "object" => {
           let mut schema = Schema::object();
           schema.set_required(self.required.unwrap_or_else(|| vec![]));
           if self.additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
-          for (key, definition) in self.properties.unwrap_or_default() {
-            schema.add_property(key, try!(definition.into()));
+          for (key, serde) in self.properties.unwrap_or_default() {
+            schema.add_boxed_property(key, try!(serde.into_schema()));
           }
-          Ok(schema)
+          Ok(Box::new(schema))
         },
         _ => Err(Error::validation(
           format!("Invalid type '{}'.", type_),
@@ -129,7 +132,7 @@ impl Into<Result<Schema, Error>> for SerdeSchema {
       },
       None => {
         if let Some(enum_) = self.enum_ {
-          Ok(Schema::enum_(enum_.into_iter().map(Value::String).collect()))
+          Ok(Box::new(Schema::enum_(enum_.into_iter().map(Value::String).collect())))
         } else {
           Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
         }
@@ -146,11 +149,11 @@ mod tests {
 
   #[test]
   fn test_basic_json() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), create_basic());
+    assert!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).is_ok());
   }
 
   #[test]
   fn test_basic_yaml() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), create_basic());
+    assert!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).is_ok());
   }
 }

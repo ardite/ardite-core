@@ -5,7 +5,6 @@ use value::Key;
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
-#[derive(PartialEq, Debug)]
 pub struct Definition {
   /// Types defined in the database.
   types: Vec<Type>
@@ -26,21 +25,32 @@ impl Definition {
 }
 
 /// Represents a high-level database type.
-#[derive(PartialEq, Clone, Debug)]
 pub struct Type {
   /// The name of the custom type.
   name: Key,
   /// The schema used to validate data which claims to be of this type.
-  schema: Schema
+  schema: Option<Box<Schema>>
 }
 
 impl Type {
   /// Create a new instance of `Type`.
-  pub fn new<I>(name: I, schema: Schema) -> Self where I: Into<Key> {
+  pub fn new<K>(name: K) -> Self where K: Into<Key> {
     Type {
       name: name.into(),
-      schema: schema
+      schema: None
     }
+  }
+
+  /// Set the schema for the type. Polymorphic so it accepts any type which
+  /// implements schema which gets boxed into a trait object. If you have a
+  /// schema trait object, see `set_boxed_schema`.
+  pub fn set_schema<S>(&mut self, schema: S) where S: Schema {
+    unimplemented!();
+  }
+
+  /// Set the schema for the type with a pre-boxed schema.
+  pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
+    unimplemented!();
   }
 }
 
@@ -54,7 +64,8 @@ pub fn create_basic() -> Definition {
 
   let mut definition = Definition::new();
 
-  definition.add_type(Type::new("person", {
+  definition.add_type({
+    let mut type_ = Type::new("person");
     let mut person = Schema::object();
     person.set_required(vec!["email"]);
     person.add_property("email", {
@@ -70,10 +81,12 @@ pub fn create_basic() -> Definition {
       name.set_max_length(64);
       name
     });
-    person
-  }));
+    type_.set_schema(person);
+    type_
+  });
 
-  definition.add_type(Type::new("post", {
+  definition.add_type({
+    let mut type_ = Type::new("post");
     let mut post = Schema::object();
     post.set_required(vec!["headline"]);
     post.add_property("headline", {
@@ -88,8 +101,9 @@ pub fn create_basic() -> Definition {
       text
     });
     post.add_property("topic", Schema::enum_(vec!["showcase", "help", "ama"]));
-    post
-  }));
+    type_.set_schema(post);
+    type_
+  });
 
   definition
 }
