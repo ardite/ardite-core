@@ -1,13 +1,16 @@
-//! The driver trait which all drivers will implement.
-
 use error::{Error, ErrorCode};
 use query::{Condition, SortRule, Range, Query};
 use schema::Type;
 use value::{Value, ValueIter};
 
+/// The driver trait which all drivers will implement. Designed to be
+/// interoperable with any data source, however the driver also assumes a
+/// collection based data model.
 pub trait Driver {
   /// Connects to a driver and returns a driver instance. After calling this
   /// the driver is ready to roll!
+  ///
+  /// No schema definition is provided to the driver in its construction step.
   fn connect(uri: &str) -> Result<Self, Error> where Self: Sized;
 
   /// Lazily read some values from the driver.
@@ -30,7 +33,13 @@ pub trait Driver {
   ) -> Result<ValueIter, Error>;
 
   /// Read a single value from the driver. The default implementation uses the
-  /// driver read method with no sort and a limit of one.
+  /// driver read method with a range of one.
+  ///
+  /// If a condition matches more than one value (while not recommended for
+  /// this method) the first of these values, using the default sorting
+  /// algorithm of the database, is returned.
+  ///
+  /// This method may be optionally optimized by the driver.
   fn read_one(
     &self,
     type_: &Type,
