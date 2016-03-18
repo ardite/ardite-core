@@ -1,5 +1,6 @@
 //! Contains the full definition of a data system which Ardite will use.
 
+use std::ops::Deref;
 use schema::Schema;
 use value::Key;
 
@@ -24,8 +25,9 @@ impl Definition {
   }
 
   /// Gets type of a certain name.
-  pub fn find_type<K>(&self, name: K) -> Option<&Type> where K: Into<Key> {
-    unimplemented!();
+  pub fn find_type<K>(&self, tmp_name: K) -> Option<&Type> where K: Into<Key> {
+    let name = tmp_name.into();
+    self.types.iter().find(|type_| type_.name() == name)
   }
 }
 
@@ -49,13 +51,13 @@ impl Type {
   /// Set the schema for the type. Polymorphic so it accepts any type which
   /// implements schema which gets boxed into a trait object. If you have a
   /// schema trait object, see `set_boxed_schema`.
-  pub fn set_schema<S>(&mut self, schema: S) where S: Schema {
-    unimplemented!();
+  pub fn set_schema<S>(&mut self, schema: S) where S: Schema + 'static {
+    self.schema = Some(Box::new(schema));
   }
 
   /// Set the schema for the type with a pre-boxed schema.
   pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
-    unimplemented!();
+    self.schema = Some(schema);
   }
 
   /// Gets the name of the type.
@@ -65,7 +67,7 @@ impl Type {
 
   /// Gets the schema of the type.
   pub fn schema(&self) -> Option<&Schema> {
-    unimplemented!();
+    self.schema.as_ref().map(|schema| schema.deref())
   }
 }
 
@@ -73,6 +75,7 @@ impl Type {
 /// Should define the same schema which exists in the
 /// `tests/fixtures/definitions/basic.json` file.
 #[cfg(test)]
+#[allow(dead_code)]
 pub fn create_basic() -> Definition {
   use regex::Regex;
   use schema::Schema;

@@ -1,6 +1,6 @@
 //! Format for defining the shape of data in an Ardite Schema Definition.
-// TODO: Remove `pub` fields and add a DSL for building schemas.
 
+use std::ops::Deref;
 use linear_map::LinearMap;
 use regex::Regex;
 use error::Error;
@@ -43,6 +43,7 @@ pub trait Schema {
   fn validate_query(&self, query: &Query) -> Result<(), Error>;
 }
 
+// TODO: find way to doc usable methods from `SchemaNone`, `SchemaNull`, etc.
 impl Schema {
   /// Create a schema which does not run any validations.
   pub fn none() -> SchemaNone {
@@ -86,10 +87,10 @@ impl Schema {
   }
 }
 
-trait SchemaPrimitive {}
+pub trait SchemaPrimitive {}
 
 impl<T> Schema for T where T: SchemaPrimitive + 'static {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+  fn get(&self, pointer: Pointer) -> Option<&Schema> {
     if pointer.is_empty() {
       Some(self)
     } else {
@@ -120,7 +121,7 @@ impl SchemaNone {
 }
 
 impl Schema for SchemaNone {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
+  fn get(&self, pointer: Pointer) -> Option<&Schema> {
     if pointer.is_empty() {
       Some(self)
     } else {
@@ -128,7 +129,7 @@ impl Schema for SchemaNone {
     }
   }
 
-  fn validate_query(&self, query: &Query) -> Result<(), Error> {
+  fn validate_query(&self, _: &Query) -> Result<(), Error> {
     Ok(())
   }
 }
@@ -183,45 +184,16 @@ impl SchemaNumber {
     }
   }
 
-  pub fn set_multiple_of<N>(&mut self, multiple_of: N) where N: Into<f32> {
-    unimplemented!();
-  }
-
-  pub fn set_minimum(&mut self, minimum: f64) {
-    unimplemented!();
-  }
-
-  pub fn enable_exclusive_minimum(&mut self) {
-    unimplemented!();
-  }
-
-  pub fn set_maximum(&mut self, maximum: f64) {
-    unimplemented!();
-  }
-
-  pub fn enable_exclusive_maximum(&mut self) {
-    unimplemented!();
-  }
-
-  pub fn multiple_of(&self) -> Option<f64> {
-    unimplemented!();
-  }
-
-  pub fn minimum(&self) -> Option<f64> {
-    unimplemented!();
-  }
-
-  pub fn exclusive_minimum(&self) -> bool {
-    unimplemented!();
-  }
-
-  pub fn maximum(&self) -> Option<f64> {
-    unimplemented!();
-  }
-
-  pub fn exclusive_maximum(&self) -> bool {
-    unimplemented!();
-  }
+  pub fn set_multiple_of(&mut self, multiple_of: f32) { self.multiple_of = Some(multiple_of); }
+  pub fn set_minimum(&mut self, minimum: f64) { self.minimum = Some(minimum); }
+  pub fn enable_exclusive_minimum(&mut self) { self.exclusive_minimum = true; }
+  pub fn set_maximum(&mut self, maximum: f64) { self.maximum = Some(maximum); }
+  pub fn enable_exclusive_maximum(&mut self) { self.exclusive_maximum = true; }
+  pub fn multiple_of(&self) -> Option<f32> { self.multiple_of }
+  pub fn minimum(&self) -> Option<f64> { self.minimum }
+  pub fn exclusive_minimum(&self) -> bool { self.exclusive_minimum }
+  pub fn maximum(&self) -> Option<f64> { self.maximum }
+  pub fn exclusive_maximum(&self) -> bool { self.exclusive_maximum }
 }
 
 impl SchemaPrimitive for SchemaNumber {}
@@ -245,29 +217,12 @@ impl SchemaString {
     }
   }
 
-  pub fn set_min_length(&mut self, min_length: u64) {
-    unimplemented!();
-  }
-
-  pub fn set_max_length(&mut self, max_length: u64) {
-    unimplemented!();
-  }
-
-  pub fn set_pattern(&mut self, pattern: Regex) {
-    unimplemented!();
-  }
-
-  pub fn min_length(&self) -> Option<u64> {
-    unimplemented!();
-  }
-
-  pub fn max_length(&self) -> Option<u64> {
-    unimplemented!();
-  }
-
-  pub fn pattern(&self) -> Option<Regex> {
-    unimplemented!();
-  }
+  pub fn set_min_length(&mut self, min_length: u64) { self.min_length = Some(min_length); }
+  pub fn set_max_length(&mut self, max_length: u64) { self.max_length = Some(max_length); }
+  pub fn set_pattern(&mut self, pattern: Regex) { self.pattern = Some(pattern); }
+  pub fn min_length(&self) -> Option<u64> { self.min_length }
+  pub fn max_length(&self) -> Option<u64> { self.max_length }
+  pub fn pattern(&self) -> Option<Regex> { self.pattern.clone() }
 }
 
 impl SchemaPrimitive for SchemaString {}
@@ -285,16 +240,16 @@ impl SchemaArray {
     }
   }
 
-  pub fn set_items<S>(&mut self, schema: S) where S: Schema {
-    unimplemented!();
+  pub fn set_items<S>(&mut self, schema: S) where S: Schema + 'static {
+    self.items = Some(Box::new(schema));
   }
 
   pub fn set_boxed_items(&mut self, schema: Box<Schema>) {
-    unimplemented!();
+    self.items = Some(schema);
   }
 
   pub fn items(&self) -> Option<&Schema> {
-    unimplemented!();
+    self.items.as_ref().map(|schema| schema.deref())
   }
 }
 
@@ -359,32 +314,36 @@ impl SchemaObject {
     }
   }
 
-  pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema {
-    unimplemented!();
+  pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
+    self.properties.insert(key.into(), Box::new(schema));
   }
 
   pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
-    unimplemented!();
+    self.properties.insert(key.into(), schema);
   }
 
   pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> {
-    unimplemented!();
+    self.required = required.into_iter().map(Into::into).collect();
   }
 
   pub fn enable_additional_properties(&mut self) {
-    unimplemented!();
+    self.additional_properties = true;
   }
 
   pub fn properties(&self) -> LinearMap<Key, &Schema> {
-    unimplemented!();
+    let mut properties = LinearMap::new();
+    for (key, value) in self.properties.iter() {
+      properties.insert(key.to_owned(), value.deref());
+    }
+    properties
   }
 
   pub fn required(&self) -> Vec<Key> {
-    unimplemented!();
+    self.required.clone()
   }
 
   pub fn additional_properties(&self) -> bool {
-    unimplemented!();
+    self.additional_properties
   }
 }
 
@@ -439,7 +398,7 @@ impl SchemaEnum {
   }
 
   pub fn values(&self) -> Vec<Value> {
-    unimplemented!();
+    self.values.clone()
   }
 }
 
@@ -447,9 +406,10 @@ impl SchemaPrimitive for SchemaEnum {}
 
 #[cfg(test)]
 mod tests {
-  use super::SchemaNone;
   use schema::Schema;
   use query::Query;
+
+  // TODO: replace `is_some`s with `unwrap`s into `assert_eq`s.
 
   #[test]
   fn test_get_primitive() {
@@ -466,7 +426,7 @@ mod tests {
     let array_none = Schema::array();
     let mut array_bool = Schema::array();
     array_bool.set_items(Schema::boolean());
-    assert!(array_none.get(point!["1"]).is_some());
+    assert!(array_none.get(point!["1"]).is_none());
     assert!(array_none.get(point!["asd"]).is_none());
     assert!(array_bool.get(point!["1"]).is_some());
     assert!(array_bool.get(point!["9999999"]).is_some());
@@ -508,11 +468,11 @@ mod tests {
   fn test_query_primitive() {
     assert!(Schema::null().validate_query(&Query::All).is_ok());
     let obj_query = Query::Keys(linear_map! {});
-    Schema::null().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::boolean().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::number().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::string().validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
-    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().assert_message(r"deeply query");
+    Schema::null().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
+    Schema::boolean().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
+    Schema::number().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
+    Schema::string().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
+    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().assert_message("deeply query");
   }
 
   #[test]
@@ -539,7 +499,7 @@ mod tests {
     })).unwrap_err().assert_message("non-integer \"hello\"");
     array_bool.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::Keys(linear_map! {})
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    })).unwrap_err().assert_message("deeply query");
   }
 
   #[test]
@@ -569,7 +529,7 @@ mod tests {
     })).unwrap_err().assert_message("Cannot query object property \"moon\".");
     object.validate_query(&Query::Keys(linear_map! {
       str!("hello") => Query::Keys(linear_map! {})
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    })).unwrap_err().assert_message("deeply query");
     assert!(object.validate_query(&Query::Keys(linear_map! {
       str!("goodbye") => Query::Keys(linear_map! {
         str!("hello") => Query::All
@@ -579,7 +539,7 @@ mod tests {
       str!("goodbye") => Query::Keys(linear_map! {
         str!("hello") => Query::Keys(linear_map! {})
       })
-    })).unwrap_err().assert_message(r"Cannot deeply query a boolean\.");
+    })).unwrap_err().assert_message("deeply query");
     assert!(object_additional.validate_query(&Query::Keys(linear_map! {
       str!("world") => Query::All,
       str!("5") => Query::All,

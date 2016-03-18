@@ -145,15 +145,16 @@ impl SerdeSchema {
 mod tests {
   use super::from_file;
   use std::path::PathBuf;
-  use schema::definition::create_basic;
 
   #[test]
   fn test_basic_json() {
+    // TODO: use `assert_eq` when `Schema` implements `PartialEq`.
     assert!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).is_ok());
   }
 
   #[test]
   fn test_basic_yaml() {
+    // TODO: use `assert_eq` when `Schema` implements `PartialEq`.
     assert!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).is_ok());
   }
 }
