@@ -16,7 +16,7 @@ extern crate mongodb;
 
 #[cfg(test)]
 #[macro_use]
-mod tests;
+mod macros;
 
 pub mod driver;
 pub mod error;
