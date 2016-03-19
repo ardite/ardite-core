@@ -1,15 +1,9 @@
-macro_rules! str {
-  ($value:expr) => {
-    String::from($value)
-  }
-}
-
 macro_rules! point {
   ($($key:expr),*) => {
     {
       let mut _vec = Vec::new();
       $(
-        _vec.push(str!($key));
+        _vec.push(String::from($key));
       )*
       _vec
     }
@@ -42,7 +36,7 @@ macro_rules! vf64 {
 
 macro_rules! vstring {
   ($value:expr) => {
-    $crate::value::Value::String(str!($value))
+    $crate::value::Value::String(String::from($value))
   }
 }
 
@@ -51,7 +45,7 @@ macro_rules! vobject {
     {
       let mut _map: ::linear_map::LinearMap<$crate::value::Key, $crate::value::Value> = ::linear_map::LinearMap::new();
       $(
-        _map.insert(str!($key), $value);
+        _map.insert(String::from($key), $value);
       )*
       $crate::value::Value::Object(_map)
     }
@@ -67,5 +61,12 @@ macro_rules! varray {
       )*
       $crate::value::Value::Array(_vec)
     }
+  }
+}
+
+#[cfg(test)]
+macro_rules! str {
+  ($value:expr) => {
+    String::from($value)
   }
 }

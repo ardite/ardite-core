@@ -15,7 +15,6 @@ extern crate bson;
 #[cfg(feature = "driver_mongodb")]
 extern crate mongodb;
 
-#[cfg(test)]
 #[macro_use]
 mod macros;
 
