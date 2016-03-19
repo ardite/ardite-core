@@ -2,6 +2,7 @@
 
 #[macro_use(lazy_static)]
 extern crate lazy_static;
+#[macro_use(linear_map)]
 extern crate linear_map;
 extern crate regex;
 extern crate serde;
