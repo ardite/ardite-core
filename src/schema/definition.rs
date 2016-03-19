@@ -6,6 +6,7 @@ use value::Key;
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
+#[derive(Debug)]
 pub struct Definition {
   /// Types defined in the database.
   types: Vec<Type>
@@ -31,12 +32,20 @@ impl Definition {
   }
 }
 
+#[cfg(test)]
+impl PartialEq<Definition> for Definition {
+  fn eq(&self, other: &Self) -> bool {
+    format!("{:?}", self) == format!("{:?}", other)
+  }
+}
+
 /// Represents a high-level database type.
+#[derive(Debug)]
 pub struct Type {
   /// The name of the custom type.
   name: Key,
   /// The schema used to validate data which claims to be of this type.
-  schema: Option<Box<Schema>>
+  schema: Option<Box<Schema + 'static>>
 }
 
 impl Type {
@@ -55,7 +64,6 @@ impl Type {
     self.schema = Some(Box::new(schema));
   }
 
-  /// Set the schema for the type with a pre-boxed schema.
   pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
     self.schema = Some(schema);
   }
@@ -75,7 +83,6 @@ impl Type {
 /// Should define the same schema which exists in the
 /// `tests/fixtures/definitions/basic.json` file.
 #[cfg(test)]
-#[allow(dead_code)]
 pub fn create_basic() -> Definition {
   use regex::Regex;
   use schema::Schema;
