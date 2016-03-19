@@ -1,0 +1,160 @@
+# # Ardite Schema
+$schema: http://json-schema.org/schema#
+title: Ardite Schema
+description: Definition for an Ardite data system.
+type: object
+properties:
+  types:
+    title: Custom Types
+    description: Custom types which can be defined by the developer and referenced in `type` schema properties.
+    type: object
+    additionalProperties: false
+    patternProperties:
+      ^[a-zA-Z][a-zA-Z0-9]*$:
+        $ref: "#/definitions/schema"
+        title: Custom Type
+        description: A custom type whose name is it’s object key in the `types` object of the schema.
+
+definitions:
+  # ## Data Schema
+  schema:
+    title: Data Schema
+    description: A subset of JSON Schema used for defining data in a searchable manner.
+    type: object
+    additionalProperties: false
+
+    # ### Meta Properties
+    # Some documentation for every value in the schema may be defined, just
+    # like in JSON Schema. The properties include:
+    properties:
+      # - `title`: The property’s human readable name.
+      title:
+        type: string
+      # - `description`: A *short* description of what the property is.
+      description:
+        type: string
+      # - `default`: A default value to be used when none other is provided.
+      #   A default value may also be generated, see the section below for
+      #   more information.
+      default:
+        oneOf:
+          # #### Generated Default Values
+          # If `default` is an object containing the `$gen` property, the default
+          # value will be automatically generated. Sample values of `$gen` and
+          # the value they generate include:
+          #
+          # - `uuid`: This property generates a Universely Unique Id (UUID) in
+          #   compliance with [RFC 4122][].
+          #
+          # [RFC 4122]: https://www.ietf.org/rfc/rfc4122.txt
+          - type: object
+            additionalProperties: false
+            properties:
+              $gen:
+                enum: [uuid]
+          -
+
+    # ### Types
+    oneOf:
+      # #### Null
+      - properties:
+          type:
+            enum: [null]
+
+      # #### Boolean
+      - properties:
+          type:
+            enum: [boolean]
+
+      # #### Number
+      - properties:
+          type:
+            enum: [number, integer]
+          multipleOf:
+            type: number
+            minimum: 0
+            exclusiveMinimum: true
+          minimum:
+            type: number
+          exclusiveMinimum:
+            type: boolean
+            default: false
+          maximum:
+            type: number
+          exclusiveMaximum:
+            type: boolean
+            default: false
+
+      # #### String
+      - properties:
+          type:
+            enum: [string]
+          minLength:
+            type: integer
+            minimum: 0
+          maxLength:
+            type: integer
+          pattern:
+            type: string
+
+      # #### Array
+      - properties:
+          type:
+            enum: [array]
+          items:
+            $ref: "#/definitions/schema"
+          minItems:
+            type: integer
+            minimum: 0
+            default: 0
+          maxItems:
+            type: integer
+            minimum: 0
+          # `uniqueItems` is not included as a validation property because when
+          # inserting a value into a large array the validation requires
+          # knowledge of all values in the array. Pretty much requiring a
+          # database query.
+
+      # #### Object
+      - properties:
+          type:
+            enum: [object]
+          additionalProperties:
+            type: boolean
+            default: true
+          required:
+            type: array
+            minItems: 1
+            uniqueItems: true
+            items:
+              type: string
+          properties:
+            type: object
+            additionalProperties:
+              $ref: "#/definitions/schema"
+
+      # #### Enum
+      - properties:
+          enum:
+            type: array
+            minItems: 1
+            uniqueItems: true
+
+      # #### Custom
+      - properties:
+          $type:
+            type: string
+
+# ## Prior Work
+# - SQL schema.
+# - [OAI Specification][] (formerly known as Swagger).
+# - [RAML][].
+# - [GraphQL Schema][].
+# - [JSON Schema][].
+# - [JSON Hyper Schema][].
+#
+# [OAI Specification]: http://editor.swagger.io/#/
+# [RAML]: http://docs.raml.org/specs/1.0/
+# [GraphQL Schema]: http://facebook.github.io/graphql/
+# [JSON Schema]: http://json-schema.org/
+# [JSON Hyper Schema]: https://www.brandur.org/elegant-apis
