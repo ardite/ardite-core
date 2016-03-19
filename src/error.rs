@@ -172,7 +172,7 @@ impl From<JSONError> for Error {
       JSONError::Syntax(_, line, column) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: error.description().to_owned(),
+          message: "Syntax error.".to_owned(),
           hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
@@ -193,7 +193,7 @@ impl From<YAMLError> for Error {
       YAMLError::Custom(ref message) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: message.clone(),
+          message: message.to_owned(),
           hint: Some("Make sure your YAML syntax is correct.".to_owned())
         }
       },

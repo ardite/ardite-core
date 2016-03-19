@@ -87,6 +87,7 @@ pub fn create_basic() -> Definition {
   use regex::Regex;
   use schema::Schema;
 
+  // TODO: use order in file, not serde’s `BTreeMap` order.
   let mut definition = Definition::new();
 
   definition.add_type({
@@ -125,7 +126,9 @@ pub fn create_basic() -> Definition {
       text.set_max_length(65536);
       text
     });
-    post.add_property("topic", Schema::enum_(vec!["showcase", "help", "ama"]));
+    post.add_property("topic", {
+      Schema::enum_(vec!["showcase", "help", "ama"])
+    });
     type_.set_schema(post);
     type_
   });

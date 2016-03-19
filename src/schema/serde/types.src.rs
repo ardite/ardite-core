@@ -1,4 +1,5 @@
 // TODO: `build.rs` sucks…
+// TODO: Ordered maps, `BTreeMap` does its own ordering.
 
 use std::collections::BTreeMap;
 
