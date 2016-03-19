@@ -2,6 +2,7 @@
 
 #[macro_use(lazy_static)]
 extern crate lazy_static;
+#[macro_use(linear_map)]
 extern crate linear_map;
 extern crate regex;
 extern crate serde;
@@ -14,9 +15,8 @@ extern crate bson;
 #[cfg(feature = "driver_mongodb")]
 extern crate mongodb;
 
-#[cfg(test)]
 #[macro_use]
-mod tests;
+mod macros;
 
 pub mod driver;
 pub mod error;
