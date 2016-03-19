@@ -73,7 +73,7 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
       "string" => {
         let mut schema = Schema::string();
         if let Some(min_length) = serde_schema.min_length { schema.set_min_length(min_length); }
-        if let Some(max_length) = serde_schema.max_length { schema.set_min_length(max_length); }
+        if let Some(max_length) = serde_schema.max_length { schema.set_max_length(max_length); }
         if let Some(pattern) = serde_schema.pattern.and_then(|p| Regex::new(&p).ok()) { schema.set_pattern(pattern); }
         Ok(Box::new(schema))
       },
@@ -84,7 +84,7 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
       },
       "object" => {
         let mut schema = Schema::object();
-        schema.set_required(serde_schema.required.unwrap_or_else(|| vec![]));
+        schema.set_required(serde_schema.required.unwrap_or_default());
         if serde_schema.additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
         for (key, value) in serde_schema.properties.unwrap_or_default() {
           schema.add_boxed_property(key, try!(serde_schema_into_schema(value)));
