@@ -1,72 +1,50 @@
+#[macro_export]
 macro_rules! point {
-  ($($key:expr),*) => {
-    {
-      let mut _vec = Vec::new();
-      $(
-        _vec.push(String::from($key));
-      )*
-      _vec
-    }
-  }
+  () => {{ $crate::value::Pointer::new() }};
+
+  ($($key:expr),*) => {{
+    let mut pointer = $crate::value::Pointer::new();
+    $(
+      pointer.push(String::from($key));
+    )*
+    pointer
+  }}
 }
 
-macro_rules! vnull {
-  () => {
+#[macro_export]
+macro_rules! value {
+  () => {{
     $crate::value::Value::Null
-  }
-}
+  }};
 
-macro_rules! vbool {
-  ($value:expr) => {
-    $crate::value::Value::Boolean($value)
-  }
-}
+  (()) => {{
+    $crate::value::Value::Null
+  }};
 
-macro_rules! vi64 {
-  ($value:expr) => {
-    $crate::value::Value::I64(i64::from($value))
-  }
-}
+  ([$($value:tt),*]) => {{
+    let mut array = $crate::value::Array::new();
+    $(
+      array.push(value!($value));
+    )*
+    $crate::value::Value::Array(array)
+  }};
 
-macro_rules! vf64 {
-  ($value:expr) => {
-    $crate::value::Value::F64(f64::from($value))
-  }
-}
+  ({ $($key:expr => $value:tt),* }) => {{
+    let mut object = $crate::value::Object::new();
+    $(
+      object.insert($key.to_owned(), value!($value));
+    )*
+    $crate::value::Value::Object(object)
+  }};
 
-macro_rules! vstring {
-  ($value:expr) => {
-    $crate::value::Value::String(String::from($value))
-  }
-}
-
-macro_rules! vobject {
-  ($($key:expr => $value:expr),*) => {
-    {
-      let mut _map: ::linear_map::LinearMap<$crate::value::Key, $crate::value::Value> = ::linear_map::LinearMap::new();
-      $(
-        _map.insert(String::from($key), $value);
-      )*
-      $crate::value::Value::Object(_map)
-    }
-  }
-}
-
-macro_rules! varray {
-  ($($value:expr),*) => {
-    {
-      let mut _vec = Vec::new();
-      $(
-        _vec.push($value);
-      )*
-      $crate::value::Value::Array(_vec)
-    }
-  }
+  ($value:expr) => {{
+    $crate::value::Value::from($value)
+  }}
 }
 
 #[cfg(test)]
 macro_rules! str {
-  ($value:expr) => {
+  ($value:expr) => {{
     String::from($value)
-  }
+  }}
 }
