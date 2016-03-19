@@ -7,5 +7,5 @@ mod schema;
 mod serde;
 
 pub use schema::definition::{Definition, Type};
-pub use schema::schema::{Schema, SchemaType};
+pub use schema::schema::Schema;
 pub use schema::serde::from_file;

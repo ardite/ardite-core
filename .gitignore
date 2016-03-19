@@ -3,4 +3,4 @@ Desktop.ini
 target
 Cargo.lock
 ._*
-src/schema/serde.rs
+src/schema/serde/types.rs
