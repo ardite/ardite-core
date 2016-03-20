@@ -27,7 +27,7 @@ impl Driver for MongoDriver {
         database: try!(Client::with_config(config, None, None)).db(&db_name)
       })
     } else {
-      Err(Error::validation(
+      Err(Error::invalid(
         format!("Database name not provided in connection path '{}'.", uri),
         "Include the database name you are connecting to as the connection URI path."
       ))

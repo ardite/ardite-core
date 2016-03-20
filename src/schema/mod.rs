@@ -6,6 +6,6 @@ mod definition;
 mod schema;
 mod serde;
 
+pub use schema::schema::*;
 pub use schema::definition::{Definition, Type};
-pub use schema::schema::Schema;
 pub use schema::serde::from_file;

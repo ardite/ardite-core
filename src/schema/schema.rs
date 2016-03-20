@@ -113,7 +113,7 @@ impl<'a, T> Schema for T where T: SchemaPrimitive + 'a {
   fn validate_query(&self, query: &Query) -> Result<(), Error> {
     match *query {
       Query::All => Ok(()),
-      Query::Keys(_) => Err(Error::validation(
+      Query::Keys(_) => Err(Error::invalid(
         "Cannot deeply query a primitive value.",
         "Try not querying specific properties of a primitive like `null` or `boolean`."
       ))
@@ -301,7 +301,7 @@ impl Schema for SchemaArray {
               Ok(())
             }
           } else {
-            Err(Error::validation(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
+            Err(Error::invalid(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
           }
         }).find(|r| r.is_err());
         match err_key {
@@ -391,7 +391,7 @@ impl Schema for SchemaObject {
           } else if self.additional_properties {
             Ok(())
           } else {
-            Err(Error::validation(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
+            Err(Error::invalid(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
           }
         }).find(|r| r.is_err());
         match err_key {
