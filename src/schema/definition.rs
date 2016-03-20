@@ -27,7 +27,6 @@ impl Definition {
   }
 
   /// Gets type of a certain name.
-  // TODO: Should `N` really be borrowed?
   pub fn find_type<N>(&self, name: &N) -> Option<&Type> where N: PartialEq<Key> {
     self.types.iter().find(|type_| name.eq(type_.name()))
   }
