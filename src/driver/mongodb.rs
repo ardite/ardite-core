@@ -22,7 +22,7 @@ impl Driver for MongoDriver {
   fn connect(uri: &str) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
 
-    if let Some(db_name) = config.clone().database {
+    if let Some(db_name) = config.database.clone() {
       Ok(MongoDriver {
         database: try!(Client::with_config(config, None, None)).db(&db_name)
       })
@@ -130,7 +130,7 @@ impl From<Document> for Value {
   fn from(document: Document) -> Value {
     let mut object = LinearMap::new();
     for (key, value) in document.into_iter() {
-      object.insert(key.clone(), Value::from(value));
+      object.insert(key, Value::from(value));
     }
     Value::Object(object)
   }
@@ -373,7 +373,7 @@ mod tests {
 
   impl Fixtures {
     fn find_type(&self) -> &Type {
-      self.definition.find_type(self.collection_name.clone()).unwrap()
+      self.definition.find_type(&self.collection_name).unwrap()
     }
   }
 

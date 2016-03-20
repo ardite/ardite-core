@@ -53,11 +53,11 @@ pub enum Value {
 
 impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
-  pub fn get(&self, mut pointer: Pointer) -> Option<Value> {
+  pub fn get(&self, mut pointer: Pointer) -> Option<&Value> {
     match *self {
       Value::Object(ref map) => {
         if pointer.is_empty() {
-          Some(self.clone())
+          Some(self)
         } else if let Some(value) = map.get(&pointer.remove(0)) {
           value.get(pointer)
         } else {
@@ -66,14 +66,14 @@ impl Value {
       },
       Value::Array(ref vec) => {
         if pointer.is_empty() {
-          Some(self.clone())
+          Some(self)
         } else if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
           value.get(pointer)
         } else {
           None
         }
       },
-      _ => if pointer.is_empty() { Some(self.clone()) } else { None }
+      _ => if pointer.is_empty() { Some(self) } else { None }
     }
   }
 
@@ -187,15 +187,15 @@ impl<'a> Iterator for ValueIter<'a> {
 mod tests {
   #[test]
   fn test_get_primitive() {
-    assert_eq!(value!().get(point![]), Some(value!()));
-    assert_eq!(value!().get(point!["hello"]), None);
-    assert_eq!(value!().get(point!["a", "b", "c", "d", "e"]), None);
-    assert_eq!(value!(true).get(point![]), Some(value!(true)));
-    assert_eq!(value!(true).get(point!["hello"]), None);
-    assert_eq!(value!(36).get(point![]), Some(value!(36)));
-    assert_eq!(value!(36).get(point!["hello"]), None);
-    assert_eq!(value!("world").get(point![]), Some(value!("world")));
-    assert_eq!(value!("world").get(point!["hello"]), None);
+    assert_eq!(value!().get(point![]).cloned(), Some(value!()));
+    assert_eq!(value!().get(point!["hello"]).cloned(), None);
+    assert_eq!(value!().get(point!["a", "b", "c", "d", "e"]).cloned(), None);
+    assert_eq!(value!(true).get(point![]).cloned(), Some(value!(true)));
+    assert_eq!(value!(true).get(point!["hello"]).cloned(), None);
+    assert_eq!(value!(36).get(point![]).cloned(), Some(value!(36)));
+    assert_eq!(value!(36).get(point!["hello"]).cloned(), None);
+    assert_eq!(value!("world").get(point![]).cloned(), Some(value!("world")));
+    assert_eq!(value!("world").get(point!["hello"]).cloned(), None);
   }
 
   #[test]
@@ -209,13 +209,13 @@ mod tests {
         "hello" => "yoyo"
       }
     });
-    assert_eq!(object.get(point![]), Some(object.clone()));
-    assert_eq!(object.get(point!["hello"]), Some(value!(true)));
-    assert_eq!(object.get(point!["yolo"]), Some(value!("swag")));
-    assert_eq!(object.get(point!["5"]), Some(value!()));
-    assert_eq!(object.get(point!["world", "hello"]), None);
-    assert_eq!(object.get(point!["moon", "hello"]), Some(value!("yoyo")));
-    assert_eq!(object.get(point!["moon", "nope"]), None);
+    assert_eq!(object.get(point![]).cloned(), Some(object.clone()));
+    assert_eq!(object.get(point!["hello"]).cloned(), Some(value!(true)));
+    assert_eq!(object.get(point!["yolo"]).cloned(), Some(value!("swag")));
+    assert_eq!(object.get(point!["5"]).cloned(), Some(value!()));
+    assert_eq!(object.get(point!["world", "hello"]).cloned(), None);
+    assert_eq!(object.get(point!["moon", "hello"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(object.get(point!["moon", "nope"]).cloned(), None);
   }
 
   #[test]
@@ -232,13 +232,13 @@ mod tests {
       },
       [[1, 2, 3], 4, 5 ]
     ]);
-    assert_eq!(array.get(point![]), Some(array.clone()));
-    assert_eq!(array.get(point!["0"]), Some(value!(false)));
-    assert_eq!(array.get(point!["1"]), Some(value!(64)));
-    assert_eq!(array.get(point!["2", "hello"]), Some(value!(true)));
-    assert_eq!(array.get(point!["2", "moon", "goodbye"]), Some(value!("yoyo")));
-    assert_eq!(array.get(point!["length"]), None);
-    assert_eq!(array.get(point!["3", "0", "1"]), Some(value!(2)));
+    assert_eq!(array.get(point![]).cloned(), Some(array.clone()));
+    assert_eq!(array.get(point!["0"]).cloned(), Some(value!(false)));
+    assert_eq!(array.get(point!["1"]).cloned(), Some(value!(64)));
+    assert_eq!(array.get(point!["2", "hello"]).cloned(), Some(value!(true)));
+    assert_eq!(array.get(point!["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(array.get(point!["length"]).cloned(), None);
+    assert_eq!(array.get(point!["3", "0", "1"]).cloned(), Some(value!(2)));
   }
 
   #[test]

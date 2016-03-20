@@ -239,7 +239,7 @@ impl SchemaString {
   pub fn set_pattern(&mut self, pattern: Regex) { self.pattern = Some(pattern); }
   pub fn min_length(&self) -> Option<u64> { self.min_length }
   pub fn max_length(&self) -> Option<u64> { self.max_length }
-  pub fn pattern(&self) -> Option<Regex> { self.pattern.clone() }
+  pub fn pattern(&self) -> Option<&Regex> { self.pattern.as_ref() }
 }
 
 impl SchemaPrimitive for SchemaString {}
@@ -359,8 +359,8 @@ impl SchemaObject {
     properties
   }
 
-  pub fn required(&self) -> Vec<Key> {
-    self.required.clone()
+  pub fn required(&self) -> &Vec<Key> {
+    &self.required
   }
 
   pub fn additional_properties(&self) -> bool {
@@ -419,8 +419,8 @@ impl SchemaEnum {
     }
   }
 
-  pub fn values(&self) -> Vec<Value> {
-    self.values.clone()
+  pub fn values(&self) -> &Vec<Value> {
+    &self.values
   }
 }
 

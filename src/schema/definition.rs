@@ -27,9 +27,9 @@ impl Definition {
   }
 
   /// Gets type of a certain name.
-  pub fn find_type<K>(&self, tmp_name: K) -> Option<&Type> where K: Into<Key> {
-    let name = tmp_name.into();
-    self.types.iter().find(|type_| type_.name() == name)
+  // TODO: Should `N` really be borrowed?
+  pub fn find_type<N>(&self, name: &N) -> Option<&Type> where N: PartialEq<Key> {
+    self.types.iter().find(|type_| name.eq(type_.name()))
   }
 }
 
@@ -70,8 +70,8 @@ impl Type {
   }
 
   /// Gets the name of the type.
-  pub fn name(&self) -> Key {
-    self.name.to_owned()
+  pub fn name(&self) -> &Key {
+    &self.name
   }
 
   /// Gets the schema of the type.
