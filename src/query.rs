@@ -51,8 +51,8 @@ impl SortRule {
   }
 
   /// Get the property the struct is sorting against.
-  pub fn property(&self) -> Pointer {
-    self.property.clone()
+  pub fn property(&self) -> &Pointer {
+    &self.property
   }
 
   /// Is the struct sorting the property in ascending order?

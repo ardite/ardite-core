@@ -22,7 +22,7 @@ impl Driver for MongoDriver {
   fn connect(uri: &str) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
 
-    if let Some(db_name) = config.clone().database {
+    if let Some(db_name) = config.database.clone() {
       Ok(MongoDriver {
         database: try!(Client::with_config(config, None, None)).db(&db_name)
       })
@@ -130,7 +130,7 @@ impl From<Document> for Value {
   fn from(document: Document) -> Value {
     let mut object = LinearMap::new();
     for (key, value) in document.into_iter() {
-      object.insert(key.clone(), Value::from(value));
+      object.insert(key, Value::from(value));
     }
     Value::Object(object)
   }
@@ -373,7 +373,7 @@ mod tests {
 
   impl Fixtures {
     fn find_type(&self) -> &Type {
-      self.definition.find_type(self.collection_name.clone()).unwrap()
+      self.definition.find_type(&self.collection_name).unwrap()
     }
   }
 
@@ -580,27 +580,27 @@ mod tests {
         })
       ).unwrap().collect::<Vec<Value>>(),
       vec![
-        vobject! {
-          "a" => vi64!(1),
-          "c" => vi64!(3)
-        },
-        vobject! {
-          "c" => vi64!(4),
-          "hello" => vstring!("world"),
-          "doc_a" => vobject! {
-            "b" => vi64!(2)
+        value!({
+          "a" => 1,
+          "c" => 3
+        }),
+        value!({
+          "c" => 4,
+          "hello" => "world",
+          "doc_a" => {
+            "b" => 2
           }
-        },
-        vobject! {
-          "a" => vi64!(1),
-          "c" => vi64!(3),
-          "doc_b" => vobject! {
-            "hello" => vstring!("world"),
-            "doc_a" => vobject! {
-              "b" => vi64!(2)
+        }),
+        value!({
+          "a" => 1,
+          "c" => 3,
+          "doc_b" => {
+            "hello" => "world",
+            "doc_a" => {
+              "b" => 2
             }
           }
-        }
+        })
       ]
     );
   }
