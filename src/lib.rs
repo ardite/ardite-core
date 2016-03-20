@@ -23,3 +23,8 @@ pub mod error;
 pub mod query;
 pub mod schema;
 pub mod value;
+
+pub use driver::Driver;
+pub use error::{Error, ErrorCode};
+pub use schema::{Definition, Type, Schema};
+pub use value::{Key, Pointer, Object, Array, Value};
