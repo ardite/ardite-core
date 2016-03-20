@@ -44,7 +44,7 @@ pub struct Error {
 
 impl Error {
   /// Easily create a new error.
-  pub fn new<S>(code: ErrorCode, message: S, hint: Option<S>) -> Self where S: Into<String> {
+  pub fn new<S1, S2>(code: ErrorCode, message: S1, hint: Option<S2>) -> Self where S1: Into<String>, S2: Into<String> {
     Error {
       code: code,
       message: message.into(),
