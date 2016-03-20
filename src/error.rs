@@ -109,11 +109,11 @@ impl Error {
   /// ```rust
   /// use ardite::error::{Error, ErrorCode};
   ///
-  /// let error = Error::validation("Failed validation.", "Try fixing your syntax!");
+  /// let error = Error::invalid("Failed validation.", "Try fixing your syntax!");
   ///
   /// assert_eq!(error, Error::new(ErrorCode::BadRequest, "Failed validation.", Some("Try fixing your syntax!")));
   /// ```
-  pub fn validation<S1, S2>(message: S1, hint: S2) -> Self where S1: Into<String>, S2: Into<String> {
+  pub fn invalid<S1, S2>(message: S1, hint: S2) -> Self where S1: Into<String>, S2: Into<String> {
     Error {
       code: ErrorCode::BadRequest,
       message: message.into(),

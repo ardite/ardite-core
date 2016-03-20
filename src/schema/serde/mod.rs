@@ -93,7 +93,7 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
         }
         Ok(Box::new(schema))
       },
-      _ => Err(Error::validation(
+      _ => Err(Error::invalid(
         format!("Invalid type '{}'.", type_),
         format!("Use a permitted type like 'string' and not '{}'.", type_)
       ))
@@ -102,7 +102,7 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
       if let Some(enum_) = serde_schema.enum_ {
         Ok(Box::new(Schema::enum_(enum_.into_iter().map(Value::String).collect())))
       } else {
-        Err(Error::validation("No schema type specified.", "Set a `type` property or an `enum` property."))
+        Err(Error::invalid("No schema type specified.", "Set a `type` property or an `enum` property."))
       }
     }
   }
