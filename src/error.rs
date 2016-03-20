@@ -65,6 +65,43 @@ impl Error {
     self.hint.as_ref().map(|s| s.as_str())
   }
 
+  /// Gets an object which represents the error.
+  ///
+  /// # Example
+  /// ```rust
+  /// #[macro_use(value)]
+  /// extern crate ardite;
+  ///
+  /// use ardite::error::{Error, NotFound};
+  ///
+  /// # fn main() {
+  ///
+  /// let error = Error::new(NotFound, "Not found…", Some("Go to the light!"));
+  ///
+  /// let value = value!({
+  ///   "error" => true,
+  ///   "message" => "Not found…",
+  ///   "hint" => "Go to the light!"
+  /// });
+  ///
+  /// assert_eq!(error.to_value(), value);
+  ///
+  /// # }
+  /// ```
+  pub fn to_value(&self) -> Value {
+    let mut object = Object::new();
+
+    // TODO: implement an insert method which isn‘t as strict.
+    object.insert("error".to_owned(), Value::Boolean(true));
+    object.insert("message".to_owned(), Value::String(self.message.clone()));
+
+    if let Some(ref hint) = self.hint {
+      object.insert("hint".to_owned(), Value::String(hint.clone()));
+    }
+
+    Value::Object(object)
+  }
+
   /// Convenience function for saying a thing failed validation using
   /// `ErrorCode::BadRequest`.
   ///
