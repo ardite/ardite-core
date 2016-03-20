@@ -51,18 +51,18 @@ impl Error {
   }
 
   /// Get the code for the error.
-  pub fn code(&self) -> ErrorCode {
-    self.code.to_owned()
+  pub fn code(&self) -> &ErrorCode {
+    &self.code
   }
 
   /// Get the message for the error.
-  pub fn message(&self) -> String {
-    self.message.to_owned()
+  pub fn message(&self) -> &str {
+    &self.message
   }
 
   /// Get the hint—for the error (see what I did there?).
-  pub fn hint(&self) -> Option<String> {
-    self.hint.to_owned()
+  pub fn hint(&self) -> Option<&str> {
+    self.hint.as_ref().map(|s| s.as_str())
   }
 
   /// Convenience function for saying a thing failed validation using
