@@ -5,9 +5,11 @@ use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
 use std::path::PathBuf;
+
 use regex::Regex;
 use serde_json;
 use serde_yaml;
+
 use error::{Error, ErrorCode};
 use schema::{Definition, Type, Schema};
 use value::Value;
@@ -109,7 +111,9 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
 #[cfg(test)]
 mod tests {
   use super::from_file;
+
   use std::path::PathBuf;
+
   use schema::definition::create_basic;
 
   #[test]

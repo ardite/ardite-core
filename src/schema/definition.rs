@@ -1,6 +1,7 @@
 //! Contains the full definition of a data system which Ardite will use.
 
 use std::ops::Deref;
+
 use schema::Schema;
 use value::Key;
 
@@ -85,6 +86,7 @@ impl Type {
 #[cfg(test)]
 pub fn create_basic() -> Definition {
   use regex::Regex;
+
   use schema::Schema;
 
   // TODO: use order in file, not serde’s `BTreeMap` order.

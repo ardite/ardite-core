@@ -2,6 +2,7 @@
 
 use std::convert::From;
 use linear_map::LinearMap;
+
 use value::{Key, Pointer, Value};
 
 /// A condition which will resolve to a boolean value after comparing a certain
