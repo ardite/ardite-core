@@ -173,7 +173,7 @@ impl Error {
   /// expression. Only available in testing environments. Panics if the regular
   /// expression doesn’t match the error message string.
   #[cfg(test)]
-  pub fn assert_message(&self, regex_str: &str) {
+  pub fn expect(&self, regex_str: &str) {
     if !Regex::new(regex_str).unwrap().is_match(&self.message) {
       panic!("Error message \"{}\" does not match regex /{}/", self.message, regex_str);
     }
