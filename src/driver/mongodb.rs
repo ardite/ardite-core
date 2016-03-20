@@ -580,27 +580,27 @@ mod tests {
         })
       ).unwrap().collect::<Vec<Value>>(),
       vec![
-        vobject! {
-          "a" => vi64!(1),
-          "c" => vi64!(3)
-        },
-        vobject! {
-          "c" => vi64!(4),
-          "hello" => vstring!("world"),
-          "doc_a" => vobject! {
-            "b" => vi64!(2)
+        value!({
+          "a" => 1,
+          "c" => 3
+        }),
+        value!({
+          "c" => 4,
+          "hello" => "world",
+          "doc_a" => {
+            "b" => 2
           }
-        },
-        vobject! {
-          "a" => vi64!(1),
-          "c" => vi64!(3),
-          "doc_b" => vobject! {
-            "hello" => vstring!("world"),
-            "doc_a" => vobject! {
-              "b" => vi64!(2)
+        }),
+        value!({
+          "a" => 1,
+          "c" => 3,
+          "doc_b" => {
+            "hello" => "world",
+            "doc_a" => {
+              "b" => 2
             }
           }
-        }
+        })
       ]
     );
   }
