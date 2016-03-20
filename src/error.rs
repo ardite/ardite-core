@@ -273,7 +273,7 @@ pub enum ErrorCode {
 pub use error::ErrorCode::*;
 
 impl ErrorCode {
-  pub fn code(&self) -> u16 {
+  pub fn to_u16(&self) -> u16 {
     match *self {
       BadRequest => 400,
       Forbidden => 403,
@@ -302,7 +302,7 @@ impl ErrorCode {
 
 impl Display for ErrorCode {
   fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
-    try!(write!(fmt, "{} {}", self.code(), self.reason()));
+    try!(write!(fmt, "{} {}", self.to_u16(), self.reason()));
     Ok(())
   }
 }
