@@ -289,6 +289,8 @@ pub enum ErrorCode {
   Forbidden,
   /// Resource was not found.
   NotFound,
+  /// Whatever method (think CRUD) used is not allowed.
+  MethodNotAllowed,
   /// The requested resource is not acceptable.
   NotAcceptable,
   /// Present data made the request fail.
@@ -309,6 +311,7 @@ impl ErrorCode {
       BadRequest => 400,
       Forbidden => 403,
       NotFound => 404,
+      MethodNotAllowed => 405,
       NotAcceptable => 406,
       Conflict => 409,
       BadRange => 416,
@@ -322,6 +325,7 @@ impl ErrorCode {
       BadRequest => "Bad Request",
       Forbidden => "Forbidden",
       NotFound => "Not Found",
+      MethodNotAllowed => "Method Not Allowed",
       NotAcceptable => "Not Acceptable",
       Conflict => "Conflict",
       BadRange => "Range Not Satisfiable",
