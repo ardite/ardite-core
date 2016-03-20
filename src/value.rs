@@ -22,9 +22,11 @@ pub type Pointer = Vec<Key>;
 /// Ordered representation of a map of key/value pairs, like a JSON object.
 /// Backed by a linear map to maintain order and have high performance for
 /// small objects.
+// TODO: newtype pattern?
 pub type Object = LinearMap<Key, Value>;
 
 /// Ordered array of values, like a JSON array.
+// TODO: newtype pattern?
 pub type Array = Vec<Value>;
 
 /// Various value types. Based on types in the [JSON standard][1] (see section

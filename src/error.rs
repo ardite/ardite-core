@@ -1,10 +1,11 @@
 //! This module focuses on handling errors generated when using Ardite in a
 //! graceful manner.
 
-#[cfg(test)]
-use regex::Regex;
 use std::io::Error as IOError;
 use std::error::Error as ErrorTrait;
+
+#[cfg(test)]
+use regex::Regex;
 use serde_json::error::Error as JSONError;
 use serde_yaml::error::Error as YAMLError;
 

@@ -1,4 +1,5 @@
 use std::error::Error as ErrorTrait;
+
 use bson::{Bson, Document};
 use linear_map::LinearMap;
 use mongodb::{Client, ThreadedClient, CommandType};
@@ -6,10 +7,11 @@ use mongodb::common::{ReadPreference, ReadMode};
 use mongodb::connstring;
 use mongodb::db::{Database, ThreadedDatabase};
 use mongodb::error::Error as MongoDBError;
-use schema::Type;
+
 use driver::Driver;
 use error::Error;
 use query::{Range, SortRule, Condition, Query};
+use schema::Type;
 use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
@@ -240,8 +242,10 @@ fn query_to_projection(query: Query) -> Bson {
 #[cfg(test)]
 mod tests {
   use super::{query_to_projection, sort_rules_to_sort, condition_to_filter};
+
   use bson::{Bson, Document};
   use mongodb::db::ThreadedDatabase;
+
   use driver::Driver;
   use driver::mongodb::MongoDriver;
   use query::{Range, SortRule, Condition, Query};

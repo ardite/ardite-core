@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use linear_map::LinearMap;
 use regex::Regex;
+
 use error::Error;
 use query::Query;
 use value::{Key, Pointer, Value};
