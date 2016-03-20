@@ -17,7 +17,7 @@ driver_mongodb = ["mongodb", "bson"]
 [dependencies]
 bson = { version = "0.1.4", optional = true }
 lazy_static = "0.1.15"
-linear-map = { git = "https://github.com/contain-rs/linear-map" }
+linear-map = "1.0.0"
 mongodb = { version = "0.1.3", optional = true }
 regex = "0.1.58"
 serde = "0.7.0"
