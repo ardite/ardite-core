@@ -270,8 +270,7 @@ pub enum ErrorCode {
   NotImplemented
 }
 
-// Dump all the error codes into the export space.
-pub use ErrorCode::*;
+pub use error::ErrorCode::*;
 
 impl ErrorCode {
   pub fn code(&self) -> u16 {
