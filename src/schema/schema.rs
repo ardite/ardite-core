@@ -1,4 +1,5 @@
 //! Format for defining the shape of data in an Ardite Schema Definition.
+// TODO: change names like `SchemaNone` to `NoneSchema` in the style of `MongoDriver` and `MemoryDriver`.
 
 use std::fmt::Debug;
 use std::ops::Deref;
