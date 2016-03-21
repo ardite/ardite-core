@@ -270,8 +270,9 @@ mod tests {
 
   use regex::Regex;
   use serde_json;
+  use url::Url;
 
-  use schema::{Definition, Type, Schema};
+  use schema::{Definition, Type, DriverConfig, Schema};
 
   #[test]
   fn test_json_definition() {
@@ -292,6 +293,13 @@ mod tests {
     assert!(from_str(r#"{"schema":2}"#).is_err());
     assert!(from_str(r#"{"schema":"yo"}"#).is_err());
     assert!(from_str(r#"{"schema":[]}"#).is_err());
+  }
+
+  #[test]
+  fn test_json_driver_config() {
+    let from_str = serde_json::from_str::<DriverConfig>;
+    assert_eq!(from_str(r#""mongodb://localhost:27017""#).unwrap(), DriverConfig::new(Url::parse("mongodb://localhost:27017").unwrap()));
+    assert!(from_str(r#""not a url or a name""#).is_err());
   }
 
   fn create_basic_definition() -> Definition {
