@@ -4,7 +4,6 @@
 //! the driver to these types.
 
 use linear_map::LinearMap;
-use linear_map::serde::LinearMapVisitor;
 use serde::ser::{Serialize, Serializer};
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor, MapVisitor};
 use serde::de::impls::VecVisitor;
@@ -133,7 +132,16 @@ impl Deserialize for Value {
       #[inline] fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer { Deserialize::deserialize(deserializer) }
       #[inline] fn visit_unit<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
       #[inline] fn visit_seq<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: SeqVisitor { let values = try!(VecVisitor::new().visit_seq(visitor)); Ok(Value::Array(values)) }
-      #[inline] fn visit_map<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: MapVisitor { let values = try!(LinearMapVisitor::new().visit_map(visitor)); Ok(Value::Object(values)) }
+
+      #[inline]
+      fn visit_map<V>(&mut self, mut visitor: V) -> Result<Value, V::Error> where V: MapVisitor {
+        let mut object = LinearMap::with_capacity(visitor.size_hint().0);
+        while let Some((key, value)) = try!(visitor.visit()) {
+          object.insert(key, value);
+        }
+        try!(visitor.end());
+        Ok(Value::Object(object))
+      }
     }
 
     deserializer.deserialize(ValueVisitor)
