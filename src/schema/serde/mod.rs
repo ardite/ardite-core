@@ -1,7 +1,6 @@
 //! Serializes and deserializes Ardite Schema Definitions from different data
 //! formats such as JSON and YAML.
 
-use std::io::prelude::*;
 use std::io::BufReader;
 use std::fs::File;
 use std::path::PathBuf;
@@ -22,7 +21,7 @@ use schema::serde::types::*;
 /// JSON and YAML formats.
 pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   let extension = path.extension().map_or("", |s| s.to_str().unwrap());
-  let mut file = try!(File::open(&path));
+  let file = try!(File::open(&path));
   match extension {
     "json" => {
       let reader = BufReader::new(file);
@@ -30,9 +29,8 @@ pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
       Ok(try!(serde_definition_into_definition(definition)))
     },
     "yml" => {
-      let mut string = String::new();
-      try!(file.read_to_string(&mut string));
-      let definition: SerdeDefinition = try!(serde_yaml::from_str(&string));
+      let reader = BufReader::new(file);
+      let definition: SerdeDefinition = try!(serde_yaml::from_reader(reader));
       Ok(try!(serde_definition_into_definition(definition)))
     },
     _ => Err(Error::new(
