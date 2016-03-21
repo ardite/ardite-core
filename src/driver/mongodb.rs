@@ -117,8 +117,6 @@ impl Into<Bson> for Value {
     match self {
       Value::Null => Bson::Null,
       Value::Boolean(value) => Bson::Boolean(value),
-      // TODO: find better `U64` converstion in BSON.
-      Value::U64(value) => Bson::String(value.to_string()),
       Value::I64(value) => Bson::I64(value),
       Value::F64(value) => Bson::FloatingPoint(value),
       Value::String(value) => Bson::String(value),

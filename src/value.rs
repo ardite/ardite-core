@@ -33,15 +33,12 @@ pub type Array = Vec<Value>;
 /// 5).
 ///
 /// [1]: http://ecma-international.org/publications/files/ECMA-ST/ECMA-404.pdf
-// TODO: nice names like `Integer` and `Float` as @svmnotn suggests
 #[derive(PartialEq, Clone, Debug)]
 pub enum Value {
   /// The abscense of any value.
   Null,
   /// True or false.
   Boolean(bool),
-  /// An unsigned integer numeric value.
-  U64(u64),
   /// An integer numeric value.
   I64(i64),
   /// A floating point numeric value.
@@ -85,7 +82,6 @@ impl Value {
     match *self {
       Value::Null => "null".to_owned(),
       Value::Boolean(value) => if value { "true".to_owned() } else { "false".to_owned() },
-      Value::U64(value) => value.to_string(),
       Value::I64(value) => value.to_string(),
       Value::F64(value) => value.to_string(),
       Value::String(ref value) => "\"".to_owned() + &escape_string_for_json(value) + "\"",
@@ -124,7 +120,6 @@ impl Serialize for Value {
     match *self {
       Value::Null => serializer.serialize_unit(),
       Value::Boolean(value) => serializer.serialize_bool(value),
-      Value::U64(value) => serializer.serialize_u64(value),
       Value::I64(value) => serializer.serialize_i64(value),
       Value::F64(value) => serializer.serialize_f64(value),
       Value::String(ref value) => serializer.serialize_str(&value),
