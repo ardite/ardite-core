@@ -9,6 +9,7 @@ extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+extern crate url;
 
 #[cfg(feature = "driver_mongodb")]
 #[macro_use(bson, doc)]

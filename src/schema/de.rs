@@ -3,8 +3,9 @@ use std::collections::BTreeMap;
 use regex::Regex;
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, MapVisitor};
 use serde::de::impls::IgnoredAny;
+use url::Url;
 
-use schema::{Definition, Type, Schema, BoxedSchema};
+use schema::{Definition, Type, DriverConfig, Schema, BoxedSchema};
 use value::{Key, Value};
 
 macro_rules! deserializable_fields {
@@ -51,6 +52,7 @@ macro_rules! deserializable_fields {
 impl Deserialize for Definition {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
     deserializable_fields! {
+      "driver" => Driver,
       "types" => Types
     }
 
@@ -61,21 +63,29 @@ impl Deserialize for Definition {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-        let mut definition = Definition::new();
+        let mut driver_config: Option<DriverConfig> = None;
+        let mut types: Option<BTreeMap<Key, Type>> = None;
 
         while let Some(key) = try!(visitor.visit_key()) {
           match key {
-            Field::Types => {
-              let types: BTreeMap<Key, Type> = try!(visitor.visit_value());
-              for (key, type_) in types {
-                definition.add_type(key, type_);
-              }
-            },
+            Field::Driver => { driver_config = try!(visitor.visit_value()) },
+            Field::Types => { types = try!(visitor.visit_value()); },
             Field::Ignore => { try!(visitor.visit_value::<IgnoredAny>()); }
           }
         }
 
         try!(visitor.end());
+
+        let mut definition = Definition::new();
+
+        if let Some(driver_config) = driver_config { definition.set_driver(driver_config); }
+
+        if let Some(types) = types {
+          for (key, type_) in types {
+            definition.add_type(key, type_);
+          }
+        }
+
         Ok(definition)
       }
     }
@@ -115,6 +125,31 @@ impl Deserialize for Type {
     }
 
     deserializer.deserialize_map(TypeVisitor)
+  }
+}
+
+impl Deserialize for DriverConfig {
+  fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
+    struct DriverConfigVisitor;
+
+    impl Visitor for DriverConfigVisitor {
+      type Value = DriverConfig;
+
+      #[inline]
+      fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: DeError {
+        match Url::parse(value) {
+          Ok(url) => Ok(DriverConfig::new(url)),
+          Err(error) => Err(DeError::custom(format!("{}", error)))
+        }
+      }
+
+      #[inline]
+      fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: DeError {
+        self.visit_str(&value)
+      }
+    }
+
+    deserializer.deserialize(DriverConfigVisitor)
   }
 }
 
