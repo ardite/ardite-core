@@ -1,6 +1,8 @@
 //! Serializes and deserializes Ardite Schema Definitions from different data
 //! formats such as JSON and YAML.
 
+mod types;
+
 use std::io::BufReader;
 use std::fs::File;
 use std::path::PathBuf;
@@ -11,9 +13,6 @@ use serde_yaml;
 
 use error::{Error, ErrorCode};
 use schema::{Definition, Type, Schema};
-
-mod types;
-
 use schema::serde::types::*;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
