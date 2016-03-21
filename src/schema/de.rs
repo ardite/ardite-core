@@ -4,7 +4,7 @@ use regex::Regex;
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, MapVisitor};
 use serde::de::impls::IgnoredAny;
 
-use schema::{Definition, Type, Schema};
+use schema::{Definition, Type, Schema, BoxedSchema};
 use value::{Key, Value};
 
 macro_rules! deserializable_fields {
@@ -102,7 +102,7 @@ impl Deserialize for Type {
         while let Some(key) = try!(visitor.visit_key()) {
           match key {
             Field::Schema => {
-              let schema: Box<Schema + 'static> = try!(visitor.visit_value());
+              let schema: BoxedSchema = try!(visitor.visit_value());
               type_.set_boxed_schema(schema);
             },
             Field::Ignore => { try!(visitor.visit_value::<IgnoredAny>()); }
@@ -118,7 +118,7 @@ impl Deserialize for Type {
   }
 }
 
-impl<'a> Deserialize for Box<Schema + 'a> {
+impl Deserialize for BoxedSchema {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
     deserializable_fields! {
       "type" => Type,
@@ -148,8 +148,8 @@ impl<'a> Deserialize for Box<Schema + 'a> {
       min_length: Option<u64>,
       max_length: Option<u64>,
       pattern: Option<String>,
-      items: Option<Box<Schema + 'static>>,
-      properties: Option<BTreeMap<String, Box<Schema + 'static>>>,
+      items: Option<BoxedSchema>,
+      properties: Option<BTreeMap<String, BoxedSchema>>,
       required: Option<Vec<String>>,
       additional_properties: Option<bool>
     }
@@ -157,7 +157,7 @@ impl<'a> Deserialize for Box<Schema + 'a> {
     struct SchemaVisitor;
 
     impl Visitor for SchemaVisitor {
-      type Value = Box<Schema + 'static>;
+      type Value = BoxedSchema;
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {

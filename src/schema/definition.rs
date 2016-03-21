@@ -10,7 +10,7 @@ use serde_json;
 use serde_yaml;
 
 use error::{Error, NotAcceptable};
-use schema::Schema;
+use schema::{Schema, BoxedSchema};
 use value::Key;
 
 /// The definition object which contains all necessary information to
@@ -71,7 +71,7 @@ impl PartialEq<Definition> for Definition {
 #[derive(Debug)]
 pub struct Type {
   /// The schema used to validate data which claims to be of this type.
-  schema: Option<Box<Schema + 'static>>
+  schema: Option<BoxedSchema>
 }
 
 impl Type {
@@ -89,7 +89,7 @@ impl Type {
     self.schema = Some(Box::new(schema));
   }
 
-  pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
+  pub fn set_boxed_schema(&mut self, schema: BoxedSchema) {
     self.schema = Some(schema);
   }
 
