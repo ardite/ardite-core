@@ -21,6 +21,9 @@ pub struct Definition {
   types: BTreeMap<Key, Type>
 }
 
+#[cfg(test)]
+impl_debug_eq!(Definition);
+
 impl Definition {
   /// Creates a new empty instance of `Definition`.
   pub fn new() -> Self {
@@ -60,19 +63,15 @@ impl Definition {
   }
 }
 
-#[cfg(test)]
-impl PartialEq<Definition> for Definition {
-  fn eq(&self, other: &Self) -> bool {
-    format!("{:?}", self) == format!("{:?}", other)
-  }
-}
-
 /// Represents a high-level database type.
 #[derive(Debug)]
 pub struct Type {
   /// The schema used to validate data which claims to be of this type.
   schema: Option<BoxedSchema>
 }
+
+#[cfg(test)]
+impl_debug_eq!(Type);
 
 impl Type {
   /// Create a new instance of `Type`.

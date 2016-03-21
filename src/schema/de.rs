@@ -238,9 +238,10 @@ impl Deserialize for BoxedSchema {
 
 #[cfg(test)]
 mod tests {
+  use regex::Regex;
   use serde_json;
 
-  use schema::Definition;
+  use schema::{Definition, Type, Schema, BoxedSchema};
 
   #[test]
   fn test_json_deserialize_definition() {
@@ -251,5 +252,15 @@ mod tests {
     assert!(from_str(r#"{"types":"yo"}"#).is_err());
     assert!(from_str(r#"{"types":[]}"#).is_err());
     assert_eq!(from_str(r#"{"types":{}}"#).unwrap(), Definition::new());
+  }
+
+  #[test]
+  fn test_json_deserialize_type() {
+    let from_str = serde_json::from_str::<Type>;
+    assert_eq!(from_str("{}").unwrap(), Type::new());
+    assert_eq!(from_str(r#"{"hello":"world"}"#).unwrap(), Type::new());
+    assert!(from_str(r#"{"schema":2}"#).is_err());
+    assert!(from_str(r#"{"schema":"yo"}"#).is_err());
+    assert!(from_str(r#"{"schema":[]}"#).is_err());
   }
 }

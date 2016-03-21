@@ -169,3 +169,14 @@ macro_rules! str {
     String::from($value)
   }}
 }
+
+#[cfg(test)]
+macro_rules! impl_debug_eq {
+  ($type_:ty) => {
+    impl PartialEq<$type_> for $type_ {
+      fn eq(&self, other: &Self) -> bool {
+        format!("{:?}", self) == format!("{:?}", other)
+      }
+    }
+  }
+}
