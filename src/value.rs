@@ -4,7 +4,10 @@
 //! the driver to these types.
 
 use linear_map::LinearMap;
+use linear_map::serde::LinearMapVisitor;
 use serde::ser::{Serialize, Serializer};
+use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor, MapVisitor};
+use serde::de::impls::VecVisitor;
 
 /// The type which represents the key for maps used throughout the Ardite
 /// codebase.
@@ -127,6 +130,30 @@ impl Serialize for Value {
       Value::Array(ref value) => value.serialize(serializer),
       Value::Object(ref value) => value.serialize(serializer)
     }
+  }
+}
+
+impl Deserialize for Value {
+  #[inline]
+  fn deserialize<D>(deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer {
+    struct ValueVisitor;
+
+    impl Visitor for ValueVisitor {
+      type Value = Value;
+
+      #[inline] fn visit_bool<E>(&mut self, value: bool) -> Result<Value, E> { Ok(Value::Boolean(value)) }
+      #[inline] fn visit_i64<E>(&mut self, value: i64) -> Result<Value, E> { Ok(Value::I64(value)) }
+      #[inline] fn visit_f64<E>(&mut self, value: f64) -> Result<Value, E> { Ok(Value::F64(value)) }
+      #[inline] fn visit_str<E>(&mut self, value: &str) -> Result<Value, E> where E: DeError { self.visit_string(value.to_owned()) }
+      #[inline] fn visit_string<E>(&mut self, value: String) -> Result<Value, E> { Ok(Value::String(value)) }
+      #[inline] fn visit_none<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer { Deserialize::deserialize(deserializer) }
+      #[inline] fn visit_unit<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_seq<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: SeqVisitor { let values = try!(VecVisitor::new().visit_seq(visitor)); Ok(Value::Array(values)) }
+      #[inline] fn visit_map<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: MapVisitor { let values = try!(LinearMapVisitor::new().visit_map(visitor)); Ok(Value::Object(values)) }
+    }
+
+    deserializer.deserialize(ValueVisitor)
   }
 }
 
