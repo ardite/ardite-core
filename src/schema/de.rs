@@ -1,37 +1,11 @@
 use std::collections::BTreeMap;
-use std::io::BufReader;
-use std::fs::File;
-use std::path::PathBuf;
 
 use regex::Regex;
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, MapVisitor};
 use serde::de::impls::IgnoredAny;
-use serde_json;
-use serde_yaml;
 
-use error::{Error, NotAcceptable};
 use schema::{Definition, Type, Schema};
 use value::{Key, Value};
-
-/// Gets an Ardite Schema Definition from a file. Aims to support mainly the
-/// JSON and YAML formats.
-// TODO: validate file against JSON schema.
-pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
-  let extension = path.extension().map_or("", |s| s.to_str().unwrap());
-  let file = try!(File::open(&path));
-  let reader = BufReader::new(file);
-  Ok(match extension {
-    "json" => try!(serde_json::from_reader(reader)),
-    "yml" => try!(serde_yaml::from_reader(reader)),
-    _ => {
-      return Err(Error::new(
-        NotAcceptable,
-        format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
-        Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
-      ))
-    }
-  })
-}
 
 macro_rules! deserializable_fields {
   ($($name:expr => $variant:ident),*) => {
@@ -264,12 +238,9 @@ impl<'a> Deserialize for Box<Schema + 'a> {
 
 #[cfg(test)]
 mod tests {
-  use std::path::PathBuf;
-
   use serde_json;
 
-  use schema::{Definition, from_file};
-  use schema::definition::create_basic;
+  use schema::Definition;
 
   #[test]
   fn test_json_deserialize_definition() {
@@ -280,15 +251,5 @@ mod tests {
     assert!(from_str(r#"{"types":"yo"}"#).is_err());
     assert!(from_str(r#"{"types":[]}"#).is_err());
     assert_eq!(from_str(r#"{"types":{}}"#).unwrap(), Definition::new());
-  }
-
-  #[test]
-  fn test_basic_json() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(), create_basic());
-  }
-
-  #[test]
-  fn test_basic_yaml() {
-    assert_eq!(from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(), create_basic());
   }
 }

@@ -1,8 +1,15 @@
 //! Contains the full definition of a data system which Ardite will use.
 
 use std::collections::BTreeMap;
+use std::io::BufReader;
+use std::fs::File;
 use std::ops::Deref;
+use std::path::PathBuf;
 
+use serde_json;
+use serde_yaml;
+
+use error::{Error, NotAcceptable};
 use schema::Schema;
 use value::Key;
 
@@ -30,6 +37,26 @@ impl Definition {
   /// Gets type of a certain name.
   pub fn get_type(&self, name: &Key) -> Option<&Type> {
     self.types.get(name)
+  }
+
+  /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
+  /// JSON and YAML formats.
+  // TODO: validate file against JSON schema.
+  pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
+    let extension = path.extension().map_or("", |s| s.to_str().unwrap());
+    let file = try!(File::open(&path));
+    let reader = BufReader::new(file);
+    Ok(match extension {
+      "json" => try!(serde_json::from_reader(reader)),
+      "yml" => try!(serde_yaml::from_reader(reader)),
+      _ => {
+        return Err(Error::new(
+          NotAcceptable,
+          format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
+          Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
+        ))
+      }
+    })
   }
 }
 
@@ -72,60 +99,77 @@ impl Type {
   }
 }
 
-/// A function to be used by tests which creates a complete basic definition.
-/// Should define the same schema which exists in the
-/// `tests/fixtures/definitions/basic.json` file.
 #[cfg(test)]
-pub fn create_basic() -> Definition {
+mod tests {
+  use std::path::PathBuf;
+
   use regex::Regex;
 
-  use schema::Schema;
+  use schema::{Definition, Type, Schema};
 
-  // TODO: use order in file, not serde’s `BTreeMap` order.
-  let mut definition = Definition::new();
+  fn create_basic_definition() -> Definition {
+    // TODO: use order in file, not serde’s `BTreeMap` order.
+    let mut definition = Definition::new();
 
-  definition.add_type("person", {
-    let mut type_ = Type::new();
-    let mut person = Schema::object();
-    person.set_required(vec!["email"]);
-    person.add_property("email", {
-      let mut email = Schema::string();
-      email.set_min_length(4);
-      email.set_max_length(256);
-      email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
-      email
+    definition.add_type("person", {
+      let mut type_ = Type::new();
+      let mut person = Schema::object();
+      person.set_required(vec!["email"]);
+      person.add_property("email", {
+        let mut email = Schema::string();
+        email.set_min_length(4);
+        email.set_max_length(256);
+        email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
+        email
+      });
+      person.add_property("name", {
+        let mut name = Schema::string();
+        name.set_min_length(2);
+        name.set_max_length(64);
+        name
+      });
+      type_.set_schema(person);
+      type_
     });
-    person.add_property("name", {
-      let mut name = Schema::string();
-      name.set_min_length(2);
-      name.set_max_length(64);
-      name
-    });
-    type_.set_schema(person);
-    type_
-  });
 
-  definition.add_type("post", {
-    let mut type_ = Type::new();
-    let mut post = Schema::object();
-    post.set_required(vec!["headline"]);
-    post.add_property("headline", {
-      let mut headline = Schema::string();
-      headline.set_min_length(4);
-      headline.set_max_length(1024);
-      headline
+    definition.add_type("post", {
+      let mut type_ = Type::new();
+      let mut post = Schema::object();
+      post.set_required(vec!["headline"]);
+      post.add_property("headline", {
+        let mut headline = Schema::string();
+        headline.set_min_length(4);
+        headline.set_max_length(1024);
+        headline
+      });
+      post.add_property("text", {
+        let mut text = Schema::string();
+        text.set_max_length(65536);
+        text
+      });
+      post.add_property("topic", {
+        Schema::enum_(vec!["showcase", "help", "ama"])
+      });
+      type_.set_schema(post);
+      type_
     });
-    post.add_property("text", {
-      let mut text = Schema::string();
-      text.set_max_length(65536);
-      text
-    });
-    post.add_property("topic", {
-      Schema::enum_(vec!["showcase", "help", "ama"])
-    });
-    type_.set_schema(post);
-    type_
-  });
 
-  definition
+    definition
+  }
+
+  #[test]
+  fn test_basic_json() {
+    assert_eq!(
+      Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(),
+      create_basic_definition()
+    );
+  }
+
+  #[test]
+  fn test_basic_yaml() {
+    assert_eq!(
+      Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(),
+      create_basic_definition()
+    );
+  }
 }

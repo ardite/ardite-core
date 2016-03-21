@@ -7,5 +7,4 @@ mod schema;
 mod de;
 
 pub use schema::schema::*;
-pub use schema::de::from_file;
 pub use schema::definition::{Definition, Type};
