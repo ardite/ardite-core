@@ -12,7 +12,6 @@ use url::Url;
 use driver::Driver;
 use error::Error;
 use query::{Range, SortRule, Condition, Query};
-use schema::Type;
 use value::{Key, Pointer, Value, ValueIter};
 
 struct MongoDriver {
@@ -46,7 +45,7 @@ impl Driver for MongoDriver {
     let cursor = try!(self.database.command_cursor(
       {
         let mut spec = doc! {
-          "find" => (type_.name()),
+          "find" => type_name,
           "filter" => (condition_to_filter(condition)),
           "sort" => (sort_rules_to_sort(sort)),
           "projection" => (query_to_projection(query))
@@ -251,7 +250,7 @@ mod tests {
   use driver::mongodb::MongoDriver;
   use query::{Range, SortRule, Condition, Query};
   use schema::{Definition, Type, Schema};
-  use value::Value;
+  use value::{Key, Value};
 
   #[test]
   fn test_condition_to_filter() {
@@ -367,7 +366,6 @@ mod tests {
   fn val_c() -> Value { Value::from(doc_c()) }
 
   struct Fixtures {
-    definition: Definition,
     driver: MongoDriver,
     type_name: Key
   }
@@ -386,7 +384,6 @@ mod tests {
     collection.insert_many(vec![doc_a(), doc_b(), doc_c()], None).unwrap();
 
     Fixtures {
-      definition: definition,
       driver: driver,
       type_name: collection_name
     }
