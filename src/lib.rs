@@ -1,4 +1,5 @@
 #![allow(unknown_lints)]
+// TODO: #![deny(missing_docs)]
 
 #[macro_use(lazy_static)]
 extern crate lazy_static;
