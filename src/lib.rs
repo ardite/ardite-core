@@ -24,7 +24,6 @@ pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
-pub mod service;
 pub mod value;
 
 pub use driver::Driver;
