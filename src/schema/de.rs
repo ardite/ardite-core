@@ -238,10 +238,12 @@ impl Deserialize for BoxedSchema {
 
 #[cfg(test)]
 mod tests {
+  use std::path::PathBuf;
+
   use regex::Regex;
   use serde_json;
 
-  use schema::{Definition, Type, Schema, BoxedSchema};
+  use schema::{Definition, Type, Schema};
 
   #[test]
   fn test_json_deserialize_definition() {
@@ -262,5 +264,71 @@ mod tests {
     assert!(from_str(r#"{"schema":2}"#).is_err());
     assert!(from_str(r#"{"schema":"yo"}"#).is_err());
     assert!(from_str(r#"{"schema":[]}"#).is_err());
+  }
+
+  fn create_basic_definition() -> Definition {
+    // TODO: use order in file, not serde’s `BTreeMap` order.
+    let mut definition = Definition::new();
+
+    definition.add_type("person", {
+      let mut type_ = Type::new();
+      let mut person = Schema::object();
+      person.set_required(vec!["email"]);
+      person.add_property("email", {
+        let mut email = Schema::string();
+        email.set_min_length(4);
+        email.set_max_length(256);
+        email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
+        email
+      });
+      person.add_property("name", {
+        let mut name = Schema::string();
+        name.set_min_length(2);
+        name.set_max_length(64);
+        name
+      });
+      type_.set_schema(person);
+      type_
+    });
+
+    definition.add_type("post", {
+      let mut type_ = Type::new();
+      let mut post = Schema::object();
+      post.set_required(vec!["headline"]);
+      post.add_property("headline", {
+        let mut headline = Schema::string();
+        headline.set_min_length(4);
+        headline.set_max_length(1024);
+        headline
+      });
+      post.add_property("text", {
+        let mut text = Schema::string();
+        text.set_max_length(65536);
+        text
+      });
+      post.add_property("topic", {
+        Schema::enum_(vec!["showcase", "help", "ama"])
+      });
+      type_.set_schema(post);
+      type_
+    });
+
+    definition
+  }
+
+  #[test]
+  fn test_basic_json() {
+    assert_eq!(
+      Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(),
+      create_basic_definition()
+    );
+  }
+
+  #[test]
+  fn test_basic_yaml() {
+    assert_eq!(
+      Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(),
+      create_basic_definition()
+    );
   }
 }
