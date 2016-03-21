@@ -209,8 +209,8 @@ impl From<JSONError> for Error {
       JSONError::Syntax(_, line, column) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: "Syntax error.".to_owned(),
-          hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
+          message: format!("{}", error),
+          hint: Some(format!("Make sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
       _ => {
