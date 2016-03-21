@@ -88,14 +88,17 @@ impl Deserialize for Type {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
+        let mut driver_config: Option<DriverConfig> = None;
         let mut schema: Option<BoxedSchema> = None;
 
         visit_map_fields!(visitor, {
+          "driver" => driver_config,
           "schema" => schema
         });
 
         let mut type_ = Type::new();
 
+        if let Some(driver_config) = driver_config { type_.set_driver(driver_config); }
         if let Some(schema) = schema { type_.set_boxed_schema(schema); }
 
         Ok(type_)

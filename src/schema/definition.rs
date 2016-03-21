@@ -80,6 +80,7 @@ pub struct Type {
   /// A type may optionally have its own driver.
   driver: Option<DriverConfig>,
   /// The schema used to validate data which claims to be of this type.
+  // TODO: only allow object schemas with `SchemaObject`
   schema: Option<BoxedSchema>
 }
 
@@ -90,6 +91,16 @@ impl Type {
       driver: None,
       schema: None
     }
+  }
+
+  /// Set the driver config.
+  pub fn set_driver(&mut self, driver: DriverConfig) {
+    self.driver = Some(driver);
+  }
+
+  /// Get the driver config.
+  pub fn driver(&self) -> Option<&DriverConfig> {
+    self.driver.as_ref()
   }
 
   /// Set the schema for the type. Polymorphic so it accepts any type which
