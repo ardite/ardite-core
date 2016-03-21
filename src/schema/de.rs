@@ -49,13 +49,44 @@ macro_rules! deserializable_fields {
   }
 }
 
-impl Deserialize for Definition {
-  fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-    deserializable_fields! {
-      "driver" => Driver,
-      "types" => Types
+macro_rules! visit_map_fields {
+  ($visitor:expr, { $($field_name:expr => $var_name:ident),* }) => {{
+    #[allow(non_camel_case_types)]
+    enum __Field { $($var_name,)* __Ignore }
+
+    impl Deserialize for __Field {
+      #[inline]
+      fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
+        struct __Visitor;
+
+        impl Visitor for __Visitor {
+          type Value = __Field;
+
+          fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: DeError {
+            match value {
+              $($field_name => Ok(__Field::$var_name),)*
+              _ => Ok(__Field::__Ignore)
+            }
+          }
+        }
+
+        deserializer.deserialize_struct_field(__Visitor)
+      }
     }
 
+    while let Some(key) = try!($visitor.visit_key()) {
+      match key {
+        $(__Field::$var_name => { $var_name = try!($visitor.visit_value()); },)*
+        __Field::__Ignore => { try!($visitor.visit_value::<IgnoredAny>()); }
+      }
+    }
+
+    try!($visitor.end());
+  }}
+}
+
+impl Deserialize for Definition {
+  fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
     struct DefinitionVisitor;
 
     impl Visitor for DefinitionVisitor {
@@ -66,15 +97,10 @@ impl Deserialize for Definition {
         let mut driver_config: Option<DriverConfig> = None;
         let mut types: Option<BTreeMap<Key, Type>> = None;
 
-        while let Some(key) = try!(visitor.visit_key()) {
-          match key {
-            Field::Driver => { driver_config = try!(visitor.visit_value()) },
-            Field::Types => { types = try!(visitor.visit_value()); },
-            Field::Ignore => { try!(visitor.visit_value::<IgnoredAny>()); }
-          }
-        }
-
-        try!(visitor.end());
+        visit_map_fields!(visitor, {
+          "driver" => driver_config,
+          "types" => types
+        });
 
         let mut definition = Definition::new();
 
@@ -96,10 +122,6 @@ impl Deserialize for Definition {
 
 impl Deserialize for Type {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-    deserializable_fields! {
-      "schema" => Schema
-    }
-
     struct TypeVisitor;
 
     impl Visitor for TypeVisitor {
@@ -107,19 +129,16 @@ impl Deserialize for Type {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
+        let mut schema: Option<BoxedSchema> = None;
+
+        visit_map_fields!(visitor, {
+          "schema" => schema
+        });
+
         let mut type_ = Type::new();
 
-        while let Some(key) = try!(visitor.visit_key()) {
-          match key {
-            Field::Schema => {
-              let schema: BoxedSchema = try!(visitor.visit_value());
-              type_.set_boxed_schema(schema);
-            },
-            Field::Ignore => { try!(visitor.visit_value::<IgnoredAny>()); }
-          }
-        }
+        if let Some(schema) = schema { type_.set_boxed_schema(schema); }
 
-        try!(visitor.end());
         Ok(type_)
       }
     }
@@ -155,40 +174,6 @@ impl Deserialize for DriverConfig {
 
 impl Deserialize for BoxedSchema {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-    deserializable_fields! {
-      "type" => Type,
-      "multipleOf" => MultipleOf,
-      "minimum" => Minimum,
-      "exclusiveMinimum" => ExclusiveMinimum,
-      "maximum" => Maximum,
-      "exclusiveMaximum" => ExclusiveMaximum,
-      "minLength" => MinLength,
-      "maxLength" => MaxLength,
-      "pattern" => Pattern,
-      "items" => Items,
-      "properties" => Properties,
-      "required" => Required,
-      "additionalProperties" => AdditionalProperties,
-      "enum" => Enum
-    }
-
-    #[derive(Default)]
-    struct TempSchema {
-      type_: Option<String>,
-      multiple_of: Option<f32>,
-      minimum: Option<f64>,
-      exclusive_minimum: Option<bool>,
-      maximum: Option<f64>,
-      exclusive_maximum: Option<bool>,
-      min_length: Option<u64>,
-      max_length: Option<u64>,
-      pattern: Option<String>,
-      items: Option<BoxedSchema>,
-      properties: Option<BTreeMap<String, BoxedSchema>>,
-      required: Option<Vec<String>>,
-      additional_properties: Option<bool>
-    }
-
     struct SchemaVisitor;
 
     impl Visitor for SchemaVisitor {
@@ -196,65 +181,73 @@ impl Deserialize for BoxedSchema {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-        let mut tmp_schema: TempSchema = Default::default();
+        let mut type_: Option<String> = None;
+        let mut multiple_of: Option<f32> = None;
+        let mut minimum: Option<f64> = None;
+        let mut exclusive_minimum: Option<bool> = None;
+        let mut maximum: Option<f64> = None;
+        let mut exclusive_maximum: Option<bool> = None;
+        let mut min_length: Option<u64> = None;
+        let mut max_length: Option<u64> = None;
+        let mut pattern: Option<String> = None;
+        let mut items: Option<BoxedSchema> = None;
+        let mut properties: Option<BTreeMap<String, BoxedSchema>> = None;
+        let mut required: Option<Vec<String>> = None;
+        let mut additional_properties: Option<bool> = None;
+        let mut enum_: Option<Vec<Value>> = None;
 
-        while let Some(key) = try!(visitor.visit_key()) {
-          match key {
-            Field::Type => { tmp_schema.type_ = Some(try!(visitor.visit_value())); },
-            Field::MultipleOf => { tmp_schema.multiple_of = Some(try!(visitor.visit_value())); },
-            Field::Minimum => { tmp_schema.minimum = Some(try!(visitor.visit_value())); },
-            Field::ExclusiveMinimum => { tmp_schema.exclusive_minimum = Some(try!(visitor.visit_value())); },
-            Field::Maximum => { tmp_schema.maximum = Some(try!(visitor.visit_value())); },
-            Field::ExclusiveMaximum => { tmp_schema.exclusive_maximum = Some(try!(visitor.visit_value())); },
-            Field::MinLength => { tmp_schema.min_length = Some(try!(visitor.visit_value())); },
-            Field::MaxLength => { tmp_schema.max_length = Some(try!(visitor.visit_value())); },
-            Field::Pattern => { tmp_schema.pattern = Some(try!(visitor.visit_value())); },
-            Field::Items => { tmp_schema.items = Some(try!(visitor.visit_value())); },
-            Field::Properties => { tmp_schema.properties = Some(try!(visitor.visit_value())); },
-            Field::Required => { tmp_schema.required = Some(try!(visitor.visit_value())); },
-            Field::AdditionalProperties => { tmp_schema.additional_properties = Some(try!(visitor.visit_value())); },
-            Field::Enum => {
-              let values: Vec<Value> = try!(visitor.visit_value());
-              try!(visitor.end());
-              return Ok(Box::new(Schema::enum_(values)));
-            },
-            Field::Ignore => { try!(visitor.visit_value::<IgnoredAny>()); }
-          }
+        visit_map_fields!(visitor, {
+          "type" => type_,
+          "multipleOf" => multiple_of,
+          "minimum" => minimum,
+          "exclusiveMinimum" => exclusive_minimum,
+          "maximum" => maximum,
+          "exclusiveMaximum" => exclusive_maximum,
+          "minLength" => min_length,
+          "maxLength" => max_length,
+          "pattern" => pattern,
+          "items" => items,
+          "properties" => properties,
+          "required" => required,
+          "additionalProperties" => additional_properties,
+          "enum" => enum_
+        });
+
+        if let Some(enum_) = enum_ {
+          return Ok(Box::new(Schema::enum_(enum_)));
         }
 
-        try!(visitor.end());
-
-        if let Some(type_) = tmp_schema.type_ {
+        if let Some(type_) = type_ {
           match type_.as_str() {
             "null" => Ok(Box::new(Schema::null())),
             "boolean" => Ok(Box::new(Schema::boolean())),
             "number" | "integer" => {
               let mut schema = Schema::number();
               if type_ == "integer" { schema.set_multiple_of(1.0); }
-              else if let Some(multiple_of) = tmp_schema.multiple_of { schema.set_multiple_of(multiple_of); }
-              if let Some(minimum) = tmp_schema.minimum { schema.set_minimum(minimum); }
-              if let Some(maximum) = tmp_schema.maximum { schema.set_maximum(maximum); }
-              if tmp_schema.exclusive_minimum.unwrap_or(false) { schema.enable_exclusive_minimum(); }
-              if tmp_schema.exclusive_maximum.unwrap_or(false) { schema.enable_exclusive_maximum(); }
+              else if let Some(multiple_of) = multiple_of { schema.set_multiple_of(multiple_of); }
+              if let Some(minimum) = minimum { schema.set_minimum(minimum); }
+              if let Some(maximum) = maximum { schema.set_maximum(maximum); }
+              if exclusive_minimum.unwrap_or(false) { schema.enable_exclusive_minimum(); }
+              if exclusive_maximum.unwrap_or(false) { schema.enable_exclusive_maximum(); }
               Ok(Box::new(schema))
             },
             "string" => {
               let mut schema = Schema::string();
-              if let Some(min_length) = tmp_schema.min_length { schema.set_min_length(min_length); }
-              if let Some(max_length) = tmp_schema.max_length { schema.set_max_length(max_length); }
-              if let Some(pattern) = tmp_schema.pattern.and_then(|p| Regex::new(&p).ok()) { schema.set_pattern(pattern); }
+              if let Some(min_length) = min_length { schema.set_min_length(min_length); }
+              if let Some(max_length) = max_length { schema.set_max_length(max_length); }
+              if let Some(pattern) = pattern.and_then(|p| Regex::new(&p).ok()) { schema.set_pattern(pattern); }
               Ok(Box::new(schema))
             },
             "array" => {
               let mut schema = Schema::array();
-              if let Some(items) = tmp_schema.items { schema.set_boxed_items(items); }
+              if let Some(items) = items { schema.set_boxed_items(items); }
               Ok(Box::new(schema))
             },
             "object" => {
               let mut schema = Schema::object();
-              schema.set_required(tmp_schema.required.unwrap_or_default());
-              if tmp_schema.additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
-              for (key, sub_schema) in tmp_schema.properties.unwrap_or_default() {
+              schema.set_required(required.unwrap_or_default());
+              if additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
+              for (key, sub_schema) in properties.unwrap_or_default() {
                 schema.add_boxed_property(key, sub_schema);
               }
               Ok(Box::new(schema))
@@ -281,7 +274,7 @@ mod tests {
   use schema::{Definition, Type, Schema};
 
   #[test]
-  fn test_json_deserialize_definition() {
+  fn test_json_definition() {
     let from_str = serde_json::from_str::<Definition>;
     assert_eq!(from_str("{}").unwrap(), Definition::new());
     assert_eq!(from_str(r#"{"hello":"world"}"#).unwrap(), Definition::new());
@@ -292,7 +285,7 @@ mod tests {
   }
 
   #[test]
-  fn test_json_deserialize_type() {
+  fn test_json_type() {
     let from_str = serde_json::from_str::<Type>;
     assert_eq!(from_str("{}").unwrap(), Type::new());
     assert_eq!(from_str(r#"{"hello":"world"}"#).unwrap(), Type::new());
