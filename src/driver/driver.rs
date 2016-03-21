@@ -47,19 +47,20 @@ pub trait Driver {
     condition: Condition,
     query: Query
   ) -> Result<Value, Error> {
-    // TODO: we shouldn't have to collect to get the first value of an iterator.
-    let mut values: Vec<_> = try!(self.read(
+    let mut values = try!(self.read(
       type_name,
       condition,
       Default::default(),
       Range::new(None, Some(1)),
       query
-    )).collect();
+    ));
 
-    if values.len() > 1 {
-      Err(Error::internal("Read with a limit of one returned more than one value."))
-    } else if let Some(value) = values.pop() {
-      Ok(value)
+    if let Some(value) = values.next() {
+      if values.next().is_none() {
+        Ok(value)
+      } else {
+        Err(Error::internal("Read with a limit of one returned more than one value."))
+      }
     } else {
       Err(Error::new(NotFound, "No value was found for the condition."))
     }
