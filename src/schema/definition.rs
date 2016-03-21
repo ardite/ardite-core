@@ -35,8 +35,8 @@ impl Definition {
   }
 
   /// Gets type of a certain name.
-  pub fn get_type(&self, name: &Key) -> Option<&Type> {
-    self.types.get(name)
+  pub fn get_type<'a, K>(&self, name: K) -> Option<&Type> where K: Into<&'a Key> {
+    self.types.get(name.into())
   }
 
   /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
