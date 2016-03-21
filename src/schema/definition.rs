@@ -53,11 +53,11 @@ impl Definition {
       "json" => try!(serde_json::from_reader(reader)),
       "yml" => try!(serde_yaml::from_reader(reader)),
       _ => {
-        return Err(Error::new(
-          NotAcceptable,
-          format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
-          Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
-        ))
+        return Err(
+          Error
+          ::new(NotAcceptable, format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()))
+          .set_hint("Use a recognizable file extension like '.json' or '.yml'.")
+        )
       }
     })
   }
