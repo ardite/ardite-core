@@ -8,47 +8,6 @@ use url::Url;
 use schema::{Definition, Type, DriverConfig, Schema, BoxedSchema};
 use value::{Key, Value};
 
-macro_rules! deserializable_fields {
-  ($($name:expr => $variant:ident),*) => {
-    // Create an enum from our variants.
-    enum Field {
-      $(
-        $variant,
-      )*
-      Ignore
-    }
-
-    // Implement deserialize for our enum.
-    impl Deserialize for Field {
-      #[inline]
-      fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-        // Create a visitor for our fields.
-        struct FieldVisitor;
-
-        // Implement visitor for said visitor.
-        impl Visitor for FieldVisitor {
-          type Value = Field;
-
-          // Visit `str`.
-          fn visit_str<E>(&mut self, value: &str) -> Result<Field, E> where E: DeError {
-            match value {
-              // If the value matches one of our variants return it.
-              $(
-                $name => Ok(Field::$variant),
-              )*
-              // Otherwise ignore it.
-              _ => Ok(Field::Ignore)
-            }
-          }
-        }
-
-        // Finally, deserialize the struct fields using our visitor.
-        deserializer.deserialize_struct_field(FieldVisitor)
-      }
-    }
-  }
-}
-
 macro_rules! visit_map_fields {
   ($visitor:expr, { $($field_name:expr => $var_name:ident),* }) => {{
     #[allow(non_camel_case_types)]
