@@ -4,6 +4,7 @@
 //! the driver to these types.
 
 use linear_map::LinearMap;
+use serde::ser::{Serialize, Serializer};
 
 /// The type which represents the key for maps used throughout the Ardite
 /// codebase.
