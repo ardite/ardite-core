@@ -24,9 +24,11 @@ pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
+pub mod service;
 pub mod value;
 
 pub use driver::Driver;
 pub use error::Error;
 pub use schema::{Definition, Type, DriverConfig, Schema};
+pub use service::Service;
 pub use value::{Key, Pointer, Object, Array, Value};
