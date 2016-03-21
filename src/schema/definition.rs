@@ -114,8 +114,6 @@ impl Type {
 // TODO: can't finalize this until dynamic loading of drivers is implemented.
 #[derive(PartialEq, Debug)]
 pub struct DriverConfig {
-  /// The name of the driver to use.
-  name: String,
   /// The URL to pass into the driver when connecting.
   url: Url
 }
@@ -125,14 +123,8 @@ impl DriverConfig {
   /// URL will be used for the name.
   pub fn new(url: Url) -> Self {
     DriverConfig {
-      name: url.scheme.clone(),
       url: url
     }
-  }
-
-  /// Returns the name of the driver.
-  pub fn name(&self) -> &str {
-    &self.name
   }
 
   /// Returns the URL to the driver.
