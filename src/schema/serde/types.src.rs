@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 
+use value::Value;
+
 /// SchemaType used to deserialize data files into a usable definition type.
 #[derive(Deserialize)]
 pub struct SerdeDefinition {
@@ -34,5 +36,5 @@ pub struct SerdeSchema {
   #[serde(rename="additionalProperties")]
   pub additional_properties: Option<bool>,
   #[serde(rename="enum")]
-  pub enum_: Option<Vec<String>>
+  pub enum_: Option<Vec<Value>>
 }

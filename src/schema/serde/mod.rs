@@ -11,7 +11,6 @@ use serde_yaml;
 
 use error::{Error, ErrorCode};
 use schema::{Definition, Type, Schema};
-use value::Value;
 
 mod types;
 
@@ -22,14 +21,13 @@ use schema::serde::types::*;
 pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   let extension = path.extension().map_or("", |s| s.to_str().unwrap());
   let file = try!(File::open(&path));
+  let reader = BufReader::new(file);
   match extension {
     "json" => {
-      let reader = BufReader::new(file);
       let definition: SerdeDefinition = try!(serde_json::from_reader(reader));
       Ok(try!(serde_definition_into_definition(definition)))
     },
     "yml" => {
-      let reader = BufReader::new(file);
       let definition: SerdeDefinition = try!(serde_yaml::from_reader(reader));
       Ok(try!(serde_definition_into_definition(definition)))
     },
@@ -98,7 +96,7 @@ fn serde_schema_into_schema(serde_schema: SerdeSchema) -> Result<Box<Schema + 's
     },
     None => {
       if let Some(enum_) = serde_schema.enum_ {
-        Ok(Box::new(Schema::enum_(enum_.into_iter().map(Value::String).collect())))
+        Ok(Box::new(Schema::enum_(enum_)))
       } else {
         Err(Error::invalid("No schema type specified.", "Set a `type` property or an `enum` property."))
       }
