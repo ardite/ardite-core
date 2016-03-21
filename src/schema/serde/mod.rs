@@ -17,25 +17,23 @@ use schema::serde::types::*;
 
 /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
 /// JSON and YAML formats.
+// TODO: validate file against JSON schema.
 pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
   let extension = path.extension().map_or("", |s| s.to_str().unwrap());
   let file = try!(File::open(&path));
   let reader = BufReader::new(file);
-  match extension {
-    "json" => {
-      let definition: SerdeDefinition = try!(serde_json::from_reader(reader));
-      Ok(try!(serde_definition_into_definition(definition)))
-    },
-    "yml" => {
-      let definition: SerdeDefinition = try!(serde_yaml::from_reader(reader));
-      Ok(try!(serde_definition_into_definition(definition)))
-    },
-    _ => Err(Error::new(
-      ErrorCode::NotAcceptable,
-      format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
-      Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
-    ))
-  }
+  let definition: SerdeDefinition = match extension {
+    "json" => try!(serde_json::from_reader(reader)),
+    "yml" => try!(serde_yaml::from_reader(reader)),
+    _ => {
+      return Err(Error::new(
+        ErrorCode::NotAcceptable,
+        format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
+        Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
+      ))
+    }
+  };
+  serde_definition_into_definition(definition)
 }
 
 /// Transforms the intermediary type into the useful type.
