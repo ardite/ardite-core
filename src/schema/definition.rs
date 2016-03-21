@@ -15,14 +15,11 @@ use value::Key;
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Definition {
   /// Types defined in the database.
   types: BTreeMap<Key, Type>
 }
-
-#[cfg(test)]
-impl_debug_eq!(Definition);
 
 impl Definition {
   /// Creates a new empty instance of `Definition`.
@@ -64,14 +61,11 @@ impl Definition {
 }
 
 /// Represents a high-level database type.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Type {
   /// The schema used to validate data which claims to be of this type.
   schema: Option<BoxedSchema>
 }
-
-#[cfg(test)]
-impl_debug_eq!(Type);
 
 impl Type {
   /// Create a new instance of `Type`.
