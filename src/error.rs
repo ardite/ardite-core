@@ -209,8 +209,8 @@ impl From<JSONError> for Error {
       JSONError::Syntax(_, line, column) => {
         Error {
           code: ErrorCode::BadRequest,
-          message: "Syntax error.".to_owned(),
-          hint: Some(format!("Max sure your JSON syntax is correct around line {} column {}.", line, column))
+          message: format!("{}", error),
+          hint: Some(format!("Make sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
       _ => {
@@ -245,6 +245,7 @@ impl From<YAMLError> for Error {
   }
 }
 
+// TODO: consider moving this to `ardite-rest`
 #[cfg(feature = "error_iron")]
 mod iron {
   extern crate iron;
@@ -261,12 +262,20 @@ mod iron {
     fn into(self) -> IronError {
       let mut res = Response::new();
 
-      let content = self.to_value().to_json();
-
-      res.set_mut(Header(ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![(Attr::Charset, Value::Utf8)]))));
-      res.set_mut(Header(ContentLength(content.len() as u64)));
       res.set_mut(Status::from_u16(self.code().to_u16()));
-      res.set_mut(content);
+
+      // Tries to send the error as a response in JSON, however, if that fails
+      // the error is sent as plain text.
+      if let Ok(content) = self.to_value().to_json() {
+        res.set_mut(Header(ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![(Attr::Charset, Value::Utf8)]))));
+        res.set_mut(Header(ContentLength(content.len() as u64)));
+        res.set_mut(content);
+      } else {
+        res.set_mut(Header(ContentType(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)]))));
+        let content = format!("{}", self);
+        res.set_mut(Header(ContentLength(content.len() as u64)));
+        res.set_mut(content);
+      }
 
       IronError {
         error: Box::new(self),

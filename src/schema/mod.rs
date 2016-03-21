@@ -4,8 +4,7 @@
 
 mod definition;
 mod schema;
-mod serde;
+mod de;
 
 pub use schema::schema::*;
 pub use schema::definition::{Definition, Type};
-pub use schema::serde::from_file;

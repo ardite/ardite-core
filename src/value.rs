@@ -4,6 +4,12 @@
 //! the driver to these types.
 
 use linear_map::LinearMap;
+use serde::ser::{Serialize, Serializer};
+use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor, MapVisitor};
+use serde::de::impls::VecVisitor;
+use serde_json;
+
+use error::Error;
 
 /// The type which represents the key for maps used throughout the Ardite
 /// codebase.
@@ -77,40 +83,68 @@ impl Value {
     }
   }
 
-  /// Converts a value into a JSON string for distribution.
-  pub fn to_json(&self) -> String {
+  /// Creates a `Value` from a JSON string.
+  pub fn from_json(json: &str) -> Result<Value, Error> {
+    serde_json::from_str(json).map_err(Error::from)
+  }
+
+  /// Converts a `Value` into a JSON string.
+  pub fn to_json(&self) -> Result<String, Error> {
+    serde_json::to_string(self).map_err(Error::from)
+  }
+
+  /// Converts a `Value` into a nice and indented JSON string.
+  pub fn to_json_pretty(&self) -> Result<String, Error> {
+    serde_json::to_string_pretty(self).map_err(Error::from)
+  }
+}
+
+impl Serialize for Value {
+  #[inline]
+  fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
     match *self {
-      Value::Null => "null".to_owned(),
-      Value::Boolean(value) => if value { "true".to_owned() } else { "false".to_owned() },
-      Value::I64(value) => value.to_string(),
-      Value::F64(value) => value.to_string(),
-      Value::String(ref value) => "\"".to_owned() + &escape_string_for_json(value) + "\"",
-      Value::Object(ref map) => {
-        let mut json = "{".to_owned();
-        for (key, value) in map {
-          json.push_str("\"");
-          json.push_str(&escape_string_for_json(key));
-          json.push_str("\":");
-          json.push_str(&value.to_json());
-          json.push_str(",");
+      Value::Null => serializer.serialize_unit(),
+      Value::Boolean(value) => serializer.serialize_bool(value),
+      Value::I64(value) => serializer.serialize_i64(value),
+      Value::F64(value) => serializer.serialize_f64(value),
+      Value::String(ref value) => serializer.serialize_str(&value),
+      Value::Array(ref value) => value.serialize(serializer),
+      Value::Object(ref value) => value.serialize(serializer)
+    }
+  }
+}
+
+impl Deserialize for Value {
+  #[inline]
+  fn deserialize<D>(deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer {
+    struct ValueVisitor;
+
+    impl Visitor for ValueVisitor {
+      type Value = Value;
+
+      #[inline] fn visit_bool<E>(&mut self, value: bool) -> Result<Value, E> { Ok(Value::Boolean(value)) }
+      #[inline] fn visit_u64<E>(&mut self, value: u64) -> Result<Value, E> { Ok(Value::I64(value as i64)) }
+      #[inline] fn visit_i64<E>(&mut self, value: i64) -> Result<Value, E> { Ok(Value::I64(value)) }
+      #[inline] fn visit_f64<E>(&mut self, value: f64) -> Result<Value, E> { Ok(Value::F64(value)) }
+      #[inline] fn visit_str<E>(&mut self, value: &str) -> Result<Value, E> where E: DeError { self.visit_string(value.to_owned()) }
+      #[inline] fn visit_string<E>(&mut self, value: String) -> Result<Value, E> { Ok(Value::String(value)) }
+      #[inline] fn visit_none<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer { Deserialize::deserialize(deserializer) }
+      #[inline] fn visit_unit<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_seq<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: SeqVisitor { let values = try!(VecVisitor::new().visit_seq(visitor)); Ok(Value::Array(values)) }
+
+      #[inline]
+      fn visit_map<V>(&mut self, mut visitor: V) -> Result<Value, V::Error> where V: MapVisitor {
+        let mut object = LinearMap::with_capacity(visitor.size_hint().0);
+        while let Some((key, value)) = try!(visitor.visit()) {
+          object.insert(key, value);
         }
-        // Remove the last comma.
-        json.pop();
-        json.push_str("}");
-        json
-      },
-      Value::Array(ref vec) => {
-        let mut json = "[".to_owned();
-        for item in vec {
-          json.push_str(&item.to_json());
-          json.push_str(",");
-        }
-        // Remove the last comma.
-        json.pop();
-        json.push_str("]");
-        json
+        try!(visitor.end());
+        Ok(Value::Object(object))
       }
     }
+
+    deserializer.deserialize(ValueVisitor)
   }
 }
 
@@ -153,12 +187,6 @@ impl<'a> From<&'a str> for Value {
   }
 }
 
-/// Takes a string and escapes it for use within a JSON encoded object. Read,
-/// inside quotes.
-fn escape_string_for_json(string: &str) -> String {
-  string.replace("\"", "\\\"").replace("\n", "\\n")
-}
-
 /// An iterator of values. Used by drivers to convert their own iterator
 /// implementations into a single type.
 pub struct ValueIter<'a> {
@@ -185,6 +213,8 @@ impl<'a> Iterator for ValueIter<'a> {
 
 #[cfg(test)]
 mod tests {
+  use value::Value;
+
   #[test]
   fn test_get_primitive() {
     assert_eq!(value!().get(point![]).cloned(), Some(value!()));
@@ -242,13 +272,35 @@ mod tests {
   }
 
   #[test]
+  fn test_from_json() {
+    assert_eq!(Value::from_json("null").unwrap(), value!());
+    assert_eq!(Value::from_json("true").unwrap(), value!(true));
+    assert_eq!(Value::from_json("false").unwrap(), value!(false));
+    assert_eq!(Value::from_json("7").unwrap(), value!(7));
+    assert_eq!(Value::from_json("3.3").unwrap(), value!(3.3));
+    assert_eq!(Value::from_json(r#""Hello,\n\"world\"!""#).unwrap(), value!("Hello,\n\"world\"!"));
+    assert_eq!(Value::from_json(r#"{"hello":"world","foo":true,"null":null,"goodbye":{"moon":2}}"#).unwrap(), value!({
+      "hello" => "world",
+      "foo" => true,
+      "null" => (),
+      "goodbye" => {
+        "moon" => 2
+      }
+    }));
+    assert_eq!(
+      Value::from_json(r#"["world",3.3,{"hello":"world"},null,null,[1,2,3],null]"#).unwrap(),
+      value!(["world", 3.3, { "hello" => "world" }, (), (), [1, 2, 3], ()])
+    );
+  }
+
+  #[test]
   fn test_to_json() {
-    assert_eq!(&value!().to_json(), "null");
-    assert_eq!(&value!(true).to_json(), "true");
-    assert_eq!(&value!(false).to_json(), "false");
-    assert_eq!(&value!(7).to_json(), "7");
-    assert_eq!(&value!(6.667).to_json(), "6.667");
-    assert_eq!(&value!("Hello,\n\"world\"!").to_json(), r#""Hello,\n\"world\"!""#);
+    assert_eq!(&value!().to_json().unwrap(), "null");
+    assert_eq!(&value!(true).to_json().unwrap(), "true");
+    assert_eq!(&value!(false).to_json().unwrap(), "false");
+    assert_eq!(&value!(7).to_json().unwrap(), "7");
+    assert_eq!(&value!(6.667).to_json().unwrap(), "6.667");
+    assert_eq!(&value!("Hello,\n\"world\"!").to_json().unwrap(), r#""Hello,\n\"world\"!""#);
     assert_eq!(&value!({
       "hello" => "world",
       "foo" => true,
@@ -256,10 +308,18 @@ mod tests {
       "goodbye" => {
         "moon" => 2
       }
-    }).to_json(), r#"{"hello":"world","foo":true,"null":null,"goodbye":{"moon":2}}"#);
+    }).to_json().unwrap(), r#"{"hello":"world","foo":true,"null":null,"goodbye":{"moon":2}}"#);
     assert_eq!(
-      &value!(["world", 3.333, { "hello" => "world" }, (), (), [1, 2, 3], ()]).to_json(),
+      &value!(["world", 3.333, { "hello" => "world" }, (), (), [1, 2, 3], ()]).to_json().unwrap(),
       r#"["world",3.333,{"hello":"world"},null,null,[1,2,3],null]"#
+    );
+  }
+
+  #[test]
+  fn test_to_json_pretty() {
+    assert_eq!(
+      &value!(["world", 3.333, { "hello" => "world" }, (), (), [1, 2, 3], ()]).to_json_pretty().unwrap(),
+      "[\n  \"world\",\n  3.333,\n  {\n    \"hello\": \"world\"\n  },\n  null,\n  null,\n  [\n    1,\n    2,\n    3\n  ],\n  null\n]"
     );
   }
 }

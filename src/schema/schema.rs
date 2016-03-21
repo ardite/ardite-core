@@ -13,6 +13,9 @@ lazy_static! {
   static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
 }
 
+// TODO: use newtype pattern and expose all of the `Schema` functions through this?
+pub type BoxedSchema = Box<Schema + 'static>;
+
 /// A schema detailing what the data received from the driver (or inserted
 /// into the driver) should be. To describe this data we use a subset of
 /// [JSON Schema][1]. The schema is a subset of JSON Schema for three reasons:
@@ -249,7 +252,7 @@ impl SchemaPrimitive for SchemaString {}
 pub struct SchemaArray {
   /// A schema which all items in the array must match.
   // We use box because the array must take ownership of its child schema.
-  items: Option<Box<Schema + 'static>>
+  items: Option<BoxedSchema>
 }
 
 impl SchemaArray {
@@ -263,7 +266,7 @@ impl SchemaArray {
     self.items = Some(Box::new(schema));
   }
 
-  pub fn set_boxed_items(&mut self, schema: Box<Schema>) {
+  pub fn set_boxed_items(&mut self, schema: BoxedSchema) {
     self.items = Some(schema);
   }
 
@@ -318,7 +321,7 @@ impl Schema for SchemaArray {
 pub struct SchemaObject {
   /// Schemas associated to the object properties.
   // We use box because the object must take ownership of its child schema.
-  properties: LinearMap<Key, Box<Schema + 'static>>,
+  properties: LinearMap<Key, BoxedSchema>,
   /// Properties that are required to be in the object.
   required: Vec<Key>,
   /// Whether or not there may be extra properties outside of the ones
@@ -339,7 +342,7 @@ impl SchemaObject {
     self.properties.insert(key.into(), Box::new(schema));
   }
 
-  pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
+  pub fn add_boxed_property<K>(&mut self, key: K, schema: BoxedSchema) where K: Into<Key> {
     self.properties.insert(key.into(), schema);
   }
 

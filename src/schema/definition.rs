@@ -1,8 +1,16 @@
 //! Contains the full definition of a data system which Ardite will use.
 
+use std::collections::BTreeMap;
+use std::io::BufReader;
+use std::fs::File;
 use std::ops::Deref;
+use std::path::PathBuf;
 
-use schema::Schema;
+use serde_json;
+use serde_yaml;
+
+use error::{Error, NotAcceptable};
+use schema::{Schema, BoxedSchema};
 use value::Key;
 
 /// The definition object which contains all necessary information to
@@ -10,49 +18,65 @@ use value::Key;
 #[derive(Debug)]
 pub struct Definition {
   /// Types defined in the database.
-  types: Vec<Type>
+  types: BTreeMap<Key, Type>
 }
+
+#[cfg(test)]
+impl_debug_eq!(Definition);
 
 impl Definition {
   /// Creates a new empty instance of `Definition`.
   pub fn new() -> Self {
     Definition {
-      types: Vec::new()
+      types: BTreeMap::new()
     }
   }
 
   /// Add a new type to the `Definition`.
-  pub fn add_type(&mut self, type_: Type) {
-    self.types.push(type_);
+  pub fn add_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
+    self.types.insert(name.into(), type_);
   }
 
   /// Gets type of a certain name.
-  pub fn find_type<N>(&self, name: &N) -> Option<&Type> where N: PartialEq<Key> {
-    self.types.iter().find(|type_| name.eq(type_.name()))
+  pub fn get_type<'a, K>(&self, name: K) -> Option<&Type> where K: Into<&'a Key> {
+    self.types.get(name.into())
   }
-}
 
-#[cfg(test)]
-impl PartialEq<Definition> for Definition {
-  fn eq(&self, other: &Self) -> bool {
-    format!("{:?}", self) == format!("{:?}", other)
+  /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
+  /// JSON and YAML formats.
+  // TODO: validate file against JSON schema.
+  pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
+    let extension = path.extension().map_or("", |s| s.to_str().unwrap());
+    let file = try!(File::open(&path));
+    let reader = BufReader::new(file);
+    Ok(match extension {
+      "json" => try!(serde_json::from_reader(reader)),
+      "yml" => try!(serde_yaml::from_reader(reader)),
+      _ => {
+        return Err(Error::new(
+          NotAcceptable,
+          format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()),
+          Some("Use a recognizable file extension like '.json' or '.yml'.".to_owned())
+        ))
+      }
+    })
   }
 }
 
 /// Represents a high-level database type.
 #[derive(Debug)]
 pub struct Type {
-  /// The name of the custom type.
-  name: Key,
   /// The schema used to validate data which claims to be of this type.
-  schema: Option<Box<Schema + 'static>>
+  schema: Option<BoxedSchema>
 }
+
+#[cfg(test)]
+impl_debug_eq!(Type);
 
 impl Type {
   /// Create a new instance of `Type`.
-  pub fn new<K>(name: K) -> Self where K: Into<Key> {
+  pub fn new() -> Self {
     Type {
-      name: name.into(),
       schema: None
     }
   }
@@ -64,75 +88,12 @@ impl Type {
     self.schema = Some(Box::new(schema));
   }
 
-  pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
+  pub fn set_boxed_schema(&mut self, schema: BoxedSchema) {
     self.schema = Some(schema);
-  }
-
-  /// Gets the name of the type.
-  pub fn name(&self) -> &Key {
-    &self.name
   }
 
   /// Gets the schema of the type.
   pub fn schema(&self) -> Option<&Schema> {
     self.schema.as_ref().map(|schema| schema.deref())
   }
-}
-
-/// A function to be used by tests which creates a complete basic definition.
-/// Should define the same schema which exists in the
-/// `tests/fixtures/definitions/basic.json` file.
-#[cfg(test)]
-pub fn create_basic() -> Definition {
-  use regex::Regex;
-
-  use schema::Schema;
-
-  // TODO: use order in file, not serde’s `BTreeMap` order.
-  let mut definition = Definition::new();
-
-  definition.add_type({
-    let mut type_ = Type::new("person");
-    let mut person = Schema::object();
-    person.set_required(vec!["email"]);
-    person.add_property("email", {
-      let mut email = Schema::string();
-      email.set_min_length(4);
-      email.set_max_length(256);
-      email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
-      email
-    });
-    person.add_property("name", {
-      let mut name = Schema::string();
-      name.set_min_length(2);
-      name.set_max_length(64);
-      name
-    });
-    type_.set_schema(person);
-    type_
-  });
-
-  definition.add_type({
-    let mut type_ = Type::new("post");
-    let mut post = Schema::object();
-    post.set_required(vec!["headline"]);
-    post.add_property("headline", {
-      let mut headline = Schema::string();
-      headline.set_min_length(4);
-      headline.set_max_length(1024);
-      headline
-    });
-    post.add_property("text", {
-      let mut text = Schema::string();
-      text.set_max_length(65536);
-      text
-    });
-    post.add_property("topic", {
-      Schema::enum_(vec!["showcase", "help", "ama"])
-    });
-    type_.set_schema(post);
-    type_
-  });
-
-  definition
 }
