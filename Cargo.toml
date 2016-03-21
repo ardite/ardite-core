@@ -17,7 +17,7 @@ error_iron = ["iron"]
 
 [dependencies]
 lazy_static = "0.1.15"
-linear-map = "1.0.0"
+linear-map = { git = "https://github.com/calebmer/linear-map", features = ["serde_impl"] }
 regex = "0.1.58"
 serde = "0.7.0"
 serde_json = "0.7.0"

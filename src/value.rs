@@ -118,6 +118,22 @@ impl Value {
   }
 }
 
+impl Serialize for Value {
+  #[inline]
+  fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
+    match *self {
+      Value::Null => serializer.serialize_unit(),
+      Value::Boolean(value) => serializer.serialize_bool(value),
+      Value::U64(value) => serializer.serialize_u64(value),
+      Value::I64(value) => serializer.serialize_i64(value),
+      Value::F64(value) => serializer.serialize_f64(value),
+      Value::String(ref value) => serializer.serialize_str(&value),
+      Value::Array(ref value) => value.serialize(serializer),
+      Value::Object(ref value) => value.serialize(serializer)
+    }
+  }
+}
+
 impl<V> From<Option<V>> for Value where V: Into<Value> {
   fn from(option: Option<V>) -> Self {
     match option {
