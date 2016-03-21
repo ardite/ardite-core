@@ -2,8 +2,7 @@ use url::Url;
 
 use error::{Error, NotFound};
 use query::{Condition, SortRule, Range, Query};
-use schema::Type;
-use value::{Value, ValueIter};
+use value::{Key, Value, ValueIter};
 
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
@@ -27,7 +26,7 @@ pub trait Driver {
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
   fn read(
     &self,
-    type_: &Type,
+    type_name: &Key,
     condition: Condition,
     sort: Vec<SortRule>,
     range: Range,
@@ -44,12 +43,13 @@ pub trait Driver {
   /// This method may be optionally optimized by the driver.
   fn read_one(
     &self,
-    type_: &Type,
+    type_name: &Key,
     condition: Condition,
     query: Query
   ) -> Result<Value, Error> {
+    // TODO: we shouldn't have to collect to get the first value of an iterator.
     let mut values: Vec<_> = try!(self.read(
-      type_,
+      type_name,
       condition,
       Default::default(),
       Range::new(None, Some(1)),

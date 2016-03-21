@@ -1,23 +1,23 @@
 use driver::Driver;
 use error::Error;
 use query::{Range, SortRule, Condition, Query};
-use schema::Type;
+use value::{Key, ValueIter};
 
 struct MemoryDriver;
 
 impl Driver for MemoryDriver {
-  fn connect(uri: &str) -> Result<Self, Error> {
+  fn connect(_: &str) -> Result<Self, Error> {
     Ok(MemoryDriver)
   }
 
   fn read(
     &self,
-    _: &Type,
+    _: &Key,
     _: Condition,
     _: Vec<SortRule>,
     _: Range,
     _: Query
-  ) {
+  ) -> Result<ValueIter, Error> {
     unimplemented!();
   }
 }
