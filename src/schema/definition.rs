@@ -1,5 +1,6 @@
 //! Contains the full definition of a data system which Ardite will use.
 
+use std::collections::BTreeMap;
 use std::ops::Deref;
 
 use schema::Schema;
@@ -10,25 +11,25 @@ use value::Key;
 #[derive(Debug)]
 pub struct Definition {
   /// Types defined in the database.
-  types: Vec<Type>
+  types: BTreeMap<Key, Type>
 }
 
 impl Definition {
   /// Creates a new empty instance of `Definition`.
   pub fn new() -> Self {
     Definition {
-      types: Vec::new()
+      types: BTreeMap::new()
     }
   }
 
   /// Add a new type to the `Definition`.
-  pub fn add_type(&mut self, type_: Type) {
-    self.types.push(type_);
+  pub fn add_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
+    self.types.insert(name.into(), type_);
   }
 
   /// Gets type of a certain name.
-  pub fn find_type<N>(&self, name: &N) -> Option<&Type> where N: PartialEq<Key> {
-    self.types.iter().find(|type_| name.eq(type_.name()))
+  pub fn get_type(&self, name: &Key) -> Option<&Type> {
+    self.types.get(name)
   }
 }
 
@@ -42,17 +43,14 @@ impl PartialEq<Definition> for Definition {
 /// Represents a high-level database type.
 #[derive(Debug)]
 pub struct Type {
-  /// The name of the custom type.
-  name: Key,
   /// The schema used to validate data which claims to be of this type.
   schema: Option<Box<Schema + 'static>>
 }
 
 impl Type {
   /// Create a new instance of `Type`.
-  pub fn new<K>(name: K) -> Self where K: Into<Key> {
+  pub fn new() -> Self {
     Type {
-      name: name.into(),
       schema: None
     }
   }
@@ -66,11 +64,6 @@ impl Type {
 
   pub fn set_boxed_schema(&mut self, schema: Box<Schema>) {
     self.schema = Some(schema);
-  }
-
-  /// Gets the name of the type.
-  pub fn name(&self) -> &Key {
-    &self.name
   }
 
   /// Gets the schema of the type.
@@ -91,8 +84,8 @@ pub fn create_basic() -> Definition {
   // TODO: use order in file, not serde’s `BTreeMap` order.
   let mut definition = Definition::new();
 
-  definition.add_type({
-    let mut type_ = Type::new("person");
+  definition.add_type("person", {
+    let mut type_ = Type::new();
     let mut person = Schema::object();
     person.set_required(vec!["email"]);
     person.add_property("email", {
@@ -112,8 +105,8 @@ pub fn create_basic() -> Definition {
     type_
   });
 
-  definition.add_type({
-    let mut type_ = Type::new("post");
+  definition.add_type("post", {
+    let mut type_ = Type::new();
     let mut post = Schema::object();
     post.set_required(vec!["headline"]);
     post.add_property("headline", {

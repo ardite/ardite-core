@@ -41,9 +41,9 @@ fn serde_definition_into_definition(serde_definition: SerdeDefinition) -> Result
   let mut definition = Definition::new();
 
   for (key, schema) in serde_definition.types.into_iter() {
-    let mut type_ = Type::new(key);
+    let mut type_ = Type::new();
     type_.set_boxed_schema(try!(serde_schema_into_schema(schema)));
-    definition.add_type(type_);
+    definition.add_type(key, type_);
   }
 
   Ok(definition)
