@@ -5,7 +5,7 @@ use error::Error;
 use query::{Range, SortRule, Condition, Query};
 use value::{Key, ValueIter};
 
-struct MemoryDriver;
+pub struct MemoryDriver;
 
 impl MemoryDriver {
   pub fn new() -> Self {

@@ -115,7 +115,7 @@ impl Type {
 /// Configuration for what driver to use and what URL to use to connect that
 /// driver.
 // TODO: can't finalize this until dynamic loading of drivers is implemented.
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct DriverConfig {
   /// The URL to pass into the driver when connecting.
   url: Url

@@ -2,7 +2,7 @@
 //! different drivers exist elsewhere.
 
 mod driver;
-pub mod memory;
+mod memory;
 #[cfg(feature = "driver_mongodb")]
 pub mod mongodb;
 
