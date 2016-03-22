@@ -1,6 +1,6 @@
 use url::Url;
 
-use error::{Error, NotFound};
+use error::Error;
 use query::{Condition, SortRule, Range, Query};
 use value::{Key, Value, ValueIter};
 
@@ -62,7 +62,7 @@ pub trait Driver {
         Err(Error::internal("Read with a limit of one returned more than one value."))
       }
     } else {
-      Err(Error::new(NotFound, "No value was found for the condition."))
+      Err(Error::not_found("No value was found for the condition."))
     }
   }
 }
