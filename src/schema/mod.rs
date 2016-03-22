@@ -7,4 +7,4 @@ mod schema;
 mod de;
 
 pub use schema::schema::*;
-pub use schema::definition::{Definition, Type};
+pub use schema::definition::{Definition, Type, DriverConfig};

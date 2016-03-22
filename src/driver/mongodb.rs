@@ -7,6 +7,7 @@ use mongodb::common::{ReadPreference, ReadMode};
 use mongodb::connstring;
 use mongodb::db::{Database, ThreadedDatabase};
 use mongodb::error::Error as MongoDBError;
+use url::Url;
 
 use driver::Driver;
 use error::Error;
@@ -19,7 +20,7 @@ struct MongoDriver {
 }
 
 impl Driver for MongoDriver {
-  fn connect(uri: &str) -> Result<Self, Error> {
+  fn connect(url: &Url) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
 
     if let Some(db_name) = config.database.clone() {

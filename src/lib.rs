@@ -9,6 +9,7 @@ extern crate regex;
 extern crate serde;
 extern crate serde_json;
 extern crate serde_yaml;
+extern crate url;
 
 #[cfg(feature = "driver_mongodb")]
 #[macro_use(bson, doc)]
@@ -27,5 +28,5 @@ pub mod value;
 
 pub use driver::Driver;
 pub use error::Error;
-pub use schema::{Definition, Type, Schema};
+pub use schema::{Definition, Type, DriverConfig, Schema};
 pub use value::{Key, Pointer, Object, Array, Value};

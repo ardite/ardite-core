@@ -3,33 +3,44 @@
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::fs::File;
-use std::ops::Deref;
 use std::path::PathBuf;
 
+use linear_map::LinearMap;
 use serde_json;
 use serde_yaml;
+use url::Url;
 
 use error::{Error, NotAcceptable};
-use schema::{Schema, BoxedSchema};
+use schema::{Schema, SchemaObject, BoxedSchema};
 use value::Key;
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Definition {
+  /// The default driver when one is not specified for a specific type.
+  driver: Option<DriverConfig>,
   /// Types defined in the database.
   types: BTreeMap<Key, Type>
 }
-
-#[cfg(test)]
-impl_debug_eq!(Definition);
 
 impl Definition {
   /// Creates a new empty instance of `Definition`.
   pub fn new() -> Self {
     Definition {
+      driver: None,
       types: BTreeMap::new()
     }
+  }
+
+  /// Set the driver config.
+  pub fn set_driver(&mut self, driver: DriverConfig) {
+    self.driver = Some(driver);
+  }
+
+  /// Get the driver config.
+  pub fn driver(&self) -> Option<&DriverConfig> {
+    self.driver.as_ref()
   }
 
   /// Add a new type to the `Definition`.
@@ -64,36 +75,63 @@ impl Definition {
 }
 
 /// Represents a high-level database type.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct Type {
+  /// A type may optionally have its own driver.
+  driver: Option<DriverConfig>,
   /// The schema used to validate data which claims to be of this type.
-  schema: Option<BoxedSchema>
+  schema: SchemaObject
 }
-
-#[cfg(test)]
-impl_debug_eq!(Type);
 
 impl Type {
   /// Create a new instance of `Type`.
   pub fn new() -> Self {
     Type {
-      schema: None
+      driver: None,
+      schema: SchemaObject::new()
     }
   }
 
-  /// Set the schema for the type. Polymorphic so it accepts any type which
-  /// implements schema which gets boxed into a trait object. If you have a
-  /// schema trait object, see `set_boxed_schema`.
-  pub fn set_schema<S>(&mut self, schema: S) where S: Schema + 'static {
-    self.schema = Some(Box::new(schema));
+  /// Set the driver config.
+  pub fn set_driver(&mut self, driver: DriverConfig) {
+    self.driver = Some(driver);
   }
 
-  pub fn set_boxed_schema(&mut self, schema: BoxedSchema) {
-    self.schema = Some(schema);
+  /// Get the driver config.
+  pub fn driver(&self) -> Option<&DriverConfig> {
+    self.driver.as_ref()
   }
 
-  /// Gets the schema of the type.
-  pub fn schema(&self) -> Option<&Schema> {
-    self.schema.as_ref().map(|schema| schema.deref())
+  // Proxy stuffs.
+  #[inline] pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.add_property(key, schema); }
+  #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: BoxedSchema) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
+  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
+  #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
+  #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
+  #[inline] pub fn required(&self) -> &Vec<Key> { self.schema.required() }
+  #[inline] pub fn additional_properties(&self) -> bool { self.schema.additional_properties() }
+}
+
+/// Configuration for what driver to use and what URL to use to connect that
+/// driver.
+// TODO: can't finalize this until dynamic loading of drivers is implemented.
+#[derive(PartialEq, Debug)]
+pub struct DriverConfig {
+  /// The URL to pass into the driver when connecting.
+  url: Url
+}
+
+impl DriverConfig {
+  /// Create a new driver config. Is only passed a URL and the scheme of the
+  /// URL will be used for the name.
+  pub fn new(url: Url) -> Self {
+    DriverConfig {
+      url: url
+    }
+  }
+
+  /// Returns the URL to the driver.
+  pub fn url(&self) -> &Url {
+    &self.url
   }
 }

@@ -1,3 +1,5 @@
+use url::Url;
+
 use error::{Error, NotFound};
 use query::{Condition, SortRule, Range, Query};
 use schema::Type;
@@ -11,7 +13,7 @@ pub trait Driver {
   /// the driver is ready to roll!
   ///
   /// No schema definition is provided to the driver in its construction step.
-  fn connect(uri: &str) -> Result<Self, Error> where Self: Sized;
+  fn connect(url: &Url) -> Result<Self, Error> where Self: Sized;
 
   /// Lazily read some values from the driver.
   ///
