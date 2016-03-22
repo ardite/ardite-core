@@ -1,0 +1,59 @@
+driver: scheme://host:1234?key1=value1&key2=value2#fragment
+
+types:
+  a: {}
+
+  b:
+    driver: party://fun:4242
+
+  c:
+    schema:
+      type: object
+      properties:
+        enum:
+          enum:
+            - red
+            - 2
+            - false
+            - hello:
+                world: 8
+
+        "null":
+          type: "null"
+
+        boolean:
+          type: boolean
+
+        number:
+          type: number
+          multipleOf: 1.1
+          minimum: 2.2
+          maximum: 9.9
+          exclusiveMaximum: true
+
+        integer:
+          type: integer
+          minimum: 8
+          maximum: 30
+          exclusiveMaximum: false
+
+        array:
+          type: array
+          items:
+            type: array
+            items:
+              type: "null"
+
+        object:
+          type: object
+          required:
+            - hello
+          additionalProperties: true
+          properties:
+            hello:
+              type: object
+              properties:
+                world:
+                  type: "null"
+            george:
+              type: string

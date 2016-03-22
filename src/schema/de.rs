@@ -314,6 +314,70 @@ mod tests {
     definition
   }
 
+  fn create_kitchen_sink_definition() -> Definition {
+    let mut definition = Definition::new();
+
+    definition.set_driver(
+      DriverConfig::new(Url::parse("scheme://host:1234?key1=value1&key2=value2#fragment").unwrap())
+    );
+
+    definition.add_type("a", Type::new());
+
+    definition.add_type("b", {
+      let mut type_ = Type::new();
+      type_.set_driver(DriverConfig::new(Url::parse("party://fun:4242").unwrap()));
+      type_
+    });
+
+    definition.add_type("c", {
+      let mut type_ = Type::new();
+      let mut c = Schema::object();
+      c.add_property("array", {
+        let mut array = Schema::array();
+        array.set_items({
+          let mut sub_array = Schema::array();
+          sub_array.set_items(Schema::null());
+          sub_array
+        });
+        array
+      });
+      c.add_property("boolean", Schema::boolean());
+      c.add_property("enum", Schema::enum_(vec![value!("red"), value!(2), value!(false), value!({ "hello" => { "world" => 8 } })]));
+      c.add_property("integer", {
+        let mut number = Schema::number();
+        number.set_multiple_of(1.0);
+        number.set_minimum(8.0);
+        number.set_maximum(30.0);
+        number
+      });
+      c.add_property("null", Schema::null());
+      c.add_property("number", {
+        let mut number = Schema::number();
+        number.set_multiple_of(1.1);
+        number.set_minimum(2.2);
+        number.set_maximum(9.9);
+        number.enable_exclusive_maximum();
+        number
+      });
+      c.add_property("object", {
+        let mut object = Schema::object();
+        object.set_required(vec!["hello"]);
+        object.enable_additional_properties();
+        object.add_property("george", Schema::string());
+        object.add_property("hello", {
+          let mut hello = Schema::object();
+          hello.add_property("world", Schema::null());
+          hello
+        });
+        object
+      });
+      type_.set_schema(c);
+      type_
+    });
+
+    definition
+  }
+
   #[test]
   fn test_basic_json() {
     assert_eq!(
@@ -327,6 +391,14 @@ mod tests {
     assert_eq!(
       Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(),
       create_basic_definition()
+    );
+  }
+
+  #[test]
+  fn test_kitchen_sink_yaml() {
+    assert_eq!(
+      Definition::from_file(PathBuf::from("tests/fixtures/definitions/kitchen-sink.yml")).unwrap(),
+      create_kitchen_sink_definition()
     );
   }
 }
