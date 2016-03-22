@@ -53,6 +53,11 @@ impl Definition {
     self.types.get(name.into())
   }
 
+  /// Gets all of the driver’s types.
+  pub fn types(&self) -> &BTreeMap<Key, Type> {
+    &self.types
+  }
+
   /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
   /// JSON and YAML formats.
   // TODO: validate file against JSON schema.
