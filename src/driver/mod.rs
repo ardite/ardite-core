@@ -7,3 +7,4 @@ pub mod memory;
 pub mod mongodb;
 
 pub use driver::driver::Driver;
+pub use driver::memory::MemoryDriver;
