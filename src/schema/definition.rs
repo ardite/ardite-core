@@ -53,7 +53,7 @@ impl Definition {
     self.types.get(name.into())
   }
 
-  /// Gets all of the driver’s types.
+  /// Gets all of the definition’s types.
   pub fn types(&self) -> &BTreeMap<Key, Type> {
     &self.types
   }

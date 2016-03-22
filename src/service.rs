@@ -1,10 +1,12 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use linear_map::LinearMap;
 
 use error::Error;
-use schema::{Definition, DriverConfig};
+use schema::{Definition, Type, DriverConfig};
 use driver::{discover_driver, Driver, MemoryDriver};
+use value::Key;
 
 pub struct Service<'a> {
   definition: Definition,
@@ -53,5 +55,10 @@ impl<'a> Service<'a> {
     }
 
     Ok(())
+  }
+
+  /// Gets all of the service’s definition’s types.
+  pub fn types(&self) -> &BTreeMap<Key, Type> {
+    self.definition.types()
   }
 }
