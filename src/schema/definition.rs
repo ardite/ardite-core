@@ -62,6 +62,9 @@ impl Definition {
   /// JSON and YAML formats.
   // TODO: validate file against JSON schema.
   pub fn from_file(path: PathBuf) -> Result<Definition, Error> {
+    if !path.exists() {
+      return Err(Error::not_found(format!("Schema definition file not found at '{}'.", path.display())))
+    }
     let extension = path.extension().map_or("", |s| s.to_str().unwrap());
     let file = try!(File::open(&path));
     let reader = BufReader::new(file);
@@ -72,7 +75,7 @@ impl Definition {
         return Err(
           Error
           ::new(NotAcceptable, format!("File extension '{}' cannot be deserialized in '{}'.", extension, path.display()))
-          .set_hint("Use a recognizable file extension like '.json' or '.yml'.")
+          .set_hint("Use a readable file extension like '.json' or '.yml'.")
         )
       }
     })

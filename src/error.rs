@@ -201,8 +201,8 @@ impl Error {
 
 impl Display for Error {
   fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
-    try!(write!(fmt, "\ncode: {}", self.code));
-    try!(write!(fmt, "\nmessage: {}", self.message));
+    try!(write!(fmt, "code: {}\n", self.code));
+    try!(write!(fmt, "message: {}", self.message));
 
     if let Some(ref hint) = self.hint {
       try!(write!(fmt, "\nhint: {}", hint));
@@ -222,7 +222,7 @@ impl From<IOError> for Error {
   fn from(error: IOError) -> Self {
     Error {
       code: ErrorCode::Internal,
-      message: error.description().to_owned(),
+      message: format!("{}", error),
       hint: None
     }
   }
@@ -241,7 +241,7 @@ impl From<JSONError> for Error {
       _ => {
         Error {
           code: ErrorCode::Internal,
-          message: error.description().to_owned(),
+          message: format!("{}", error),
           hint: None
         }
       }
@@ -262,7 +262,7 @@ impl From<YAMLError> for Error {
       _ => {
         Error {
           code: ErrorCode::Internal,
-          message: error.description().to_owned(),
+          message: format!("{}", error),
           hint: None
         }
       }
