@@ -123,9 +123,28 @@ impl Error {
   /// ```
   pub fn invalid<S1, S2>(message: S1, hint: S2) -> Self where S1: Into<String>, S2: Into<String> {
     Error {
-      code: ErrorCode::BadRequest,
+      code: BadRequest,
       message: message.into(),
       hint: Some(hint.into())
+    }
+  }
+
+  /// Convenience function for saying a the requested resource was not found
+  /// using `ErrorCode::NotFound`.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::error::{Error, ErrorCode};
+  ///
+  /// let error = Error::not_found("Where’s Waldo?");
+  ///
+  /// assert_eq!(error, Error::new(ErrorCode::NotFound, "Where’s Waldo?"));
+  /// ```
+  pub fn not_found<S>(message: S) -> Self where S: Into<String> {
+    Error {
+      code: NotFound,
+      message: message.into(),
+      hint: None
     }
   }
 
@@ -142,7 +161,7 @@ impl Error {
   /// ```
   pub fn internal<S>(message: S) -> Self where S: Into<String> {
     Error {
-      code: ErrorCode::Internal,
+      code: Internal,
       message: message.into(),
       hint: None
     }
@@ -162,7 +181,7 @@ impl Error {
   /// ```
   pub fn unimplemented<S>(message: S) -> Self where S: Into<String> {
     Error {
-      code: ErrorCode::NotImplemented,
+      code: NotImplemented,
       message: message.into(),
       hint: None
     }
