@@ -251,46 +251,6 @@ impl From<YAMLError> for Error {
   }
 }
 
-// TODO: consider moving this to `ardite-rest`
-#[cfg(feature = "error_iron")]
-mod iron {
-  extern crate iron;
-
-  use super::Error;
-
-  use self::iron::prelude::*;
-  use self::iron::headers::{ContentType, ContentLength};
-  use self::iron::mime::{Mime, TopLevel, SubLevel, Attr, Value};
-  use self::iron::modifiers::Header;
-  use self::iron::status::Status;
-
-  impl Into<IronError> for Error {
-    fn into(self) -> IronError {
-      let mut res = Response::new();
-
-      res.set_mut(Status::from_u16(self.code().to_u16()));
-
-      // Tries to send the error as a response in JSON, however, if that fails
-      // the error is sent as plain text.
-      if let Ok(content) = self.to_value().to_json() {
-        res.set_mut(Header(ContentType(Mime(TopLevel::Application, SubLevel::Json, vec![(Attr::Charset, Value::Utf8)]))));
-        res.set_mut(Header(ContentLength(content.len() as u64)));
-        res.set_mut(content);
-      } else {
-        res.set_mut(Header(ContentType(Mime(TopLevel::Text, SubLevel::Plain, vec![(Attr::Charset, Value::Utf8)]))));
-        let content = format!("{}", self);
-        res.set_mut(Header(ContentLength(content.len() as u64)));
-        res.set_mut(content);
-      }
-
-      IronError {
-        error: Box::new(self),
-        response: res
-      }
-    }
-  }
-}
-
 /// The code of an error. Designed to easily map to [HTTP status codes][1],
 /// however only a subset of these codes are supported and some custom codes
 /// were added.
