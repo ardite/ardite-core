@@ -89,17 +89,36 @@ impl Deserialize for Type {
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
         let mut driver_config: Option<DriverConfig> = None;
-        let mut schema: Option<BoxedSchema> = None;
+        let mut type_string: Option<String> = None;
+        let mut properties: Option<BTreeMap<String, BoxedSchema>> = None;
+        let mut required: Option<Vec<String>> = None;
+        let mut additional_properties: Option<bool> = None;
 
         visit_map_fields!(visitor, {
           "driver" => driver_config,
-          "schema" => schema
+          "type" => type_string,
+          "properties" => properties,
+          "required" => required,
+          "additionalProperties" => additional_properties
         });
+
+        if let Some(type_string) = type_string {
+          if type_string != "object" {
+            return Err(DeError::custom(format!("Schema type must be 'object', not '{}'.", type_string)));
+          }
+        } else {
+          return Err(DeError::custom("Schema type property must be defined."));
+        }
 
         let mut type_ = Type::new();
 
+        type_.set_required(required.unwrap_or_default());
+        if additional_properties.unwrap_or(false) { type_.enable_additional_properties(); }
+        for (key, schema) in properties.unwrap_or_default() {
+          type_.add_boxed_property(key, schema);
+        }
+
         if let Some(driver_config) = driver_config { type_.set_driver(driver_config); }
-        if let Some(schema) = schema { type_.set_boxed_schema(schema); }
 
         Ok(type_)
       }
@@ -250,11 +269,13 @@ mod tests {
   #[test]
   fn test_json_type() {
     let from_str = serde_json::from_str::<Type>;
-    assert_eq!(from_str("{}").unwrap(), Type::new());
-    assert_eq!(from_str(r#"{"hello":"world"}"#).unwrap(), Type::new());
-    assert!(from_str(r#"{"schema":2}"#).is_err());
-    assert!(from_str(r#"{"schema":"yo"}"#).is_err());
-    assert!(from_str(r#"{"schema":[]}"#).is_err());
+    assert_eq!(from_str(r#"{"type":"object"}"#).unwrap(), Type::new());
+    assert!(from_str("{}").is_err());
+    assert!(from_str(r#"{"hello":"world"}"#).is_err());
+    assert_eq!(from_str(r#"{"type":"object","hello":"world"}"#).unwrap(), Type::new());
+    assert!(from_str(r#"{"type":2}"#).is_err());
+    assert!(from_str(r#"{"type":"yo"}"#).is_err());
+    assert!(from_str(r#"{"type":[]}"#).is_err());
   }
 
   #[test]
@@ -269,8 +290,7 @@ mod tests {
     let mut definition = Definition::new();
 
     definition.add_type("person", {
-      let mut type_ = Type::new();
-      let mut person = Schema::object();
+      let mut person = Type::new();
       person.set_required(vec!["email"]);
       person.add_property("email", {
         let mut email = Schema::string();
@@ -285,13 +305,11 @@ mod tests {
         name.set_max_length(64);
         name
       });
-      type_.set_schema(person);
-      type_
+      person
     });
 
     definition.add_type("post", {
-      let mut type_ = Type::new();
-      let mut post = Schema::object();
+      let mut post = Type::new();
       post.set_required(vec!["headline"]);
       post.add_property("headline", {
         let mut headline = Schema::string();
@@ -307,8 +325,7 @@ mod tests {
       post.add_property("topic", {
         Schema::enum_(vec!["showcase", "help", "ama"])
       });
-      type_.set_schema(post);
-      type_
+      post
     });
 
     definition
@@ -324,14 +341,13 @@ mod tests {
     definition.add_type("a", Type::new());
 
     definition.add_type("b", {
-      let mut type_ = Type::new();
-      type_.set_driver(DriverConfig::new(Url::parse("party://fun:4242").unwrap()));
-      type_
+      let mut b = Type::new();
+      b.set_driver(DriverConfig::new(Url::parse("party://fun:4242").unwrap()));
+      b
     });
 
     definition.add_type("c", {
-      let mut type_ = Type::new();
-      let mut c = Schema::object();
+      let mut c = Type::new();
       c.add_property("array", {
         let mut array = Schema::array();
         array.set_items({
@@ -371,8 +387,7 @@ mod tests {
         });
         object
       });
-      type_.set_schema(c);
-      type_
+      c
     });
 
     definition

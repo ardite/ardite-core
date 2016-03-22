@@ -3,15 +3,15 @@
 use std::collections::BTreeMap;
 use std::io::BufReader;
 use std::fs::File;
-use std::ops::Deref;
 use std::path::PathBuf;
 
+use linear_map::LinearMap;
 use serde_json;
 use serde_yaml;
 use url::Url;
 
 use error::{Error, NotAcceptable};
-use schema::{Schema, BoxedSchema};
+use schema::{Schema, SchemaObject, BoxedSchema};
 use value::Key;
 
 /// The definition object which contains all necessary information to
@@ -80,8 +80,7 @@ pub struct Type {
   /// A type may optionally have its own driver.
   driver: Option<DriverConfig>,
   /// The schema used to validate data which claims to be of this type.
-  // TODO: only allow object schemas with `SchemaObject`
-  schema: Option<BoxedSchema>
+  schema: SchemaObject
 }
 
 impl Type {
@@ -89,7 +88,7 @@ impl Type {
   pub fn new() -> Self {
     Type {
       driver: None,
-      schema: None
+      schema: SchemaObject::new()
     }
   }
 
@@ -103,21 +102,14 @@ impl Type {
     self.driver.as_ref()
   }
 
-  /// Set the schema for the type. Polymorphic so it accepts any type which
-  /// implements schema which gets boxed into a trait object. If you have a
-  /// schema trait object, see `set_boxed_schema`.
-  pub fn set_schema<S>(&mut self, schema: S) where S: Schema + 'static {
-    self.schema = Some(Box::new(schema));
-  }
-
-  pub fn set_boxed_schema(&mut self, schema: BoxedSchema) {
-    self.schema = Some(schema);
-  }
-
-  /// Gets the schema of the type.
-  pub fn schema(&self) -> Option<&Schema> {
-    self.schema.as_ref().map(|schema| schema.deref())
-  }
+  // Proxy stuffs.
+  #[inline] pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.add_property(key, schema); }
+  #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: BoxedSchema) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
+  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
+  #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
+  #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
+  #[inline] pub fn required(&self) -> &Vec<Key> { self.schema.required() }
+  #[inline] pub fn additional_properties(&self) -> bool { self.schema.additional_properties() }
 }
 
 /// Configuration for what driver to use and what URL to use to connect that

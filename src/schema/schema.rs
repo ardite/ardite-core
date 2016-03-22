@@ -13,7 +13,6 @@ lazy_static! {
   static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
 }
 
-// TODO: use newtype pattern and expose all of the `Schema` functions through this?
 pub type BoxedSchema = Box<Schema + 'static>;
 
 /// A schema detailing what the data received from the driver (or inserted
@@ -48,7 +47,6 @@ pub trait Schema: Debug {
   fn validate_query(&self, query: &Query) -> Result<(), Error>;
 }
 
-// TODO: find way to doc usable methods from `SchemaNone`, `SchemaNull`, etc.
 impl Schema {
   /// Create a schema which does not run any validations.
   pub fn none() -> SchemaNone {
@@ -126,7 +124,7 @@ impl<'a, T> Schema for T where T: SchemaPrimitive + 'a {
 /// There is no schema. No validations should occur. Does not represent the
 /// abscense of any value, only represents that a schema does not define the
 /// data structure at this point.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaNone;
 
 impl SchemaNone {
@@ -150,7 +148,7 @@ impl Schema for SchemaNone {
 }
 
 /// Represents the absence of any value.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaNull;
 
 impl SchemaNull {
@@ -162,7 +160,7 @@ impl SchemaNull {
 impl SchemaPrimitive for SchemaNull {}
 
 /// Represents a binary true/false value.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaBoolean;
 
 impl SchemaBoolean {
@@ -174,7 +172,7 @@ impl SchemaBoolean {
 impl SchemaPrimitive for SchemaBoolean {}
 
 /// Represents a numeric type.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaNumber {
   /// Forces the number to be a multiple of another. This helps in specifying
   /// integers if this value is `Some(1)` for example.
@@ -217,7 +215,7 @@ impl SchemaNumber {
 impl SchemaPrimitive for SchemaNumber {}
 
 /// Represents a string type.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaString {
   /// The mimimum length of characters in the string.
   min_length: Option<u64>,
@@ -247,7 +245,7 @@ impl SchemaString {
 impl SchemaPrimitive for SchemaString {}
 
 /// Represents a set of any type.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaArray {
   /// A schema which all items in the array must match.
   // We use box because the array must take ownership of its child schema.
@@ -316,7 +314,7 @@ impl Schema for SchemaArray {
 }
 
 /// Represents a set of key/value pairs.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaObject {
   /// Schemas associated to the object properties.
   // We use box because the object must take ownership of its child schema.
@@ -408,7 +406,7 @@ impl Schema for SchemaObject {
 /// Represents a value which *must* be one of the defined values. An enum is
 /// considered a primitive type as if it is a single value is a higher order
 /// type, no variation is allowed.
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct SchemaEnum {
   /// The available values.
   values: Vec<Value>
