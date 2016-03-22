@@ -5,7 +5,7 @@ use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, MapVisitor
 use serde::de::impls::IgnoredAny;
 use url::Url;
 
-use schema::{Definition, Type, DriverConfig, Schema, BoxedSchema};
+use schema::{Definition, Type, DriverConfig, Schema};
 use value::{Key, Value};
 
 macro_rules! visit_map_fields {
@@ -90,7 +90,7 @@ impl Deserialize for Type {
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
         let mut driver_config: Option<DriverConfig> = None;
         let mut type_string: Option<String> = None;
-        let mut properties: Option<BTreeMap<String, BoxedSchema>> = None;
+        let mut properties: Option<BTreeMap<String, Box<Schema>>> = None;
         let mut required: Option<Vec<String>> = None;
         let mut additional_properties: Option<bool> = None;
 
@@ -153,12 +153,12 @@ impl Deserialize for DriverConfig {
   }
 }
 
-impl Deserialize for BoxedSchema {
+impl Deserialize for Box<Schema> {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
     struct SchemaVisitor;
 
     impl Visitor for SchemaVisitor {
-      type Value = BoxedSchema;
+      type Value = Box<Schema>;
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
@@ -171,8 +171,8 @@ impl Deserialize for BoxedSchema {
         let mut min_length: Option<u64> = None;
         let mut max_length: Option<u64> = None;
         let mut pattern: Option<String> = None;
-        let mut items: Option<BoxedSchema> = None;
-        let mut properties: Option<BTreeMap<String, BoxedSchema>> = None;
+        let mut items: Option<Box<Schema>> = None;
+        let mut properties: Option<BTreeMap<String, Box<Schema>>> = None;
         let mut required: Option<Vec<String>> = None;
         let mut additional_properties: Option<bool> = None;
         let mut enum_: Option<Vec<Value>> = None;

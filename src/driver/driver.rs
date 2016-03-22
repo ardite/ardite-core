@@ -7,7 +7,7 @@ use value::{Key, Value, ValueIter};
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
 /// collection based data model.
-pub trait Driver {
+pub trait Driver: Send + Sync {
   /// Connects to a driver and returns a driver instance. After calling this
   /// the driver is ready to roll!
   ///

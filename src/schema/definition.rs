@@ -11,7 +11,7 @@ use serde_yaml;
 use url::Url;
 
 use error::{Error, NotAcceptable};
-use schema::{Schema, SchemaObject, BoxedSchema};
+use schema::{Schema, SchemaObject};
 use value::Key;
 
 /// The definition object which contains all necessary information to
@@ -112,7 +112,7 @@ impl Type {
 
   // Proxy stuffs.
   #[inline] pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.add_property(key, schema); }
-  #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: BoxedSchema) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
+  #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
   #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
   #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
   #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
