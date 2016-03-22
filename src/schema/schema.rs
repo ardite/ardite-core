@@ -538,11 +538,11 @@ mod tests {
   fn test_query_primitive() {
     assert!(Schema::null().validate_query(&Query::All).is_ok());
     let obj_query = Query::Keys(linear_map! {});
-    Schema::null().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
-    Schema::boolean().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
-    Schema::number().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
-    Schema::string().validate_query(&obj_query).unwrap_err().assert_message("deeply query");
-    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().assert_message("deeply query");
+    Schema::null().validate_query(&obj_query).unwrap_err().expect("deeply query");
+    Schema::boolean().validate_query(&obj_query).unwrap_err().expect("deeply query");
+    Schema::number().validate_query(&obj_query).unwrap_err().expect("deeply query");
+    Schema::string().validate_query(&obj_query).unwrap_err().expect("deeply query");
+    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().expect("deeply query");
   }
 
   #[test]
@@ -566,10 +566,10 @@ mod tests {
     })).is_ok());
     array_none.validate_query(&Query::Keys(linear_map! {
       str!("hello") => Query::All
-    })).unwrap_err().assert_message("non-integer \"hello\"");
+    })).unwrap_err().expect("non-integer \"hello\"");
     array_bool.validate_query(&Query::Keys(linear_map! {
       str!("1") => Query::Keys(linear_map! {})
-    })).unwrap_err().assert_message("deeply query");
+    })).unwrap_err().expect("deeply query");
   }
 
   #[test]
@@ -596,10 +596,10 @@ mod tests {
     object.validate_query(&Query::Keys(linear_map! {
       str!("hello") => Query::All,
       str!("moon") => Query::All
-    })).unwrap_err().assert_message("Cannot query object property \"moon\".");
+    })).unwrap_err().expect("Cannot query object property \"moon\".");
     object.validate_query(&Query::Keys(linear_map! {
       str!("hello") => Query::Keys(linear_map! {})
-    })).unwrap_err().assert_message("deeply query");
+    })).unwrap_err().expect("deeply query");
     assert!(object.validate_query(&Query::Keys(linear_map! {
       str!("goodbye") => Query::Keys(linear_map! {
         str!("hello") => Query::All
@@ -609,7 +609,7 @@ mod tests {
       str!("goodbye") => Query::Keys(linear_map! {
         str!("hello") => Query::Keys(linear_map! {})
       })
-    })).unwrap_err().assert_message("deeply query");
+    })).unwrap_err().expect("deeply query");
     assert!(object_additional.validate_query(&Query::Keys(linear_map! {
       str!("world") => Query::All,
       str!("5") => Query::All,

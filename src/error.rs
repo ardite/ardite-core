@@ -44,12 +44,18 @@ pub struct Error {
 
 impl Error {
   /// Easily create a new error.
-  pub fn new<S>(code: ErrorCode, message: S, hint: Option<S>) -> Self where S: Into<String> {
+  pub fn new<S>(code: ErrorCode, message: S) -> Self where S: Into<String> {
     Error {
       code: code,
       message: message.into(),
-      hint: hint.map(|string| string.into())
+      hint: None
     }
+  }
+
+  /// Sets the error hint in a chainable fashion.
+  pub fn set_hint<S>(mut self, hint: S) -> Self where S: Into<String> {
+    self.hint = Some(hint.into());
+    self
   }
 
   /// Get the code for the error.
@@ -78,7 +84,7 @@ impl Error {
   ///
   /// # fn main() {
   ///
-  /// let error = Error::new(NotFound, "Not found…", Some("Go to the light!"));
+  /// let error = Error::new(NotFound, "Not found…").set_hint("Go to the light!");
   ///
   /// let value = value!({
   ///   "error" => true,
@@ -113,7 +119,7 @@ impl Error {
   ///
   /// let error = Error::invalid("Failed validation.", "Try fixing your syntax!");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::BadRequest, "Failed validation.", Some("Try fixing your syntax!")));
+  /// assert_eq!(error, Error::new(ErrorCode::BadRequest, "Failed validation.").set_hint("Try fixing your syntax!"));
   /// ```
   pub fn invalid<S1, S2>(message: S1, hint: S2) -> Self where S1: Into<String>, S2: Into<String> {
     Error {
@@ -132,7 +138,7 @@ impl Error {
   ///
   /// let error = Error::internal("Something blew up.");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::Internal, "Something blew up.", None));
+  /// assert_eq!(error, Error::new(ErrorCode::Internal, "Something blew up."));
   /// ```
   pub fn internal<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -152,7 +158,7 @@ impl Error {
   ///
   /// let error = Error::unimplemented("Cache invalidation is hard.");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::NotImplemented, "Cache invalidation is hard.", None));
+  /// assert_eq!(error, Error::new(ErrorCode::NotImplemented, "Cache invalidation is hard."));
   /// ```
   pub fn unimplemented<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -167,7 +173,7 @@ impl Error {
   /// expression. Only available in testing environments. Panics if the regular
   /// expression doesn’t match the error message string.
   #[cfg(test)]
-  pub fn assert_message(&self, regex_str: &str) {
+  pub fn expect(&self, regex_str: &str) {
     if !Regex::new(regex_str).unwrap().is_match(&self.message) {
       panic!("Error message \"{}\" does not match regex /{}/", self.message, regex_str);
     }

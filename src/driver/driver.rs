@@ -1,4 +1,4 @@
-use error::{Error, ErrorCode};
+use error::{Error, NotFound};
 use query::{Condition, SortRule, Range, Query};
 use schema::Type;
 use value::{Value, ValueIter};
@@ -59,7 +59,7 @@ pub trait Driver {
     } else if let Some(value) = values.pop() {
       Ok(value)
     } else {
-      Err(Error::new(ErrorCode::NotFound, "No value was found for the condition.", None))
+      Err(Error::new(NotFound, "No value was found for the condition."))
     }
   }
 }
