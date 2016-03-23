@@ -83,6 +83,19 @@ impl Value {
     }
   }
 
+  pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(Key) -> Key {
+    match self {
+      Value::Object(object) => {
+        let mut new_object = Object::new();
+        for (key, value) in object.into_iter() {
+          new_object.insert(transform(key), value);
+        }
+        Value::Object(new_object)
+      },
+      value @ _ => value
+    }
+  }
+
   /// Creates a `Value` from a JSON string.
   pub fn from_json(json: &str) -> Result<Value, Error> {
     serde_json::from_str(json).map_err(Error::from)
