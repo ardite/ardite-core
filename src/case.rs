@@ -7,6 +7,8 @@ pub enum Case {
   Snake
 }
 
+pub use self::Case::*;
+
 impl Case {
   pub fn from_str(string: &str) -> Option<Self> {
     match string {

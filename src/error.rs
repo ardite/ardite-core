@@ -300,7 +300,7 @@ pub enum Code {
   NotImplemented
 }
 
-pub use error::Code::*;
+pub use self::Code::*;
 
 impl Code {
   pub fn to_u16(&self) -> u16 {
