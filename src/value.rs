@@ -96,6 +96,26 @@ impl Value {
     }
   }
 
+  pub fn map_values<F>(self, transform: F) -> Value where F: Fn(Value) -> Value {
+    match self {
+      Value::Object(object) => {
+        let mut new_object = Object::new();
+        for (key, value) in object.into_iter() {
+          new_object.insert(key, transform(value));
+        }
+        Value::Object(new_object)
+      },
+      Value::Array(array) => {
+        let mut new_array = Array::new();
+        for value in array.into_iter() {
+          new_array.push(transform(value));
+        }
+        Value::Array(new_array)
+      },
+      value @ _ => value
+    }
+  }
+
   /// Creates a `Value` from a JSON string.
   pub fn from_json(json: &str) -> Result<Value, Error> {
     serde_json::from_str(json).map_err(Error::from)
