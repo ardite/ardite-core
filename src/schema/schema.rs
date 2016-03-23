@@ -6,6 +6,7 @@ use std::ops::Deref;
 use linear_map::LinearMap;
 use regex::Regex;
 
+use case::Snake;
 use error::Error;
 use query::Query;
 use value::{Key, Pointer, Value};
@@ -334,12 +335,63 @@ impl SchemaObject {
     }
   }
 
+  /// Inserts a property (a sub schema) into the object schema. Automatically
+  /// converts keys into snake case. See the docs for `Definition::insert_type`
+  /// for an explanation on why we convert to snake case.
+  ///
+  /// This function takes a type parameter so any implementor of `Schema` can
+  /// be passed in, but a premade trait object cannot be passed in.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::schema::Schema;
+  ///
+  /// let mut object = Schema::object();
+  /// let mut number = Schema::number();
+  ///
+  /// number.set_minimum(2.0);
+  ///
+  /// object.insert_property("helloWorld", number);
+  ///
+  /// assert!(object.get_property("helloWorld").is_none());
+  /// assert!(object.get_property("hello_world").unwrap().eq(&{
+  ///   let mut number = Schema::number();
+  ///   number.set_minimum(2.0);
+  ///   number
+  /// }));
+  /// ```
   pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
-    self.properties.insert(key.into(), Box::new(schema));
+    self.properties.insert(Snake.to_case(key.into()), Box::new(schema));
   }
 
-  pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
-    self.properties.insert(key.into(), schema);
+  /// Adds a boxed property into the object schema. Automatically converts
+  /// keys into snake case. See the docs for `Definition::insert_type` for an
+  /// explanation on why we convert to snake case.
+  ///
+  /// This function is differnt from `insert_property` in that it allows you to
+  /// insert a pre-made (boxed) trait object.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::schema::Schema;
+  ///
+  /// let mut schema = Schema::object();
+  /// let number: Box<Schema> = Box::new(Schema::number());
+  ///
+  /// // number.set_minimum(2.0); This wouldn’t work, because as soon as we box a
+  /// // schema we no longer know its type and can’t use its methods.
+  ///
+  /// schema.insert_boxed_property("helloWorld", number);
+  ///
+  /// assert!(schema.get_property("helloWorld").is_none());
+  /// assert!(schema.get_property("hello_world").unwrap().eq(&Schema::number()));
+  /// ```
+  pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
+    self.properties.insert(Snake.to_case(key.into()), schema);
+  }
+
+  pub fn get_property(&self, key: &str) -> Option<&Schema> {
+    self.properties.get(key).map(|schema| schema.deref())
   }
 
   pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> {
@@ -475,6 +527,30 @@ mod tests {
       }
       assert_eq!(equals, 1);
     }
+  }
+
+  #[test]
+  fn test_schema_object_insert_property_snake_cases() {
+    let mut schema_1 = Schema::object();
+    schema_1.insert_property("helloWorld", Schema::boolean());
+    schema_1.insert_property("yo yo", Schema::string());
+    schema_1.insert_property("COOL_COOL", Schema::number());
+    assert!(schema_1.get_property("helloWorld").is_none());
+    assert!(schema_1.get_property("yo yo").is_none());
+    assert!(schema_1.get_property("COOL_COOL").is_none());
+    assert!(schema_1.get_property("hello_world").is_some());
+    assert!(schema_1.get_property("yo_yo").is_some());
+    assert!(schema_1.get_property("cool_cool").is_some());
+    let mut schema_2 = Schema::object();
+    schema_2.insert_boxed_property("helloWorld", Box::new(Schema::boolean()));
+    schema_2.insert_boxed_property("yo yo", Box::new(Schema::string()));
+    schema_2.insert_boxed_property("COOL_COOL", Box::new(Schema::number()));
+    assert!(schema_2.get_property("helloWorld").is_none());
+    assert!(schema_2.get_property("yo yo").is_none());
+    assert!(schema_2.get_property("COOL_COOL").is_none());
+    assert!(schema_2.get_property("hello_world").is_some());
+    assert!(schema_2.get_property("yo_yo").is_some());
+    assert!(schema_2.get_property("cool_cool").is_some());
   }
 
   #[test]

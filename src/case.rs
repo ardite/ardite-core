@@ -32,9 +32,9 @@ impl Case {
   pub fn is_case(&self, string: &str) -> bool {
     match *self {
       Case::Same => true,
-      Case::Camel => inflector::cases::camelcase::is_camel_case(string.clone()),
-      Case::Kebab => inflector::cases::kebabcase::is_kebab_case(string.clone()),
-      Case::Snake => inflector::cases::snakecase::is_snake_case(string.clone())
+      Case::Camel => inflector::cases::camelcase::is_camel_case(string.to_owned()),
+      Case::Kebab => inflector::cases::kebabcase::is_kebab_case(string.to_owned()),
+      Case::Snake => inflector::cases::snakecase::is_snake_case(string.to_owned())
     }
   }
 }

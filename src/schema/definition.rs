@@ -10,6 +10,7 @@ use serde_json;
 use serde_yaml;
 use url::Url;
 
+use case::Snake;
 use error::{Error, NotAcceptable};
 use schema::{Schema, SchemaObject};
 use value::Key;
@@ -43,13 +44,32 @@ impl Definition {
     self.driver.as_ref()
   }
 
-  /// Add a new type to the `Definition`.
+  /// Add a new type to the `Definition`. Whatever name gets passed in will
+  /// automatically get converted to snake case. Keys get converted because we
+  /// want to guarantee that all type keys inserted are in the snake case
+  /// style. By making this guarantee we allow our services to be flexible with
+  /// the names they display.
+  ///
+  /// If the case conversions were in the deserialization code this guarantee
+  /// could not be made.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::schema::{Definition, Type};
+  ///
+  /// let mut definition = Definition::new();
+  ///
+  /// definition.insert_type("helloWorld", Type::new());
+  ///
+  /// assert!(definition.get_type("helloWorld").is_none());
+  /// assert_eq!(definition.get_type("hello_world").unwrap(), &Type::new());
+  /// ```
   pub fn insert_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
-    self.types.insert(name.into(), type_);
+    self.types.insert(Snake.to_case(name.into()), type_);
   }
 
   /// Gets type of a certain name.
-  pub fn get_type<'a, K>(&self, name: K) -> Option<&Type> where K: Into<&'a Key> {
+  pub fn get_type(&self, name: &str) -> Option<&Type> {
     self.types.get(name.into())
   }
 
@@ -112,7 +132,7 @@ impl Type {
 
   // Proxy stuffs.
   #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.insert_property(key, schema); }
-  #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
+  #[inline] pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.insert_boxed_property(key, schema); }
   #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
   #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
   #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
@@ -141,5 +161,24 @@ impl Driver {
   /// Returns the URL to the driver.
   pub fn url(&self) -> &Url {
     &self.url
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use schema::{Definition, Type};
+
+  #[test]
+  fn insert_type_will_snake_case() {
+    let mut definition = Definition::new();
+    definition.insert_type("helloWorld", Type::new());
+    definition.insert_type("yo yo", Type::new());
+    definition.insert_type("COOL_COOL", Type::new());
+    assert!(definition.get_type("helloWorld").is_none());
+    assert!(definition.get_type("yo yo").is_none());
+    assert!(definition.get_type("COOL_COOL").is_none());
+    assert!(definition.get_type("hello_world").is_some());
+    assert!(definition.get_type("yo_yo").is_some());
+    assert!(definition.get_type("cool_cool").is_some());
   }
 }

@@ -116,7 +116,7 @@ impl Deserialize for Type {
         type_.set_required(required.unwrap_or_default());
         if additional_properties.unwrap_or(false) { type_.enable_additional_properties(); }
         for (key, schema) in properties.unwrap_or_default() {
-          type_.add_boxed_property(key, schema);
+          type_.insert_boxed_property(key, schema);
         }
 
         if let Some(driver_config) = driver_config { type_.set_driver(driver_config); }
@@ -230,7 +230,7 @@ impl Deserialize for Box<Schema> {
               schema.set_required(required.unwrap_or_default());
               if additional_properties.unwrap_or(false) { schema.enable_additional_properties(); }
               for (key, sub_schema) in properties.unwrap_or_default() {
-                schema.add_boxed_property(key, sub_schema);
+                schema.insert_boxed_property(key, sub_schema);
               }
               Ok(Box::new(schema))
             },
