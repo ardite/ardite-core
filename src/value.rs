@@ -9,6 +9,7 @@ use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor
 use serde::de::impls::VecVisitor;
 use serde_json;
 
+use case::Case;
 use error::Error;
 
 /// The type which represents the key for maps used throughout the Ardite
@@ -83,6 +84,7 @@ impl Value {
     }
   }
 
+  #[inline]
   pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(Key) -> Key {
     match self {
       Value::Object(object) => {
@@ -96,6 +98,7 @@ impl Value {
     }
   }
 
+  #[inline]
   pub fn map_values<F>(self, transform: F) -> Value where F: Fn(Value) -> Value {
     match self {
       Value::Object(object) => {
@@ -114,6 +117,38 @@ impl Value {
       },
       value @ _ => value
     }
+  }
+
+  #[inline]
+  pub fn map_entries<F>(self, transform: F) -> Value where F: Fn((Key, Value)) -> (Key, Value) {
+    match self {
+      Value::Object(object) => {
+        let mut new_object = Object::new();
+        for (key, value) in object.into_iter() {
+          let (new_key, new_value) = transform(key, value);
+          new_object.insert(new_key, new_value);
+        }
+        new_object
+      },
+      value @ _ => value
+    }
+  }
+
+  pub fn keys_to_case(self, case: &Case) -> Value {
+    self.map_entries(|(key, value)| {
+      (case.to_case(key), match value {
+        // If the value is an array, it has sub values which may be transformed
+        // but `map_entries` skips it.
+        Value::Array(array) => {
+          let mut new_array = Array::new();
+          for value in array.into_iter() {
+            new_array.push(value.keys_to_case(case));
+          }
+          Value::Array(new_array)
+        },
+        _ => value.keys_to_case(case)
+      })
+    })
   }
 
   /// Creates a `Value` from a JSON string.
