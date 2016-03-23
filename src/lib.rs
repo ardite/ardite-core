@@ -1,6 +1,7 @@
 #![allow(unknown_lints)]
 // TODO: #![deny(missing_docs)]
 
+extern crate inflector;
 #[macro_use(lazy_static)]
 extern crate lazy_static;
 #[macro_use(linear_map)]
@@ -20,11 +21,12 @@ extern crate mongodb;
 #[macro_use]
 mod macros;
 
+pub mod case;
 pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
-mod service;
+    mod service;
 pub mod value;
 
 pub use error::Error;
