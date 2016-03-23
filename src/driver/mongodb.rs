@@ -376,7 +376,7 @@ mod tests {
     let mut definition = Definition::new();
     let mut type_ = Type::new(collection_name.clone());
     type_.set_schema(Schema::object());
-    definition.add_type(type_);
+    definition.insert_type(type_);
 
     let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
     driver.database.drop_collection(&collection_name).unwrap();

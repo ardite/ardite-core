@@ -68,7 +68,7 @@ impl Deserialize for Definition {
 
         if let Some(types) = types {
           for (key, type_) in types {
-            definition.add_type(key, type_);
+            definition.insert_type(key, type_);
           }
         }
 

@@ -334,7 +334,7 @@ impl SchemaObject {
     }
   }
 
-  pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
+  pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
     self.properties.insert(key.into(), Box::new(schema));
   }
 
@@ -435,18 +435,18 @@ mod tests {
     let mut object_2_raw = Schema::object();
     object_2_raw.set_required(vec!["hello", "a"]);
     object_2_raw.enable_additional_properties();
-    object_2_raw.add_property("goodbye", Schema::boolean());
+    object_2_raw.insert_property("goodbye", Schema::boolean());
     let mut object_3_raw = Schema::object();
-    object_3_raw.add_property("hello", Schema::number());
-    object_3_raw.add_property("goodbye", {
+    object_3_raw.insert_property("hello", Schema::number());
+    object_3_raw.insert_property("goodbye", {
       let mut object = Schema::object();
-      object.add_property("a", Schema::number());
+      object.insert_property("a", Schema::number());
       object
     });
     let mut array_1_raw = Schema::array();
     array_1_raw.set_items({
       let mut object = Schema::object();
-      object.add_property("num", Schema::number());
+      object.insert_property("num", Schema::number());
       object
     });
     let mut array_2_raw = Schema::array();
@@ -502,13 +502,13 @@ mod tests {
   #[test]
   fn test_get_object() {
     let mut object = Schema::object();
-    object.add_property("hello", Schema::boolean());
-    object.add_property("world", Schema::boolean());
-    object.add_property("5", Schema::boolean());
-    object.add_property("goodbye", {
+    object.insert_property("hello", Schema::boolean());
+    object.insert_property("world", Schema::boolean());
+    object.insert_property("5", Schema::boolean());
+    object.insert_property("goodbye", {
       let mut goodbye = Schema::object();
-      goodbye.add_property("hello", Schema::boolean());
-      goodbye.add_property("world", Schema::boolean());
+      goodbye.insert_property("hello", Schema::boolean());
+      goodbye.insert_property("world", Schema::boolean());
       goodbye
     });
     assert!(object.get(point!["yo"]).is_none());
@@ -571,19 +571,19 @@ mod tests {
   #[test]
   fn test_query_object() {
     let mut object = Schema::object();
-    object.add_property("hello", Schema::boolean());
-    object.add_property("world", Schema::boolean());
-    object.add_property("5", Schema::boolean());
-    object.add_property("goodbye", {
+    object.insert_property("hello", Schema::boolean());
+    object.insert_property("world", Schema::boolean());
+    object.insert_property("5", Schema::boolean());
+    object.insert_property("goodbye", {
       let mut goodbye = Schema::object();
-      goodbye.add_property("hello", Schema::boolean());
-      goodbye.add_property("world", Schema::boolean());
+      goodbye.insert_property("hello", Schema::boolean());
+      goodbye.insert_property("world", Schema::boolean());
       goodbye
     });
     let mut object_additional = Schema::object();
     object_additional.enable_additional_properties();
-    object_additional.add_property("hello", Schema::boolean());
-    object_additional.add_property("world", Schema::boolean());
+    object_additional.insert_property("hello", Schema::boolean());
+    object_additional.insert_property("world", Schema::boolean());
     assert!(object.validate_query(&Query::Keys(linear_map! {
       str!("world") => Query::All,
       str!("5") => Query::All,

@@ -44,7 +44,7 @@ impl Definition {
   }
 
   /// Add a new type to the `Definition`.
-  pub fn add_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
+  pub fn insert_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
     self.types.insert(name.into(), type_);
   }
 
@@ -111,7 +111,7 @@ impl Type {
   }
 
   // Proxy stuffs.
-  #[inline] pub fn add_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.add_property(key, schema); }
+  #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.insert_property(key, schema); }
   #[inline] pub fn add_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.add_boxed_property(key, schema); }
   #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
   #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }

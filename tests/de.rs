@@ -14,17 +14,17 @@ fn create_basic_definition() -> Definition {
   // TODO: use order in file, not serde’s `BTreeMap` order.
   let mut definition = Definition::new();
 
-  definition.add_type("person", {
+  definition.insert_type("person", {
     let mut person = Type::new();
     person.set_required(vec!["email"]);
-    person.add_property("email", {
+    person.insert_property("email", {
       let mut email = Schema::string();
       email.set_min_length(4);
       email.set_max_length(256);
       email.set_pattern(Regex::new(r".+@.+\..+").unwrap());
       email
     });
-    person.add_property("name", {
+    person.insert_property("name", {
       let mut name = Schema::string();
       name.set_min_length(2);
       name.set_max_length(64);
@@ -33,21 +33,21 @@ fn create_basic_definition() -> Definition {
     person
   });
 
-  definition.add_type("post", {
+  definition.insert_type("post", {
     let mut post = Type::new();
     post.set_required(vec!["headline"]);
-    post.add_property("headline", {
+    post.insert_property("headline", {
       let mut headline = Schema::string();
       headline.set_min_length(4);
       headline.set_max_length(1024);
       headline
     });
-    post.add_property("text", {
+    post.insert_property("text", {
       let mut text = Schema::string();
       text.set_max_length(65536);
       text
     });
-    post.add_property("topic", {
+    post.insert_property("topic", {
       Schema::enum_(vec!["showcase", "help", "ama"])
     });
     post
@@ -63,17 +63,17 @@ fn create_kitchen_sink_definition() -> Definition {
     Driver::new(Url::parse("scheme://host:1234?key1=value1&key2=value2#fragment").unwrap())
   );
 
-  definition.add_type("a", Type::new());
+  definition.insert_type("a", Type::new());
 
-  definition.add_type("b", {
+  definition.insert_type("b", {
     let mut b = Type::new();
     b.set_driver(Driver::new(Url::parse("party://fun:4242").unwrap()));
     b
   });
 
-  definition.add_type("c", {
+  definition.insert_type("c", {
     let mut c = Type::new();
-    c.add_property("array", {
+    c.insert_property("array", {
       let mut array = Schema::array();
       array.set_items({
         let mut sub_array = Schema::array();
@@ -82,17 +82,17 @@ fn create_kitchen_sink_definition() -> Definition {
       });
       array
     });
-    c.add_property("boolean", Schema::boolean());
-    c.add_property("enum", Schema::enum_(vec![value!("red"), value!(2), value!(false), value!({ "hello" => { "world" => 8 } })]));
-    c.add_property("integer", {
+    c.insert_property("boolean", Schema::boolean());
+    c.insert_property("enum", Schema::enum_(vec![value!("red"), value!(2), value!(false), value!({ "hello" => { "world" => 8 } })]));
+    c.insert_property("integer", {
       let mut number = Schema::number();
       number.set_multiple_of(1.0);
       number.set_minimum(8.0);
       number.set_maximum(30.0);
       number
     });
-    c.add_property("null", Schema::null());
-    c.add_property("number", {
+    c.insert_property("null", Schema::null());
+    c.insert_property("number", {
       let mut number = Schema::number();
       number.set_multiple_of(1.1);
       number.set_minimum(2.2);
@@ -100,14 +100,14 @@ fn create_kitchen_sink_definition() -> Definition {
       number.enable_exclusive_maximum();
       number
     });
-    c.add_property("object", {
+    c.insert_property("object", {
       let mut object = Schema::object();
       object.set_required(vec!["hello"]);
       object.enable_additional_properties();
-      object.add_property("george", Schema::string());
-      object.add_property("hello", {
+      object.insert_property("george", Schema::string());
+      object.insert_property("hello", {
         let mut hello = Schema::object();
-        hello.add_property("world", Schema::null());
+        hello.insert_property("world", Schema::null());
         hello
       });
       object
