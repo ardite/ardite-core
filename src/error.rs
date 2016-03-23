@@ -1,14 +1,15 @@
 //! This module focuses on handling errors generated when using Ardite in a
 //! graceful manner.
 
-use std::io::Error as IOError;
-use std::error::Error as ErrorTrait;
-use std::fmt::{Display, Formatter, Result as FmtResult};
+use std::error;
+use std::io;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 
 #[cfg(test)]
 use regex::Regex;
-use serde_json::error::Error as JSONError;
-use serde_yaml::error::Error as YAMLError;
+use serde_json;
+use serde_yaml;
 
 use value::{Object, Value};
 
@@ -16,7 +17,7 @@ use value::{Object, Value};
 /// type. This allows for a comprehensive display of the error when a service
 /// reports it to the user.
 ///
-/// Information included with the error includes an `ErrorCode` (which maps to
+/// Information included with the error includes an `Code` (which maps to
 /// an HTTP status code), a message, and an optional hint telling the user how
 /// to fix the error.
 ///
@@ -34,7 +35,7 @@ use value::{Object, Value};
 #[derive(PartialEq, Debug)]
 pub struct Error {
   /// A specific error code which describes the error.
-  code: ErrorCode,
+  code: Code,
   /// A message providing more detail beyond the error code.
   message: String,
   /// A hint to the user on what to do next to try and avoid the error
@@ -44,7 +45,7 @@ pub struct Error {
 
 impl Error {
   /// Easily create a new error.
-  pub fn new<S>(code: ErrorCode, message: S) -> Self where S: Into<String> {
+  pub fn new<S>(code: Code, message: S) -> Self where S: Into<String> {
     Error {
       code: code,
       message: message.into(),
@@ -59,7 +60,7 @@ impl Error {
   }
 
   /// Get the code for the error.
-  pub fn code(&self) -> &ErrorCode {
+  pub fn code(&self) -> &Code {
     &self.code
   }
 
@@ -113,15 +114,15 @@ impl Error {
   }
 
   /// Convenience function for saying a thing failed validation using
-  /// `ErrorCode::BadRequest`.
+  /// `Code::BadRequest`.
   ///
   /// # Example
   /// ```rust
-  /// use ardite::error::{Error, ErrorCode};
+  /// use ardite::error::{Error, Code};
   ///
   /// let error = Error::invalid("Failed validation.", "Try fixing your syntax!");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::BadRequest, "Failed validation.").set_hint("Try fixing your syntax!"));
+  /// assert_eq!(error, Error::new(Code::BadRequest, "Failed validation.").set_hint("Try fixing your syntax!"));
   /// ```
   pub fn invalid<S1, S2>(message: S1, hint: S2) -> Self where S1: Into<String>, S2: Into<String> {
     Error {
@@ -132,15 +133,15 @@ impl Error {
   }
 
   /// Convenience function for saying a the requested resource was not found
-  /// using `ErrorCode::NotFound`.
+  /// using `Code::NotFound`.
   ///
   /// # Example
   /// ```rust
-  /// use ardite::error::{Error, ErrorCode};
+  /// use ardite::error::{Error, Code};
   ///
   /// let error = Error::not_found("Where’s Waldo?");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::NotFound, "Where’s Waldo?"));
+  /// assert_eq!(error, Error::new(Code::NotFound, "Where’s Waldo?"));
   /// ```
   pub fn not_found<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -151,15 +152,15 @@ impl Error {
   }
 
   /// Convenience function for saying there was an internal error using
-  /// `ErrorCode::Internal`.
+  /// `Code::Internal`.
   ///
   /// # Example
   /// ```rust
-  /// use ardite::error::{Error, ErrorCode};
+  /// use ardite::error::{Error, Code};
   ///
   /// let error = Error::internal("Something blew up.");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::Internal, "Something blew up."));
+  /// assert_eq!(error, Error::new(Code::Internal, "Something blew up."));
   /// ```
   pub fn internal<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -171,15 +172,15 @@ impl Error {
 
   /// Convenience function for creating an unimplemented error with a plain
   /// message describing what is unimplemented using
-  /// `ErrorCode::NotImplemented`.
+  /// `Code::NotImplemented`.
   ///
   /// # Example
   /// ```rust
-  /// use ardite::error::{Error, ErrorCode};
+  /// use ardite::error::{Error, Code};
   ///
   /// let error = Error::unimplemented("Cache invalidation is hard.");
   ///
-  /// assert_eq!(error, Error::new(ErrorCode::NotImplemented, "Cache invalidation is hard."));
+  /// assert_eq!(error, Error::new(Code::NotImplemented, "Cache invalidation is hard."));
   /// ```
   pub fn unimplemented<S>(message: S) -> Self where S: Into<String> {
     Error {
@@ -202,7 +203,7 @@ impl Error {
 }
 
 impl Display for Error {
-  fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+  fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
     try!(write!(fmt, "code: {}\n", self.code));
     try!(write!(fmt, "message: {}", self.message));
 
@@ -214,35 +215,35 @@ impl Display for Error {
   }
 }
 
-impl ErrorTrait for Error {
+impl error::Error for Error {
   fn description(&self) -> &str {
     self.message.as_str()
   }
 }
 
-impl From<IOError> for Error {
-  fn from(error: IOError) -> Self {
+impl From<io::Error> for Error {
+  fn from(error: io::Error) -> Self {
     Error {
-      code: ErrorCode::Internal,
+      code: Internal,
       message: format!("{}", error),
       hint: None
     }
   }
 }
 
-impl From<JSONError> for Error {
-  fn from(error: JSONError) -> Self {
+impl From<serde_json::Error> for Error {
+  fn from(error: serde_json::Error) -> Self {
     match error {
-      JSONError::Syntax(_, line, column) => {
+      serde_json::Error::Syntax(_, line, column) => {
         Error {
-          code: ErrorCode::BadRequest,
+          code: BadRequest,
           message: format!("{}", error),
           hint: Some(format!("Make sure your JSON syntax is correct around line {} column {}.", line, column))
         }
       },
       _ => {
         Error {
-          code: ErrorCode::Internal,
+          code: Internal,
           message: format!("{}", error),
           hint: None
         }
@@ -251,19 +252,19 @@ impl From<JSONError> for Error {
   }
 }
 
-impl From<YAMLError> for Error {
-  fn from(error: YAMLError) -> Self {
+impl From<serde_yaml::Error> for Error {
+  fn from(error: serde_yaml::Error) -> Self {
     match error {
-      YAMLError::Custom(ref message) => {
+      serde_yaml::Error::Custom(ref message) => {
         Error {
-          code: ErrorCode::BadRequest,
+          code: BadRequest,
           message: message.to_owned(),
           hint: Some("Make sure your YAML syntax is correct.".to_owned())
         }
       },
       _ => {
         Error {
-          code: ErrorCode::Internal,
+          code: Internal,
           message: format!("{}", error),
           hint: None
         }
@@ -278,7 +279,7 @@ impl From<YAMLError> for Error {
 ///
 /// [1]: http://www.restapitutorial.com/httpstatuscodes.html
 #[derive(PartialEq, Debug)]
-pub enum ErrorCode {
+pub enum Code {
   /// A bad syntax was used.
   BadRequest,
   /// Permissions do not allow this to happen.
@@ -299,9 +300,9 @@ pub enum ErrorCode {
   NotImplemented
 }
 
-pub use error::ErrorCode::*;
+pub use error::Code::*;
 
-impl ErrorCode {
+impl Code {
   pub fn to_u16(&self) -> u16 {
     match *self {
       BadRequest => 400,
@@ -331,8 +332,8 @@ impl ErrorCode {
   }
 }
 
-impl Display for ErrorCode {
-  fn fmt(&self, fmt: &mut Formatter) -> FmtResult {
+impl Display for Code {
+  fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
     try!(write!(fmt, "{} {}", self.to_u16(), self.reason()));
     Ok(())
   }

@@ -29,6 +29,6 @@ pub mod value;
 
 pub use driver::Driver;
 pub use error::Error;
-pub use schema::{Definition, Type, DriverConfig, Schema};
+pub use schema::Definition;
 pub use service::Service;
 pub use value::{Key, Pointer, Object, Array, Value};

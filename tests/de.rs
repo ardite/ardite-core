@@ -8,7 +8,7 @@ use std::path::PathBuf;
 use regex::Regex;
 use url::Url;
 
-use ardite::{Definition, Type, DriverConfig, Schema};
+use ardite::schema::{Definition, Type, Driver, Schema};
 
 fn create_basic_definition() -> Definition {
   // TODO: use order in file, not serde’s `BTreeMap` order.
@@ -60,14 +60,14 @@ fn create_kitchen_sink_definition() -> Definition {
   let mut definition = Definition::new();
 
   definition.set_driver(
-    DriverConfig::new(Url::parse("scheme://host:1234?key1=value1&key2=value2#fragment").unwrap())
+    Driver::new(Url::parse("scheme://host:1234?key1=value1&key2=value2#fragment").unwrap())
   );
 
   definition.add_type("a", Type::new());
 
   definition.add_type("b", {
     let mut b = Type::new();
-    b.set_driver(DriverConfig::new(Url::parse("party://fun:4242").unwrap()));
+    b.set_driver(Driver::new(Url::parse("party://fun:4242").unwrap()));
     b
   });
 

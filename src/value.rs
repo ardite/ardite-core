@@ -189,20 +189,20 @@ impl<'a> From<&'a str> for Value {
 
 /// An iterator of values. Used by drivers to convert their own iterator
 /// implementations into a single type.
-pub struct ValueIter<'a> {
+pub struct Iter<'a> {
   iter: Box<Iterator<Item=Value> + 'a>
 }
 
-impl<'a> ValueIter<'a> {
+impl<'a> Iter<'a> {
   /// Create a new value iterator.
   pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'a {
-    ValueIter {
+    Iter {
       iter: Box::new(iter)
     }
   }
 }
 
-impl<'a> Iterator for ValueIter<'a> {
+impl<'a> Iterator for Iter<'a> {
   type Item = Value;
 
   #[inline]

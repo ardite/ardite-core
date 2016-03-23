@@ -4,25 +4,26 @@ use std::path::PathBuf;
 use linear_map::LinearMap;
 
 use error::Error;
-use schema::{Definition, Type, DriverConfig};
-use driver::{discover_driver, Driver, MemoryDriver};
+use schema;
+use schema::{Definition, Type};
+use driver::{discover_driver, Driver, Memory};
 use value::Key;
 
 pub struct Service<'a> {
   definition: Definition,
-  memory_driver: MemoryDriver,
+  memory: Memory,
   /// A map of driver configs to their respective drivers. We use a `LinearMap`
   /// because it does not require the `DriverConfig` to implement anything
   /// crazy like `Hash` or `Ord`. We also don’t ever suspect having a large
   /// number of drivers.
-  drivers: LinearMap<&'a DriverConfig, Box<Driver>>
+  drivers: LinearMap<&'a schema::Driver, Box<Driver>>
 }
 
 impl<'a> Service<'a> {
   pub fn new(definition: Definition) -> Self {
     Service {
       definition: definition,
-      memory_driver: MemoryDriver::new(),
+      memory: Memory::new(),
       drivers: LinearMap::new()
     }
   }

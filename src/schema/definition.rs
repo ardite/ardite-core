@@ -19,7 +19,7 @@ use value::Key;
 #[derive(PartialEq, Debug)]
 pub struct Definition {
   /// The default driver when one is not specified for a specific type.
-  driver: Option<DriverConfig>,
+  driver: Option<Driver>,
   /// Types defined in the database.
   types: BTreeMap<Key, Type>
 }
@@ -34,12 +34,12 @@ impl Definition {
   }
 
   /// Set the driver config.
-  pub fn set_driver(&mut self, driver: DriverConfig) {
+  pub fn set_driver(&mut self, driver: Driver) {
     self.driver = Some(driver);
   }
 
   /// Get the driver config.
-  pub fn driver(&self) -> Option<&DriverConfig> {
+  pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
 
@@ -86,7 +86,7 @@ impl Definition {
 #[derive(PartialEq, Debug)]
 pub struct Type {
   /// A type may optionally have its own driver.
-  driver: Option<DriverConfig>,
+  driver: Option<Driver>,
   /// The schema used to validate data which claims to be of this type.
   schema: SchemaObject
 }
@@ -101,12 +101,12 @@ impl Type {
   }
 
   /// Set the driver config.
-  pub fn set_driver(&mut self, driver: DriverConfig) {
+  pub fn set_driver(&mut self, driver: Driver) {
     self.driver = Some(driver);
   }
 
   /// Get the driver config.
-  pub fn driver(&self) -> Option<&DriverConfig> {
+  pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
 
@@ -124,16 +124,16 @@ impl Type {
 /// driver.
 // TODO: can't finalize this until dynamic loading of drivers is implemented.
 #[derive(Eq, PartialEq, Debug)]
-pub struct DriverConfig {
+pub struct Driver {
   /// The URL to pass into the driver when connecting.
   url: Url
 }
 
-impl DriverConfig {
+impl Driver {
   /// Create a new driver config. Is only passed a URL and the scheme of the
   /// URL will be used for the name.
   pub fn new(url: Url) -> Self {
-    DriverConfig {
+    Driver {
       url: url
     }
   }

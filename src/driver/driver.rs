@@ -2,7 +2,7 @@ use url::Url;
 
 use error::Error;
 use query::{Condition, SortRule, Range, Query};
-use value::{Key, Value, ValueIter};
+use value::{Key, Value, Iter};
 
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
@@ -31,7 +31,7 @@ pub trait Driver: Send + Sync {
     sort: Vec<SortRule>,
     range: Range,
     query: Query
-  ) -> Result<ValueIter, Error>;
+  ) -> Result<Iter, Error>;
 
   /// Read a single value from the driver. The default implementation uses the
   /// driver read method with a range of one.

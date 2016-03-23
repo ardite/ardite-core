@@ -1,11 +1,12 @@
 use std::collections::BTreeMap;
 
 use regex::Regex;
-use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, MapVisitor};
+use serde::de;
+use serde::de::{Deserialize, Deserializer, Visitor, MapVisitor};
 use serde::de::impls::IgnoredAny;
 use url::Url;
 
-use schema::{Definition, Type, DriverConfig, Schema};
+use schema::{Definition, Type, Driver, Schema};
 use value::{Key, Value};
 
 macro_rules! visit_map_fields {
@@ -21,7 +22,7 @@ macro_rules! visit_map_fields {
         impl Visitor for __Visitor {
           type Value = __Field;
 
-          fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: DeError {
+          fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: de::Error {
             match value {
               $($field_name => Ok(__Field::$var_name),)*
               _ => Ok(__Field::__Ignore)
@@ -53,7 +54,7 @@ impl Deserialize for Definition {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-        let mut driver_config: Option<DriverConfig> = None;
+        let mut driver_config: Option<Driver> = None;
         let mut types: Option<BTreeMap<Key, Type>> = None;
 
         visit_map_fields!(visitor, {
@@ -88,7 +89,7 @@ impl Deserialize for Type {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-        let mut driver_config: Option<DriverConfig> = None;
+        let mut driver_config: Option<Driver> = None;
         let mut type_string: Option<String> = None;
         let mut properties: Option<BTreeMap<String, Box<Schema>>> = None;
         let mut required: Option<Vec<String>> = None;
@@ -104,10 +105,10 @@ impl Deserialize for Type {
 
         if let Some(type_string) = type_string {
           if type_string != "object" {
-            return Err(DeError::custom(format!("Schema type must be 'object', not '{}'.", type_string)));
+            return Err(de::Error::custom(format!("Schema type must be 'object', not '{}'.", type_string)));
           }
         } else {
-          return Err(DeError::custom("Schema type property must be defined."));
+          return Err(de::Error::custom("Schema type property must be defined."));
         }
 
         let mut type_ = Type::new();
@@ -128,28 +129,28 @@ impl Deserialize for Type {
   }
 }
 
-impl Deserialize for DriverConfig {
+impl Deserialize for Driver {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-    struct DriverConfigVisitor;
+    struct DriverVisitor;
 
-    impl Visitor for DriverConfigVisitor {
-      type Value = DriverConfig;
+    impl Visitor for DriverVisitor {
+      type Value = Driver;
 
       #[inline]
-      fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: DeError {
+      fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: de::Error {
         match Url::parse(value) {
-          Ok(url) => Ok(DriverConfig::new(url)),
-          Err(error) => Err(DeError::custom(format!("{}", error)))
+          Ok(url) => Ok(Driver::new(url)),
+          Err(error) => Err(de::Error::custom(format!("{}", error)))
         }
       }
 
       #[inline]
-      fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: DeError {
+      fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: de::Error {
         self.visit_str(&value)
       }
     }
 
-    deserializer.deserialize(DriverConfigVisitor)
+    deserializer.deserialize(DriverVisitor)
   }
 }
 
@@ -233,10 +234,10 @@ impl Deserialize for Box<Schema> {
               }
               Ok(Box::new(schema))
             },
-            _ => Err(DeError::custom(format!("Cannot use '{}' for a schema type property.", type_)))
+            _ => Err(de::Error::custom(format!("Cannot use '{}' for a schema type property.", type_)))
           }
         } else {
-          Err(DeError::custom("No type property for schema was specified."))
+          Err(de::Error::custom("No type property for schema was specified."))
         }
       }
     }
@@ -250,7 +251,7 @@ mod tests {
   use serde_json;
   use url::Url;
 
-  use schema::{Definition, Type, DriverConfig};
+  use schema::{Definition, Type, Driver};
 
   #[test]
   fn test_json_definition() {
@@ -276,9 +277,9 @@ mod tests {
   }
 
   #[test]
-  fn test_json_driver_config() {
-    let from_str = serde_json::from_str::<DriverConfig>;
-    assert_eq!(from_str(r#""mongodb://localhost:27017""#).unwrap(), DriverConfig::new(Url::parse("mongodb://localhost:27017").unwrap()));
+  fn test_json_driver() {
+    let from_str = serde_json::from_str::<Driver>;
+    assert_eq!(from_str(r#""mongodb://localhost:27017""#).unwrap(), Driver::new(Url::parse("mongodb://localhost:27017").unwrap()));
     assert!(from_str(r#""not a url or a name""#).is_err());
   }
 }

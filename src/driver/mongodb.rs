@@ -6,19 +6,19 @@ use mongodb::{Client, ThreadedClient, CommandType};
 use mongodb::common::{ReadPreference, ReadMode};
 use mongodb::connstring;
 use mongodb::db::{Database, ThreadedDatabase};
-use mongodb::error::Error as MongoDBError;
+use mongodb::Error;
 use url::Url;
 
 use driver::Driver;
 use error::Error;
 use query::{Range, SortRule, Condition, Query};
-use value::{Key, Pointer, Value, ValueIter};
+use value::{Key, Pointer, Value, Iter};
 
-struct MongoDriver {
+struct MongoDB {
   database: Database
 }
 
-impl Driver for MongoDriver {
+impl Driver for MongoDB {
   fn connect(url: &Url) -> Result<Self, Error> {
     let config = try!(connstring::parse(uri));
 
@@ -41,7 +41,7 @@ impl Driver for MongoDriver {
     sort: Vec<SortRule>,
     range: Range,
     query: Query
-  ) -> Result<ValueIter, Error> {
+  ) -> Result<Iter, Error> {
     let cursor = try!(self.database.command_cursor(
       {
         let mut spec = doc! {
@@ -80,8 +80,8 @@ impl Driver for MongoDriver {
   }
 }
 
-impl From<MongoDBError> for Error {
-  fn from(error: MongoDBError) -> Self {
+impl From<mongodb::Error> for Error {
+  fn from(error: mongodb::Error) -> Self {
     Error::internal(error.description())
   }
 }

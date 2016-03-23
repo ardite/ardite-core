@@ -9,4 +9,4 @@ pub mod mongodb;
 
 pub use driver::driver::Driver;
 pub use driver::discover::discover_driver;
-pub use driver::memory::MemoryDriver;
+pub use driver::memory::Memory;
