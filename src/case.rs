@@ -1,12 +1,9 @@
-use std::str::FromStr;
-
 use inflector;
-
-use error::Error;
 
 /// Enum for converting one case into another. Uses the [`Inflector`][1] crate.
 ///
 /// [1]: https://crates.io/crates/Inflector
+#[derive(PartialEq, Debug)]
 pub enum Case {
   /// A case identity. When converting it makes sure to always return the
   /// original value.
@@ -35,6 +32,39 @@ pub enum Case {
 pub use self::Case::*;
 
 impl Case {
+  /// Gets the enum case variant from its lower case name.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::case::*;
+  ///
+  /// assert_eq!(Case::from_name("same").unwrap(), Same);
+  /// assert_eq!(Case::from_name("camel").unwrap(), Camel);
+  /// assert_eq!(Case::from_name("kebab").unwrap(), Kebab);
+  /// assert_eq!(Case::from_name("snake").unwrap(), Snake);
+  /// assert_eq!(Case::from_name("class").unwrap(), Class);
+  /// assert_eq!(Case::from_name("screaming").unwrap(), Screaming);
+  /// assert_eq!(Case::from_name("sentence").unwrap(), Sentence);
+  /// assert_eq!(Case::from_name("title").unwrap(), Title);
+  /// assert_eq!(Case::from_name("upper").unwrap(), Upper);
+  /// assert_eq!(Case::from_name("lower").unwrap(), Lower);
+  /// ```
+  pub fn from_name(string: &str) -> Option<Self> {
+    match string {
+      "same" => Some(Same),
+      "camel" => Some(Camel),
+      "kebab" => Some(Kebab),
+      "snake" => Some(Snake),
+      "class" => Some(Class),
+      "screaming" => Some(Screaming),
+      "sentence" => Some(Sentence),
+      "title" => Some(Title),
+      "upper" => Some(Upper),
+      "lower" => Some(Lower),
+      _ => None
+    }
+  }
+
   /// Converts a string into the case of `self`. Note that because the cases
   /// are unit variants, you will use `.` to call the methods and not `::`.
   ///
@@ -111,29 +141,6 @@ impl Case {
       Title => inflector::cases::titlecase::is_title_case(string.to_owned()),
       Upper => inflector::cases::uppercase::is_upper_case(string.to_owned()),
       Lower => inflector::cases::lowercase::is_lower_case(string.to_owned())
-    }
-  }
-}
-
-impl FromStr for Case {
-  type Err = Error;
-
-  fn from_str(string: &str) -> Result<Self, Error> {
-    match string {
-      "same" => Ok(Same),
-      "camel" => Ok(Camel),
-      "kebab" => Ok(Kebab),
-      "snake" => Ok(Snake),
-      "class" => Ok(Class),
-      "screaming" => Ok(Screaming),
-      "sentence" => Ok(Sentence),
-      "title" => Ok(Title),
-      "upper" => Ok(Upper),
-      "lower" => Ok(Lower),
-      string @ _ => Err(Error::invalid(
-        format!("String '{}' is not a valid case variant.", string),
-        "Use a valid case variant like same, camel, kebab, snake, class, screaming, sentence, title, upper, or lower."
-      ))
     }
   }
 }
