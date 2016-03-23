@@ -24,11 +24,9 @@ pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
-pub mod service;
+mod service;
 pub mod value;
 
-pub use driver::Driver;
 pub use error::Error;
-pub use schema::Definition;
-pub use service::Service;
-pub use value::{Key, Pointer, Object, Array, Value};
+pub use service::*;
+pub use value::Value;
