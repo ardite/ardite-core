@@ -1,4 +1,8 @@
+use std::str::FromStr;
+
 use inflector;
+
+use error::Error;
 
 /// Enum for converting one case into another. Uses the [`Inflector`][1] crate.
 ///
@@ -19,16 +23,6 @@ pub enum Case {
 pub use self::Case::*;
 
 impl Case {
-  pub fn from_str(string: &str) -> Option<Self> {
-    match string {
-      "same" => Some(Same),
-      "camel" => Some(Camel),
-      "kebab" => Some(Kebab),
-      "snake" => Some(Snake),
-      _ => None
-    }
-  }
-
   /// Converts a string into the case of `self`. Note that because the cases
   /// are unit variants, you will use `.` to call the methods and not `::`.
   ///
@@ -73,6 +67,23 @@ impl Case {
       Camel => inflector::cases::camelcase::is_camel_case(string.to_owned()),
       Kebab => inflector::cases::kebabcase::is_kebab_case(string.to_owned()),
       Snake => inflector::cases::snakecase::is_snake_case(string.to_owned())
+    }
+  }
+}
+
+impl FromStr for Case {
+  type Err = Error;
+
+  fn from_str(string: &str) -> Result<Self, Error> {
+    match string {
+      "same" => Ok(Same),
+      "camel" => Ok(Camel),
+      "kebab" => Ok(Kebab),
+      "snake" => Ok(Snake),
+      string @ _ => Err(Error::invalid(
+        format!("String '{}' is not a valid case variant.", string),
+        "Use a valid case variant like same, camel, kebab, or snake."
+      ))
     }
   }
 }
