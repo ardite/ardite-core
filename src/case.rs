@@ -28,4 +28,13 @@ impl Case {
       Case::Snake => inflector::cases::snakecase::to_snake_case(string)
     }
   }
+
+  pub fn is_case(&self, string: &str) -> bool {
+    match *self {
+      Case::Same => true,
+      Case::Camel => inflector::cases::camelcase::is_camel_case(string.clone()),
+      Case::Kebab => inflector::cases::kebabcase::is_kebab_case(string.clone()),
+      Case::Snake => inflector::cases::snakecase::is_snake_case(string.clone())
+    }
+  }
 }
