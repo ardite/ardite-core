@@ -125,10 +125,10 @@ impl Value {
       Value::Object(object) => {
         let mut new_object = Object::new();
         for (key, value) in object.into_iter() {
-          let (new_key, new_value) = transform(key, value);
+          let (new_key, new_value) = transform((key, value));
           new_object.insert(new_key, new_value);
         }
-        new_object
+        Value::Object(new_object)
       },
       value @ _ => value
     }
