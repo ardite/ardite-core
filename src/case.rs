@@ -5,6 +5,11 @@ use inflector;
 /// Enum for converting one string case into another. The implementation
 /// currently uses the [`Inflector`][1] crate.
 ///
+/// **Warning:** Backwards compatibility is not guaranteed for those pattern
+/// matching on this enum. The variants that exist now will never be changed or
+/// removed, however new variants may be added breaking any code using
+/// exhaustive pattern matching.
+///
 /// [1]: https://crates.io/crates/Inflector
 #[derive(PartialEq, Debug)]
 pub enum Case {
