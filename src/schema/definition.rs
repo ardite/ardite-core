@@ -71,7 +71,7 @@ impl Definition {
 
   /// Gets type of a certain name.
   pub fn get_type(&self, name: &str) -> Option<&Type> {
-    self.types.get(name.into())
+    self.types.get(name)
   }
 
   /// Gets all of the definition’s types.
