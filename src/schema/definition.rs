@@ -1,4 +1,5 @@
-//! Contains the full definition of a data system which Ardite will use.
+//! The full definition of a data system which Ardite will use to provide
+//! powerful services.
 
 use std::collections::BTreeMap;
 use std::io::BufReader;
@@ -34,12 +35,12 @@ impl Definition {
     }
   }
 
-  /// Set the driver config.
+  /// Set the definition’s driver config.
   pub fn set_driver(&mut self, driver: Driver) {
     self.driver = Some(driver);
   }
 
-  /// Get the driver config.
+  /// Get the definition’s driver config.
   pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
@@ -120,23 +121,44 @@ impl Type {
     }
   }
 
-  /// Set the driver config.
+  /// Set the type’s driver config.
   pub fn set_driver(&mut self, driver: Driver) {
     self.driver = Some(driver);
   }
 
-  /// Get the driver config.
+  /// Get the type’s driver config.
   pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
 
-  // Proxy stuffs.
+  /// Inserts a property into the underlying object schema. See the docs for
+  /// `SchemaObject::insert_property` for more information.
   #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.insert_property(key, schema); }
+
+  /// Inserts a boxed property into the underlying object schema. See the docs
+  /// for `SchemaObject::insert_boxed_property` for more information.
   #[inline] pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.insert_boxed_property(key, schema); }
-  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
-  #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
+
+  /// Gets the properties from the underlying object schema. See the docs for
+  /// `SchemaObject::properties` fro more information.
   #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
+
+  /// Sets the required property keys in the underlying object schema. See the
+  /// docs for `SchemaObject::set_required` for more information.
+  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
+
+  /// Gets the required properties in the underlying object schema. See the
+  /// docs for `SchemaObject::required` for more information.
   #[inline] pub fn required(&self) -> &Vec<Key> { self.schema.required() }
+
+  /// Enable additional properties in the underlying object schema. See the
+  /// docs for `SchemaObject::enable_additional_properties` for more
+  /// information.
+  #[inline] pub fn enable_additional_properties(&mut self) { self.schema.enable_additional_properties() }
+
+  /// Question if whether additional properties are enabled in the underlying
+  /// object schema. See the docs for `SchemaObject::additional_properties` for
+  /// more information.
   #[inline] pub fn additional_properties(&self) -> bool { self.schema.additional_properties() }
 }
 

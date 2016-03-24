@@ -1,4 +1,6 @@
 //! Format for defining the shape of data in an Ardite Schema Definition.
+//! Whereas a normal schema only provides validation, this schema represents a
+//! statically typed system.
 // TODO: change names like `SchemaNone` to `NoneSchema` in the style of `MongoDriver` and `MemoryDriver`.
 
 use std::fmt::Debug;
@@ -35,6 +37,9 @@ lazy_static! {
 ///    meta-schema and specification do not provide a format to easily
 ///    transform to a Rust enum format, therefore a custom definition is
 ///    required.
+///
+/// The biggest thing to understand is that the Ardite schema trait is meant
+/// to describe a statically typed system.
 ///
 /// [1]: http://json-schema.org
 pub trait Schema: Send + Sync + Debug + 'static {
@@ -190,6 +195,7 @@ pub struct SchemaNumber {
 }
 
 impl SchemaNumber {
+  /// Creates a new number schema object.
   pub fn new() -> Self {
     SchemaNumber {
       multiple_of: None,

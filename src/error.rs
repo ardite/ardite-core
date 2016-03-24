@@ -69,7 +69,7 @@ impl Error {
     &self.message
   }
 
-  /// Get the hint—for the error (see what I did there?).
+  /// Take the hint—for the error (see what I did there?).
   pub fn hint(&self) -> Option<&str> {
     self.hint.as_ref().map(|s| s.as_str())
   }
@@ -203,6 +203,16 @@ impl Error {
 }
 
 impl Display for Error {
+  /// Displays an error in multiple lines. For example,
+  /// `Error::invalid("That’s not right.", "Fix it!")` would display as:
+  ///
+  /// ```
+  /// code: 400 Bad Request
+  /// message: That’s not right.
+  /// hint: Fix it!
+  /// ```
+  ///
+  /// This format is subject to change so do not depend on it.
   fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
     try!(write!(fmt, "code: {}\n", self.code));
     try!(write!(fmt, "message: {}", self.message));
@@ -277,32 +287,42 @@ impl From<serde_yaml::Error> for Error {
 /// however only a subset of these codes are supported and some custom codes
 /// were added.
 ///
-/// [1]: http://www.restapitutorial.com/httpstatuscodes.html
+/// Such a subset was decided by codes which were not specific to HTTP and had
+/// universal meaning accross contexts.
+///
+/// **Warning:** Backwards compatibility is not guaranteed for those pattern
+/// matching on this enum. The variants that exist now will *never* be removed
+/// or renamed, however new variants may be added breaking any code using
+/// exhaustive pattern matching.
+///
+/// [1]: https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 #[derive(PartialEq, Debug)]
 pub enum Code {
-  /// A bad syntax was used.
+  /// 400, A bad syntax was used.
   BadRequest,
-  /// Permissions do not allow this to happen.
+  /// 403, Permissions do not allow this to happen.
   Forbidden,
-  /// Resource was not found.
+  /// 404, Resource was not found.
   NotFound,
-  /// Whatever method (think CRUD) used is not allowed.
+  /// 405, Whatever method (think CRUD) used is not allowed.
   MethodNotAllowed,
-  /// The requested resource is not acceptable.
+  /// 406, The requested resource is not acceptable.
   NotAcceptable,
-  /// Present data made the request fail.
+  /// 409, Present data made the request fail.
   Conflict,
-  /// There was an invalid range.
+  /// 416, There was an invalid range.
   BadRange,
-  /// Something bad happened inside a driver.
+  /// 500, Something bad happened inside a driver.
   Internal,
-  /// The feature has not been implemented.
+  /// 501, The feature has not been implemented.
   NotImplemented
 }
 
 pub use self::Code::*;
 
 impl Code {
+  /// Get the positive integer HTTP error code associated with this variant.
+  /// For example the `Code::NotFound` variant would return 404.
   pub fn to_u16(&self) -> u16 {
     match *self {
       BadRequest => 400,
@@ -317,6 +337,9 @@ impl Code {
     }
   }
 
+  /// The HTTP error code “reason phrase” as defined in its specification.
+  /// However, phrases which have clear references to HTTP web servers were
+  /// slightly rephrased.
   pub fn reason(&self) -> &str {
     match *self {
       BadRequest => "Bad Request",
@@ -333,6 +356,14 @@ impl Code {
 }
 
 impl Display for Code {
+  /// Displays the error code number with its reason phrase.
+  ///
+  /// # Example
+  /// ```rust
+  /// use ardite::error::NotFound;
+  ///
+  /// assert_eq!(format!("{}", NotFound), "404 Not Found");
+  /// ```
   fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
     try!(write!(fmt, "{} {}", self.to_u16(), self.reason()));
     Ok(())

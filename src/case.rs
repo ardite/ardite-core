@@ -1,6 +1,9 @@
+//! Allows for the inspection and modification of the case of a string.
+
 use inflector;
 
-/// Enum for converting one case into another. Uses the [`Inflector`][1] crate.
+/// Enum for converting one string case into another. The implementation
+/// currently uses the [`Inflector`][1] crate.
 ///
 /// [1]: https://crates.io/crates/Inflector
 #[derive(PartialEq, Debug)]
