@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ops::Deref;
 use std::path::PathBuf;
 
 use linear_map::LinearMap;
@@ -7,7 +8,8 @@ use error::Error;
 use schema;
 use schema::{Definition, Type};
 use driver::{discover_driver, Driver, Memory};
-use value::Key;
+use query::{Condition, SortRule, Range, Query};
+use value::{Key, Value, Iter};
 
 pub struct Service<'a> {
   definition: Definition,
@@ -62,8 +64,40 @@ impl<'a> Service<'a> {
     &self.definition
   }
 
-  /// Gets all of the service’s definition’s types.
-  pub fn types(&self) -> &BTreeMap<Key, Type> {
-    self.definition.types()
+  #[inline] pub fn get_type(&self, name: &str) -> Option<&Type> { self.definition.get_type(name) }
+  #[inline] pub fn types(&self) -> &BTreeMap<Key, Type> { self.definition.types() }
+
+  #[inline]
+  pub fn read(
+    &self,
+    type_name: &Key,
+    condition: Condition,
+    sort: Vec<SortRule>,
+    range: Range,
+    query: Query
+  ) -> Result<Iter, Error> {
+    let type_ = try!(
+      self.get_type(type_name)
+      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", type_name)))
+    );
+    try!(type_.validate_query(&query));
+    let driver: &Driver = type_.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
+    driver.read(type_name, condition, sort, range, query)
+  }
+
+  #[inline]
+  pub fn read_one(
+    &self,
+    type_name: &Key,
+    condition: Condition,
+    query: Query
+  ) -> Result<Value, Error> {
+    let type_ = try!(
+      self.get_type(type_name)
+      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", type_name)))
+    );
+    try!(type_.validate_query(&query));
+    let driver: &Driver = type_.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
+    driver.read_one(type_name, condition, query)
   }
 }

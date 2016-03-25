@@ -13,8 +13,9 @@ use serde_yaml;
 use url::Url;
 
 use error::{Error, NotAcceptable};
+use query::Query;
 use schema::{Schema, SchemaObject};
-use value::Key;
+use value::{Key, Pointer};
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
@@ -130,6 +131,9 @@ impl Type {
   pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
+
+  #[inline] pub fn get(&self, pointer: Pointer) -> Option<&Schema> { self.schema.get(pointer) }
+  #[inline] pub fn validate_query(&self, query: &Query) -> Result<(), Error> { self.schema.validate_query(query) }
 
   /// Inserts a property into the underlying object schema. See the docs for
   /// `SchemaObject::insert_property` for more information.
