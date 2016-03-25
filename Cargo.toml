@@ -14,7 +14,7 @@ default = []
 driver_mongodb = ["mongodb", "bson"]
 
 [dependencies]
-Inflector = "0.2.0"
+inflections = "1.0.0"
 lazy_static = "0.1.15"
 linear-map = { git = "https://github.com/calebmer/linear-map", features = ["serde_impl"] }
 regex = "0.1.58"

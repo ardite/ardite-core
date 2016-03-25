@@ -5,10 +5,11 @@
 
 use std::fmt::Debug;
 use std::ops::Deref;
+
+use inflections::case::to_snake_case;
 use linear_map::LinearMap;
 use regex::Regex;
 
-use case::Snake;
 use error::Error;
 use query::Query;
 use value::{Key, Pointer, Value};
@@ -367,7 +368,7 @@ impl SchemaObject {
   /// }));
   /// ```
   pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
-    self.properties.insert(Snake.to_case(key.into()), Box::new(schema));
+    self.properties.insert(to_snake_case(&key.into()), Box::new(schema));
   }
 
   /// Adds a boxed property into the object schema. Automatically converts
@@ -393,7 +394,7 @@ impl SchemaObject {
   /// assert!(schema.get_property("hello_world").unwrap().eq(&Schema::number()));
   /// ```
   pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
-    self.properties.insert(Snake.to_case(key.into()), schema);
+    self.properties.insert(to_snake_case(&key.into()), schema);
   }
 
   pub fn get_property(&self, key: &str) -> Option<&Schema> {

@@ -6,12 +6,12 @@ use std::io::BufReader;
 use std::fs::File;
 use std::path::PathBuf;
 
+use inflections::case::to_snake_case;
 use linear_map::LinearMap;
 use serde_json;
 use serde_yaml;
 use url::Url;
 
-use case::Snake;
 use error::{Error, NotAcceptable};
 use schema::{Schema, SchemaObject};
 use value::Key;
@@ -66,7 +66,7 @@ impl Definition {
   /// assert_eq!(definition.get_type("hello_world").unwrap(), &Type::new());
   /// ```
   pub fn insert_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
-    self.types.insert(Snake.to_case(name.into()), type_);
+    self.types.insert(to_snake_case(&name.into()), type_);
   }
 
   /// Gets type of a certain name.
