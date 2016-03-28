@@ -10,7 +10,7 @@ use url::Url;
 
 use ardite::schema::{Definition, Type, Driver, Schema};
 
-fn create_basic_definition() -> Definition {
+fn create_forum_definition() -> Definition {
   // TODO: use order in file, not serde’s `BTreeMap` order.
   let mut definition = Definition::new();
 
@@ -119,25 +119,25 @@ fn create_kitchen_sink_definition() -> Definition {
 }
 
 #[test]
-fn test_basic_json() {
+fn test_forum_json() {
   assert_eq!(
-    Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.json")).unwrap(),
-    create_basic_definition()
+    Definition::from_file(PathBuf::from("tests/fixtures/forum.json")).unwrap(),
+    create_forum_definition()
   );
 }
 
 #[test]
-fn test_basic_yaml() {
+fn test_forum_yaml() {
   assert_eq!(
-    Definition::from_file(PathBuf::from("tests/fixtures/definitions/basic.yml")).unwrap(),
-    create_basic_definition()
+    Definition::from_file(PathBuf::from("tests/fixtures/forum.yml")).unwrap(),
+    create_forum_definition()
   );
 }
 
 #[test]
 fn test_kitchen_sink_yaml() {
   assert_eq!(
-    Definition::from_file(PathBuf::from("tests/fixtures/definitions/kitchen-sink.yml")).unwrap(),
+    Definition::from_file(PathBuf::from("tests/fixtures/kitchen-sink.yml")).unwrap(),
     create_kitchen_sink_definition()
   );
 }
