@@ -6,7 +6,6 @@ use std::io;
 use std::fmt;
 use std::fmt::{Display, Formatter};
 
-#[cfg(test)]
 use regex::Regex;
 use serde_json;
 use serde_yaml;
@@ -72,6 +71,16 @@ impl Error {
   /// Take the hint—for the error (see what I did there?).
   pub fn hint(&self) -> Option<&str> {
     self.hint.as_ref().map(|s| s.as_str())
+  }
+
+  /// Special assertion for error messages. Takes a regular expression string
+  /// argument which will automatically be constructed into a regualr
+  /// expression. Only available in testing environments. Panics if the regular
+  /// expression doesn’t match the error message string.
+  pub fn expect(&self, regex_str: &str) {
+    if !Regex::new(regex_str).unwrap().is_match(&self.message) {
+      panic!("Error message \"{}\" does not match regex /{}/", self.message, regex_str);
+    }
   }
 
   /// Gets an object which represents the error.
@@ -187,17 +196,6 @@ impl Error {
       code: NotImplemented,
       message: message.into(),
       hint: None
-    }
-  }
-
-  /// Special assertion for error messages. Takes a regular expression string
-  /// argument which will automatically be constructed into a regualr
-  /// expression. Only available in testing environments. Panics if the regular
-  /// expression doesn’t match the error message string.
-  #[cfg(test)]
-  pub fn expect(&self, regex_str: &str) {
-    if !Regex::new(regex_str).unwrap().is_match(&self.message) {
-      panic!("Error message \"{}\" does not match regex /{}/", self.message, regex_str);
     }
   }
 }
