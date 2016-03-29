@@ -1,12 +1,10 @@
-use std::error::Error as ErrorTrait;
-
 use bson::{Bson, Document};
 use linear_map::LinearMap;
+use mongodb;
 use mongodb::{Client, ThreadedClient, CommandType};
 use mongodb::common::{ReadPreference, ReadMode};
 use mongodb::connstring;
 use mongodb::db::{Database, ThreadedDatabase};
-use mongodb::Error;
 use url::Url;
 
 use driver::Driver;
@@ -14,21 +12,21 @@ use error::Error;
 use query::{Range, SortRule, Condition, Query};
 use value::{Key, Pointer, Value, Iter};
 
-struct MongoDB {
+pub struct MongoDB {
   database: Database
 }
 
 impl Driver for MongoDB {
   fn connect(url: &Url) -> Result<Self, Error> {
-    let config = try!(connstring::parse(uri));
+    let config = try!(connstring::parse(&url.serialize()));
 
     if let Some(db_name) = config.database.clone() {
-      Ok(MongoDriver {
+      Ok(MongoDB {
         database: try!(Client::with_config(config, None, None)).db(&db_name)
       })
     } else {
       Err(Error::invalid(
-        format!("Database name not provided in connection path '{}'.", uri),
+        format!("Database name not provided in connection path '{}'.", url),
         "Include the database name you are connecting to as the connection URI path."
       ))
     }
@@ -42,47 +40,43 @@ impl Driver for MongoDB {
     range: Range,
     query: Query
   ) -> Result<Iter, Error> {
-    let cursor = try!(self.database.command_cursor(
-      {
-        let mut spec = doc! {
-          "find" => type_name,
-          "filter" => (condition_to_filter(condition)),
-          "sort" => (sort_rules_to_sort(sort)),
-          "projection" => (query_to_projection(query))
-        };
-        if let Some(limit) = range.limit() {
-          spec.insert("limit", limit);
-        }
-        if let Some(skip) = range.skip() {
-          spec.insert("skip", skip);
-        }
-        spec
-      },
-      CommandType::Find,
-      ReadPreference {
-        // Nearest read mode was chosen as we don’t care *too* much about stale
-        // data in large usecases. Performance is more important to us. For a
-        // reference on what all the read modes do, see the [documentation][1].
-        //
-        // Also read more about our [targeted use case][2].
-        //
-        // [1]: https://docs.mongodb.org/manual/reference/read-preference/#read-preference-modes
-        // [2]: https://docs.mongodb.org/manual/reference/read-preference/#minimize-latency
-        mode: ReadMode::Nearest,
-        // Tag sets? Seems to me like they [can be ignored][1] for our use.
-        //
-        // [1]: https://docs.mongodb.org/manual/tutorial/configure-replica-set-tag-sets/
-        tag_sets: vec![]
-      }
-    ));
+    let mut spec = doc! {
+      "find" => type_name,
+      "filter" => (condition_to_filter(condition)),
+      "sort" => (sort_rules_to_sort(sort)),
+      "projection" => (query_to_projection(query))
+    };
 
-    Ok(ValueIter::new(cursor.filter_map(Result::ok).map(Value::from)))
+    if let Some(limit) = range.limit() {
+      spec.insert("limit", limit);
+    }
+    if let Some(skip) = range.skip() {
+      spec.insert("skip", skip);
+    }
+
+    let cursor = try!(self.database.command_cursor(spec, CommandType::Find, ReadPreference {
+      // Nearest read mode was chosen as we don’t care *too* much about stale
+      // data in large usecases. Performance is more important to us. For a
+      // reference on what all the read modes do, see the [documentation][1].
+      //
+      // Also read more about our [targeted use case][2].
+      //
+      // [1]: https://docs.mongodb.org/manual/reference/read-preference/#read-preference-modes
+      // [2]: https://docs.mongodb.org/manual/reference/read-preference/#minimize-latency
+      mode: ReadMode::Nearest,
+      // Tag sets? Seems to me like they [can be ignored][1] for our use.
+      //
+      // [1]: https://docs.mongodb.org/manual/tutorial/configure-replica-set-tag-sets/
+      tag_sets: vec![]
+    }));
+
+    Ok(Iter::new(cursor.filter_map(Result::ok).map(Value::from)))
   }
 }
 
 impl From<mongodb::Error> for Error {
   fn from(error: mongodb::Error) -> Self {
-    Error::internal(error.description())
+    Error::internal(format!("{}", error))
   }
 }
 
@@ -153,7 +147,7 @@ impl Into<Document> for Value {
 
 /// Transforms an Ardite condition to a MongoDB filter as specified by the
 /// MongoDB spec.
-fn condition_to_filter(condition: Condition) -> Bson {
+pub fn condition_to_filter(condition: Condition) -> Bson {
   match condition {
     // Because we want nested `Condition::Keys` to be represented as
     // dot-deliniated pointers (`a.b.c`) we must make sure that
@@ -203,7 +197,7 @@ fn condition_to_filter(condition: Condition) -> Bson {
 }
 
 /// Transform an Ardite sort to a MongoDB sort.
-fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
+pub fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
   let mut document = Document::new();
   for sort_rule in sort_rules {
     document.insert(sort_rule.property().join("."), if sort_rule.is_descending() { -1 } else { 1 });
@@ -212,7 +206,7 @@ fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
 }
 
 /// Transform an Ardite query to a MongoDB projection.
-fn query_to_projection(query: Query) -> Bson {
+pub fn query_to_projection(query: Query) -> Bson {
   // The `add_keys` function is so that we can have a flat document with
   // dot-deliniated pointers as keys instead of a nested document.
   fn add_keys(document: &mut Document, pointer: Pointer, query: Query) {
@@ -241,15 +235,15 @@ fn query_to_projection(query: Query) -> Bson {
 
 #[cfg(test)]
 mod tests {
-  use super::{query_to_projection, sort_rules_to_sort, condition_to_filter};
+  use super::*;
 
   use bson::{Bson, Document};
   use mongodb::db::ThreadedDatabase;
+  use url::Url;
 
   use driver::Driver;
-  use driver::mongodb::MongoDriver;
   use query::{Range, SortRule, Condition, Query};
-  use schema::{Definition, Type, Schema};
+  use schema::{Definition, Type};
   use value::{Key, Value};
 
   #[test]
@@ -366,7 +360,7 @@ mod tests {
   fn val_c() -> Value { Value::from(doc_c()) }
 
   struct Fixtures {
-    driver: MongoDriver,
+    driver: MongoDB,
     type_name: Key
   }
 
@@ -374,11 +368,10 @@ mod tests {
     let collection_name = format!("ardite_test_{}", name);
 
     let mut definition = Definition::new();
-    let mut type_ = Type::new(collection_name.clone());
-    type_.set_schema(Schema::object());
-    definition.insert_type(type_);
 
-    let driver = MongoDriver::connect("mongodb://localhost:27017/ardite_test").unwrap();
+    definition.insert_type(collection_name.clone(), Type::new());
+
+    let driver = MongoDB::connect(&Url::parse("mongodb://localhost:27017/ardite_test").unwrap()).unwrap();
     driver.database.drop_collection(&collection_name).unwrap();
     let collection = driver.database.collection(&collection_name);
     collection.insert_many(vec![doc_a(), doc_b(), doc_c()], None).unwrap();
