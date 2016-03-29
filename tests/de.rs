@@ -119,7 +119,7 @@ fn create_kitchen_sink_definition() -> Definition {
 }
 
 #[test]
-fn test_forum_json() {
+fn test_de_forum_json() {
   assert_eq!(
     Definition::from_file(PathBuf::from("tests/fixtures/forum.json")).unwrap(),
     create_forum_definition()
@@ -127,7 +127,7 @@ fn test_forum_json() {
 }
 
 #[test]
-fn test_forum_yaml() {
+fn test_de_forum_yaml() {
   assert_eq!(
     Definition::from_file(PathBuf::from("tests/fixtures/forum.yml")).unwrap(),
     create_forum_definition()
@@ -135,7 +135,7 @@ fn test_forum_yaml() {
 }
 
 #[test]
-fn test_kitchen_sink_yaml() {
+fn test_de_kitchen_sink_yaml() {
   assert_eq!(
     Definition::from_file(PathBuf::from("tests/fixtures/kitchen-sink.yml")).unwrap(),
     create_kitchen_sink_definition()
