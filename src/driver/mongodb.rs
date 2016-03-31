@@ -114,7 +114,7 @@ impl Into<Bson> for Value {
       Value::I64(value) => Bson::I64(value),
       Value::F64(value) => Bson::FloatingPoint(value),
       Value::String(value) => Bson::String(value),
-      Value::Object(object) => Value::Object(object).into(),
+      value @ Value::Object(_) => Bson::Document(value.into()),
       Value::Array(array) => Bson::Array(array.into_iter().map(Value::into).collect())
     }
   }
