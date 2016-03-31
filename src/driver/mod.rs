@@ -35,6 +35,7 @@ pub trait Driver: Send + Sync {
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
+  // TODO: Enforce this to *only* return objects.
   fn read(
     &self,
     type_name: &Key,

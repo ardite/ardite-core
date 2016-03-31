@@ -1,4 +1,5 @@
 //! Defines complex queries over Ardite driver data structures.
+// TODO: This needs *lots* of review and expirementation.
 
 use std::convert::From;
 use linear_map::LinearMap;
