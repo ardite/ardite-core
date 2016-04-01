@@ -13,7 +13,7 @@ use url::Url;
 
 use error::Error;
 use query::{Condition, SortRule, Range, Query};
-use value::{Key, Value, Iter};
+use value::{Value, Iter};
 
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
@@ -36,10 +36,9 @@ pub trait Driver: Send + Sync {
   /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
   // TODO: Enforce this to *only* return objects.
-  // TODO: There must be a better type than `&Key`. Probably `&str`.
   fn read(
     &self,
-    name: &Key,
+    name: &str,
     condition: Condition,
     sort: Vec<SortRule>,
     range: Range,
@@ -56,7 +55,7 @@ pub trait Driver: Send + Sync {
   /// This method may be optionally optimized by the driver.
   fn read_one(
     &self,
-    name: &Key,
+    name: &str,
     condition: Condition,
     query: Query
   ) -> Result<Value, Error> {
