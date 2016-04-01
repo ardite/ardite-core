@@ -1,9 +1,9 @@
 //! Defines complex queries over Ardite driver data structures.
 // TODO: This needs *lots* of review and expirementation.
 
-use std::cmp;
 use std::convert::From;
 
+use itertools::misc::GenericRange;
 use linear_map::LinearMap;
 
 use value::{Key, Pointer, Value};
@@ -131,37 +131,21 @@ impl Range {
   pub fn offset(&self) -> Option<usize> {
     self.offset
   }
-
-  /// Gets a slice (subset) of the `Vec` argument returning another `Vec` with
-  /// references to the items.
-  ///
-  /// The returned `Vec` may have less items them limit and may even have no
-  /// items at all depending on whether or not the range exists in the `Vec`
-  /// parameter.
-  // TODO: Consider having `Range` implement `Iterator`.
-  pub fn view<'a, 'b, V>(&'a self, vec: &'b Vec<V>) -> Vec<&'b V> {
-    let offset = cmp::min(self.offset().unwrap_or(0), vec.len());
-    let max_limit = vec.len() - offset;
-    // We are maxing out our limit, because we will be looping later for that
-    // length.
-    let limit = cmp::min(self.limit().unwrap_or(max_limit), max_limit);
-    let mut new_vec = Vec::new();
-    let mut progress: usize = 0;
-
-    while progress != limit {
-      if let Some(item) = vec.get(offset + progress) {
-        new_vec.push(item);
-      }
-      progress += 1;
-    }
-
-    new_vec
-  }
 }
 
 impl Default for Range {
   fn default() -> Self {
     Range::new(None, None)
+  }
+}
+
+impl GenericRange for Range {
+  fn start(&self) -> Option<usize> {
+    Some(self.offset().unwrap_or(0))
+  }
+
+  fn end(&self) -> Option<usize> {
+    self.limit().map(|limit| self.offset().unwrap_or(0) + limit)
   }
 }
 
@@ -242,27 +226,6 @@ mod tests {
       "hello" => "world",
       "goodbye" => { "moon" => false }
     })));
-  }
-
-  #[test]
-  fn test_range_view() {
-    let vec = vec!["a", "b", "c", "d", "e"];
-    assert_eq!(Range::new(None, None).view(&vec), vec![&"a", &"b", &"c", &"d", &"e"]);
-    assert_eq!(Range::new(Some(0), None).view(&vec), vec![&"a", &"b", &"c", &"d", &"e"]);
-    assert_eq!(Range::new(Some(1), None).view(&vec), vec![&"b", &"c", &"d", &"e"]);
-    assert_eq!(Range::new(Some(4), None).view(&vec), vec![&"e"]);
-    assert_eq!(Range::new(Some(20), None).view(&vec), vec![] as Vec<&&str>);
-    assert_eq!(Range::new(None, Some(2)).view(&vec), vec![&"a", &"b"]);
-    assert_eq!(Range::new(None, Some(0)).view(&vec), vec![] as Vec<&&str>);
-    assert_eq!(Range::new(None, Some(5)).view(&vec), vec![&"a", &"b", &"c", &"d", &"e"]);
-    assert_eq!(Range::new(None, Some(20)).view(&vec), vec![&"a", &"b", &"c", &"d", &"e"]);
-    assert_eq!(Range::new(Some(0), Some(0)).view(&vec), vec![] as Vec<&&str>);
-    assert_eq!(Range::new(Some(1), Some(1)).view(&vec), vec![&"b"]);
-    assert_eq!(Range::new(Some(4), Some(1)).view(&vec), vec![&"e"]);
-    assert_eq!(Range::new(Some(3), Some(2)).view(&vec), vec![&"d", &"e"]);
-    assert_eq!(Range::new(Some(2), Some(2)).view(&vec), vec![&"c", &"d"]);
-    assert_eq!(Range::new(Some(1), Some(3)).view(&vec), vec![&"b", &"c", &"d"]);
-    assert_eq!(Range::new(Some(3), Some(50)).view(&vec), vec![&"d", &"e"]);
   }
 
   #[test]

@@ -4,6 +4,7 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use itertools::Itertools;
 use url::Url;
 
 use driver::Driver;
@@ -65,6 +66,7 @@ impl Driver for Memory {
     Err(Error::invalid("You can’t connect to memory silly.", "Use the `new` method instead for the memory driver."))
   }
 
+  // TODO: Test that condition and sort is applied before range to the results.
   fn read(
     &self,
     name: &str,
@@ -75,18 +77,17 @@ impl Driver for Memory {
   ) -> Result<Iter, Error> {
     if let Some(objects) = self.store.lock().unwrap().get(name) {
       Ok(Iter::new(
-        range
-        .view(objects)
+        objects
         .into_iter()
         .filter(|value| cond.is_true(value))
+        .slice(range)
         .cloned()
         // We collect our iterator into a vector so that we remove the
-        // dependency deep in the type chain on the `objects` reference.
+        // dependency deep in the iterator type chain on the `objects`
+        // reference.
         //
         // This is similar to calling `objects.clone()` except we do it here so
         // that we don’t clone *all* the objects.
-        //
-        // We can also sort on our collected vector.
         .collect::<Vec<_>>()
         .into_iter()
       ))
