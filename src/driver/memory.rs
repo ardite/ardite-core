@@ -70,16 +70,22 @@ impl Driver for Memory {
     name: &str,
     _: Condition,
     _: Vec<SortRule>,
-    _: Range,
+    range: Range,
     _: Query
   ) -> Result<Iter, Error> {
     if let Some(objects) = self.store.lock().unwrap().get(name) {
       Ok(Iter::new(
-        objects
-        .iter()
+        range
+        .view(objects)
+        .into_iter()
         .cloned()
         // We collect our iterator into a vector so that we remove the
         // dependency deep in the type chain on the `objects` reference.
+        //
+        // This is similar to calling `objects.clone()` except we do it here so
+        // that we don’t clone *all* the objects.
+        //
+        // We can also sort on our collected vector.
         .collect::<Vec<_>>()
         .into_iter()
       ))
