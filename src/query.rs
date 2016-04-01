@@ -23,10 +23,32 @@ pub enum Condition {
   /// Composes many conditions. Only one must be true for the condition to be
   /// true.
   Or(Vec<Condition>),
-  /// Partial conditions on some keys of an object.
-  Keys(LinearMap<Key, Condition>),
+  /// Partial condition on a key of an object. To combine may keys use the
+  /// `And` condition.
+  Key(Key, Box<Condition>),
   /// If the compared value is exactly equal to this one, the condition passes.
   Equal(Value)
+}
+
+impl Condition {
+  /// Evaluates if a value is true against the condition.
+  pub fn is_true(&self, value: &Value) -> bool {
+    use self::Condition::*;
+    match *self {
+      True => true,
+      False => false,
+      Not(ref cond) => cond.is_false(value),
+      And(ref conds) => conds.iter().all(|cond| cond.is_true(value)),
+      Or(ref conds) => conds.iter().any(|cond| cond.is_true(value)),
+      Key(ref key, ref cond) => value.get(vec![key.to_owned()]).map_or(false, |value| cond.is_true(value)),
+      Equal(ref other_value) => value == other_value
+    }
+  }
+
+  /// Evaluates if a value is false against the condition.
+  pub fn is_false(&self, value: &Value) -> bool {
+    !self.is_true(value)
+  }
 }
 
 impl Default for Condition {
@@ -176,18 +198,50 @@ mod tests {
   use super::*;
 
   #[test]
-  fn test_from_pointer() {
-    assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Keys(linear_map! {
-      str!("hello") => Query::Keys(linear_map! {
-        str!("good") => Query::Keys(linear_map! {
-          str!("world") => Query::All
-        })
-      })
-    }));
-    assert_eq!(Query::from(point!["good"]), Query::Keys(linear_map! {
-      str!("good") => Query::All
-    }));
-    assert_eq!(Query::from(point![]), Query::All);
+  fn test_condition_is_true() {
+    use super::Condition::*;
+    assert!(True.is_true(&value!([1, 2, 3])));
+    assert!(!True.is_false(&value!("hello")));
+    assert!(False.is_false(&value!(8)));
+    assert!(Not(Box::new(False)).is_true(&value!(false)));
+    assert!(And(vec![True, True, True]).is_true(&value!(2)));
+    assert!(And(vec![True, False, True]).is_false(&value!(80)));
+    assert!(Or(vec![True, False, True]).is_true(&value!("world")));
+    assert!(Or(vec![False, False, False]).is_false(&value!({ "hello" => "world" })));
+    assert!(Key(str!("key"), Box::new(True)).is_true(&value!({ "key" => "value" })));
+    assert!(Key(str!("key"), Box::new(True)).is_false(&value!({ "yo" => "yo" })));
+    assert!(Key(str!("key"), Box::new(True)).is_false(&value!(8)));
+    assert!(And(vec![
+      Key(str!("hello"), Box::new(True)),
+      Key(str!("world"), Box::new(True))
+    ]).is_true(&value!({
+      "hello" => 2,
+      "world" => 30
+    })));
+    assert!(And(vec![
+      Key(str!("hello"), Box::new(True)),
+      Key(str!("world"), Box::new(True))
+    ]).is_false(&value!({
+      "hello" => 2
+    })));
+    assert!(Equal(value!(42)).is_true(&value!(42)));
+    assert!(Equal(value!(42)).is_false(&value!(41)));
+    assert!(Equal(value!("hello")).is_false(&value!("world")));
+    assert!(Equal(value!("hello")).is_true(&value!("hello")));
+    assert!(Equal(value!({
+      "hello" => "world",
+      "goodbye" => { "moon" => true }
+    })).is_true(&value!({
+      "hello" => "world",
+      "goodbye" => { "moon" => true }
+    })));
+    assert!(Equal(value!({
+      "hello" => "world",
+      "goodbye" => { "moon" => true }
+    })).is_false(&value!({
+      "hello" => "world",
+      "goodbye" => { "moon" => false }
+    })));
   }
 
   #[test]
@@ -209,5 +263,20 @@ mod tests {
     assert_eq!(Range::new(Some(2), Some(2)).view(&vec), vec![&"c", &"d"]);
     assert_eq!(Range::new(Some(1), Some(3)).view(&vec), vec![&"b", &"c", &"d"]);
     assert_eq!(Range::new(Some(3), Some(50)).view(&vec), vec![&"d", &"e"]);
+  }
+
+  #[test]
+  fn test_from_pointer() {
+    assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Keys(linear_map! {
+      str!("hello") => Query::Keys(linear_map! {
+        str!("good") => Query::Keys(linear_map! {
+          str!("world") => Query::All
+        })
+      })
+    }));
+    assert_eq!(Query::from(point!["good"]), Query::Keys(linear_map! {
+      str!("good") => Query::All
+    }));
+    assert_eq!(Query::from(point![]), Query::All);
   }
 }

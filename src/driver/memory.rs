@@ -68,7 +68,7 @@ impl Driver for Memory {
   fn read(
     &self,
     name: &str,
-    _: Condition,
+    cond: Condition,
     _: Vec<SortRule>,
     range: Range,
     _: Query
@@ -78,6 +78,7 @@ impl Driver for Memory {
         range
         .view(objects)
         .into_iter()
+        .filter(|value| cond.is_true(value))
         .cloned()
         // We collect our iterator into a vector so that we remove the
         // dependency deep in the type chain on the `objects` reference.
