@@ -36,9 +36,10 @@ pub trait Driver: Send + Sync {
   /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
   // TODO: Enforce this to *only* return objects.
+  // TODO: There must be a better type than `&Key`. Probably `&str`.
   fn read(
     &self,
-    type_name: &Key,
+    name: &Key,
     condition: Condition,
     sort: Vec<SortRule>,
     range: Range,
@@ -55,12 +56,12 @@ pub trait Driver: Send + Sync {
   /// This method may be optionally optimized by the driver.
   fn read_one(
     &self,
-    type_name: &Key,
+    name: &Key,
     condition: Condition,
     query: Query
   ) -> Result<Value, Error> {
     let mut values = try!(self.read(
-      type_name,
+      name,
       condition,
       Default::default(),
       Range::new(None, Some(1)),

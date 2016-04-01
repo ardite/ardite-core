@@ -38,7 +38,7 @@ pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
-    mod service;
+mod service;
 pub mod value;
 
 pub use error::Error;

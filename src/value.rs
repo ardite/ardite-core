@@ -3,6 +3,8 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the driver to these types.
 
+use std::iter;
+
 use linear_map::LinearMap;
 use serde::ser::{Serialize, Serializer};
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor, MapVisitor};
@@ -249,6 +251,11 @@ impl Iter {
     Iter {
       iter: Box::new(iter)
     }
+  }
+
+  /// Returns an empty iterator.
+  pub fn none() -> Self {
+    Iter::new(iter::empty())
   }
 }
 

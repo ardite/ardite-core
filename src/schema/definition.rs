@@ -1,5 +1,6 @@
 //! The full definition of a data system which Ardite will use to provide
 //! powerful services.
+// TODO: Make the idea of `Type` instead `Collection`.
 
 use std::collections::BTreeMap;
 use std::io::BufReader;
