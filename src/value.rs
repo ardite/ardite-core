@@ -61,31 +61,32 @@ pub enum Value {
 
 impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
+  // TODO: Consider removing `Pointer` and using methods like `get`, `get_path`,
+  // `set`, `set_path`. This is also good for the `pointer.is_empty()` case.
   pub fn get(&self, mut pointer: Pointer) -> Option<&Value> {
-    match *self {
-      Value::Object(ref map) => {
-        if pointer.is_empty() {
-          Some(self)
-        } else if let Some(value) = map.get(&pointer.remove(0)) {
-          value.get(pointer)
-        } else {
-          None
-        }
-      },
-      Value::Array(ref vec) => {
-        if pointer.is_empty() {
-          Some(self)
-        } else if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
-          value.get(pointer)
-        } else {
-          None
-        }
-      },
-      _ => if pointer.is_empty() { Some(self) } else { None }
+    if pointer.is_empty() {
+      Some(self)
+    } else {
+      match *self {
+        Value::Object(ref map) => {
+          if let Some(value) = map.get(&pointer.remove(0)) {
+            value.get(pointer)
+          } else {
+            None
+          }
+        },
+        Value::Array(ref vec) => {
+          if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
+            value.get(pointer)
+          } else {
+            None
+          }
+        },
+        _ => None
+      }
     }
   }
 
-  #[inline]
   pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(Key) -> Key {
     match self {
       Value::Object(object) => {
@@ -99,7 +100,6 @@ impl Value {
     }
   }
 
-  #[inline]
   pub fn map_values<F>(self, transform: F) -> Value where F: Fn(Value) -> Value {
     match self {
       Value::Object(object) => {
@@ -120,7 +120,6 @@ impl Value {
     }
   }
 
-  #[inline]
   pub fn map_entries<F>(self, transform: F) -> Value where F: Fn((Key, Value)) -> (Key, Value) {
     match self {
       Value::Object(object) => {
