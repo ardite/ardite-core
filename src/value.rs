@@ -46,31 +46,18 @@ pub enum Value {
 }
 
 impl Value {
-  /// Gets a value at a specific point. Helpful for retrieving nested values.
-  // TODO: Consider removing `Pointer` and using methods like `get`, `get_path`,
-  // `set`, `set_path`. This is also good for the `pointer.is_empty()` case.
-  pub fn get<'a>(&'a self, pointer: &[&str]) -> Option<&'a Value> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      match *self {
-        Value::Object(ref map) => {
-          if let Some(value) = map.get(pointer[0]) {
-            value.get(&pointer[1..])
-          } else {
-            None
-          }
-        },
-        Value::Array(ref vec) => {
-          if let Some(value) = pointer[0].parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
-            value.get(&pointer[1..])
-          } else {
-            None
-          }
-        },
-        _ => None
-      }
+  /// Gets the value of an object or array variant for a key.
+  pub fn get<'a>(&'a self, key: &str) -> Option<&'a Value> {
+    match *self {
+      Value::Object(ref object) => object.get(key),
+      Value::Array(ref array) => key.parse::<usize>().ok().map_or(None, |i| array.get(i)),
+      _ => None
     }
+  }
+
+  /// Gets the value of an object or array variant recursively.
+  pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Value> {
+    path.iter().fold(Some(self), |value, key| value.and_then(|value| value.get(key)))
   }
 
   pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(String) -> String {
@@ -259,15 +246,15 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert_eq!(value!().get(&[]).cloned(), Some(value!()));
-    assert_eq!(value!().get(&["hello"]).cloned(), None);
-    assert_eq!(value!().get(&["a", "b", "c", "d", "e"]).cloned(), None);
-    assert_eq!(value!(true).get(&[]).cloned(), Some(value!(true)));
-    assert_eq!(value!(true).get(&["hello"]).cloned(), None);
-    assert_eq!(value!(36).get(&[]).cloned(), Some(value!(36)));
-    assert_eq!(value!(36).get(&["hello"]).cloned(), None);
-    assert_eq!(value!("world").get(&[]).cloned(), Some(value!("world")));
-    assert_eq!(value!("world").get(&["hello"]).cloned(), None);
+    assert_eq!(value!().get_path(&[]).cloned(), Some(value!()));
+    assert_eq!(value!().get_path(&["hello"]).cloned(), None);
+    assert_eq!(value!().get_path(&["a", "b", "c", "d", "e"]).cloned(), None);
+    assert_eq!(value!(true).get_path(&[]).cloned(), Some(value!(true)));
+    assert_eq!(value!(true).get_path(&["hello"]).cloned(), None);
+    assert_eq!(value!(36).get_path(&[]).cloned(), Some(value!(36)));
+    assert_eq!(value!(36).get_path(&["hello"]).cloned(), None);
+    assert_eq!(value!("world").get_path(&[]).cloned(), Some(value!("world")));
+    assert_eq!(value!("world").get_path(&["hello"]).cloned(), None);
   }
 
   #[test]
@@ -281,13 +268,13 @@ mod tests {
         "hello" => "yoyo"
       }
     });
-    assert_eq!(object.get(&[]).cloned(), Some(object.clone()));
-    assert_eq!(object.get(&["hello"]).cloned(), Some(value!(true)));
-    assert_eq!(object.get(&["yolo"]).cloned(), Some(value!("swag")));
-    assert_eq!(object.get(&["5"]).cloned(), Some(value!()));
-    assert_eq!(object.get(&["world", "hello"]).cloned(), None);
-    assert_eq!(object.get(&["moon", "hello"]).cloned(), Some(value!("yoyo")));
-    assert_eq!(object.get(&["moon", "nope"]).cloned(), None);
+    assert_eq!(object.get_path(&[]).cloned(), Some(object.clone()));
+    assert_eq!(object.get_path(&["hello"]).cloned(), Some(value!(true)));
+    assert_eq!(object.get_path(&["yolo"]).cloned(), Some(value!("swag")));
+    assert_eq!(object.get_path(&["5"]).cloned(), Some(value!()));
+    assert_eq!(object.get_path(&["world", "hello"]).cloned(), None);
+    assert_eq!(object.get_path(&["moon", "hello"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(object.get_path(&["moon", "nope"]).cloned(), None);
   }
 
   #[test]
@@ -304,13 +291,13 @@ mod tests {
       },
       [[1, 2, 3], 4, 5 ]
     ]);
-    assert_eq!(array.get(&[]).cloned(), Some(array.clone()));
-    assert_eq!(array.get(&["0"]).cloned(), Some(value!(false)));
-    assert_eq!(array.get(&["1"]).cloned(), Some(value!(64)));
-    assert_eq!(array.get(&["2", "hello"]).cloned(), Some(value!(true)));
-    assert_eq!(array.get(&["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
-    assert_eq!(array.get(&["length"]).cloned(), None);
-    assert_eq!(array.get(&["3", "0", "1"]).cloned(), Some(value!(2)));
+    assert_eq!(array.get_path(&[]).cloned(), Some(array.clone()));
+    assert_eq!(array.get_path(&["0"]).cloned(), Some(value!(false)));
+    assert_eq!(array.get_path(&["1"]).cloned(), Some(value!(64)));
+    assert_eq!(array.get_path(&["2", "hello"]).cloned(), Some(value!(true)));
+    assert_eq!(array.get_path(&["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(array.get_path(&["length"]).cloned(), None);
+    assert_eq!(array.get_path(&["3", "0", "1"]).cloned(), Some(value!(2)));
   }
 
   #[test]

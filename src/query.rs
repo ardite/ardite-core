@@ -38,7 +38,7 @@ impl Condition {
       Not(ref cond) => cond.is_false(value),
       And(ref conds) => conds.iter().all(|cond| cond.is_true(value)),
       Or(ref conds) => conds.iter().any(|cond| cond.is_true(value)),
-      Key(ref key, ref cond) => value.get(&[key]).map_or(false, |value| cond.is_true(value)),
+      Key(ref key, ref cond) => value.get(key).map_or(false, |value| cond.is_true(value)),
       Equal(ref other_value) => value == other_value
     }
   }
