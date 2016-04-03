@@ -47,6 +47,7 @@ pub enum Value {
 
 impl Value {
   /// Gets the value of an object or array variant for a key.
+  // TODO: Add examples.
   pub fn get<'a>(&'a self, key: &str) -> Option<&'a Value> {
     match *self {
       Value::Object(ref object) => object.get(key),
@@ -56,8 +57,42 @@ impl Value {
   }
 
   /// Gets the value of an object or array variant recursively.
+  // TODO: Add examples.
   pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Value> {
     path.iter().fold(Some(self), |value, key| value.and_then(|value| value.get(key)))
+  }
+
+  /// Sets the value of a certain key on an object or array.
+  // TODO: Add examples.
+  pub fn set(self, key: &str, new: Value) -> Result<Value, Error> {
+    match self {
+      Value::Object(mut object) => {
+        object.insert(key.to_owned(), new);
+        Ok(Value::Object(object))
+      },
+      Value::Array(mut array) => {
+        if let Some(index) = key.parse::<usize>().ok() {
+          if index < array.len() {
+            array[index] = new;
+            Ok(Value::Array(array))
+          } else {
+            Err(Error::invalid(
+              format!("Can’t set index {} because it is out of range for array of length {}.", index, array.len()),
+              "Try setting an index inside the array’s bounds."
+            ))
+          }
+        } else {
+          Err(Error::invalid(
+            format!("Key '{}' is not a positive integer and can’t be used to set a value for an array.", key),
+            "Try using a positive integer like 0 as the key."
+          ))
+        }
+      },
+      _ => Err(Error::invalid(
+        format!("Cannot set key '{}' for primitive value {}.", key, self.debug_name()),
+        "Try using setting a value on an object or an array instead."
+      ))
+    }
   }
 
   pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(String) -> String {
@@ -120,6 +155,18 @@ impl Value {
   /// Converts a `Value` into a nice and indented JSON string.
   pub fn to_json_pretty(&self) -> Result<String, Error> {
     serde_json::to_string_pretty(self).map_err(Error::from)
+  }
+
+  pub fn debug_name(&self) -> &'static str {
+    match *self {
+      Value::Null => "null",
+      Value::Boolean(_) => "boolean",
+      Value::I64(_) => "i64",
+      Value::F64(_) => "f64",
+      Value::String(_) => "string",
+      Value::Object(_) => "object",
+      Value::Array(_) => "array"
+    }
   }
 }
 
@@ -289,7 +336,7 @@ mod tests {
           "goodbye" => "yoyo"
         }
       },
-      [[1, 2, 3], 4, 5 ]
+      [[1, 2, 3], 4, 5]
     ]);
     assert_eq!(array.get_path(&[]).cloned(), Some(array.clone()));
     assert_eq!(array.get_path(&["0"]).cloned(), Some(value!(false)));
@@ -298,6 +345,28 @@ mod tests {
     assert_eq!(array.get_path(&["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
     assert_eq!(array.get_path(&["length"]).cloned(), None);
     assert_eq!(array.get_path(&["3", "0", "1"]).cloned(), Some(value!(2)));
+  }
+
+  #[test]
+  fn test_set_primitive() {
+    assert!(value!().set("hello", value!(true)).is_err());
+    assert!(value!(false).set("hello", value!(true)).is_err());
+    assert!(value!(32).set("hello", value!(true)).is_err());
+    assert!(value!("hello").set("hello", value!(true)).is_err());
+  }
+
+  #[test]
+  fn test_set_array() {
+    assert!(value!([1, 2, 3]).set("yo", value!(true)).is_err());
+    assert!(value!([1, 2, 3]).set("3", value!(true)).is_err());
+    assert_eq!(value!([1, 2, 3]).set("1", value!(true)).unwrap(), value!([1, true, 3]));
+  }
+
+  #[test]
+  fn test_set_object() {
+    assert_eq!(value!({}).set("hello", value!("world")).unwrap(), value!({ "hello" => "world" }));
+    assert_eq!(value!({ "hello" => "moon" }).set("hello", value!("world")).unwrap(), value!({ "hello" => "world" }));
+    assert_eq!(value!({ "yo" => 42 }).set("hello", value!("world")).unwrap(), value!({ "yo" => 42, "hello" => "world" }));
   }
 
   #[test]

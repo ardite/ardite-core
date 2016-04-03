@@ -108,12 +108,20 @@ macro_rules! value {
     $crate::value::Value::Null
   }};
 
+  ([]) => {{
+    Value::Array($crate::value::Array::new())
+  }};
+
   ([$($value:tt),*]) => {{
     let mut array = $crate::value::Array::new();
     $(
       array.push(value!($value));
     )*
     $crate::value::Value::Array(array)
+  }};
+
+  ({}) => {{
+    Value::Object($crate::value::Object::new())
   }};
 
   ({ $($key:expr => $value:tt),* }) => {{
