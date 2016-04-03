@@ -34,7 +34,7 @@ impl Service {
     Ok(Service::new(try!(Definition::from_file(path))))
   }
 
-  /// Iterates through the `DriverConfig`s in the definition, connecting them,
+  /// Iterates through the `schema::Driver`s in the definition, connecting them,
   /// and storing them internally. After running this method, all drivers
   /// outside of memory will be connected.
   pub fn connect_drivers(&mut self) -> Result<(), Error> {
@@ -55,6 +55,8 @@ impl Service {
     // Discover and connect all of the drivers specified in the driver configs.
     for driver in drivers.into_iter() {
       self.drivers.insert(driver.clone(), try!(discover_driver(driver)));
+      // TODO: Use the `log` crate with the `log!` macro.
+      println!("Connected driver {}", driver);
     }
 
     Ok(())

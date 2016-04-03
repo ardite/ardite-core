@@ -3,6 +3,8 @@
 
 use std::collections::BTreeMap;
 use std::io::BufReader;
+use std::fmt;
+use std::fmt::{Display, Formatter};
 use std::fs::File;
 use std::path::PathBuf;
 
@@ -185,6 +187,12 @@ impl Driver {
   /// Returns the URL to the driver.
   pub fn url(&self) -> &Url {
     &self.url
+  }
+}
+
+impl Display for Driver {
+  fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
+    write!(fmt, "{}", self.url())
   }
 }
 
