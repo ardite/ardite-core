@@ -1,7 +1,6 @@
 extern crate ardite;
 #[macro_use]
 extern crate ardite_driver_tests as tests;
-extern crate linear_map;
 
 use ardite::Value;
 use ardite::driver::{Driver, Memory};
