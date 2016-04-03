@@ -9,8 +9,8 @@ use url::Url;
 
 use driver::Driver;
 use error::Error;
-use query::{Range, SortRule, Condition, Query};
-use value::{Key, Pointer, Value, Iter};
+use query::{Range, Sort, Condition};
+use value::{Value, Iter};
 
 pub struct MongoDB {
   database: Database
@@ -36,15 +36,13 @@ impl Driver for MongoDB {
     &self,
     name: &str,
     condition: Condition,
-    sort: Vec<SortRule>,
-    range: Range,
-    query: Query
+    sort: Vec<Sort>,
+    range: Range
   ) -> Result<Iter, Error> {
     let mut spec = doc! {
       "find" => name,
       "filter" => (condition_to_filter(condition)),
-      "sort" => (sort_rules_to_sort(sort)),
-      "projection" => (query_to_projection(query))
+      "sort" => (sort_rules_to_sort(sort))
     };
 
     if let Some(limit) = range.limit() {
@@ -92,14 +90,14 @@ impl From<Bson> for Value {
       Bson::Array(array) => Value::Array(array.into_iter().map(Value::from).collect()),
       Bson::Document(document) => Value::from(document),
       Bson::Boolean(value) => Value::Boolean(value),
-      Bson::Null => Value::Null,
+      Bson::Null => Value::Null(()),
       Bson::RegExp(value, _) => Value::String(value),
       Bson::JavaScriptCode(value) => Value::String(value),
       Bson::JavaScriptCodeWithScope(value, _) => Value::String(value),
       Bson::I32(value) => Value::I64(i64::from(value)),
       Bson::I64(value) => Value::I64(value),
       Bson::TimeStamp(value) => Value::I64(i64::from(value)),
-      Bson::Binary(_, _) => Value::Null,
+      Bson::Binary(_, _) => Value::Null(()),
       Bson::ObjectId(object_id) => Value::String(object_id.to_string()),
       Bson::UtcDatetime(time) => Value::String(time.to_rfc3339())
     }
@@ -109,7 +107,7 @@ impl From<Bson> for Value {
 impl Into<Bson> for Value {
   fn into(self) -> Bson {
     match self {
-      Value::Null => Bson::Null,
+      Value::Null(_) => Bson::Null,
       Value::Boolean(value) => Bson::Boolean(value),
       Value::I64(value) => Bson::I64(value),
       Value::F64(value) => Bson::FloatingPoint(value),
@@ -156,22 +154,22 @@ pub fn condition_to_filter(condition: Condition) -> Bson {
     // is special logic to get a flat filter document.
     Condition::Keys(keys) => {
       // This `add_keys` function is that special logic.
-      fn add_keys(document: &mut Document, pointer: Pointer, keys: LinearMap<Key, Condition>) {
+      fn add_keys(document: &mut Document, path: Vec<String>, keys: LinearMap<String, Condition>) {
         // For all of the keys:
         for (key, condition) in keys {
           // Create a new pointer from the parent pointer where the head is
           // the key we are looping over.
-          let mut sub_pointer = pointer.clone();
-          sub_pointer.push(key);
+          let mut sub_path = path.clone();
+          sub_path.push(key);
 
           if let Condition::Keys(sub_keys) = condition {
             // If the sub condition is another `Condition::Keys`, run this
             // function again instead of running `condition_to_filter`.
-            add_keys(document, sub_pointer, sub_keys);
+            add_keys(document, sub_path, sub_keys);
           } else {
             // Otherwise, insert the filter into the document at the
             // `sub_pointer`.
-            document.insert(sub_pointer.join("."), condition_to_filter(condition));
+            document.insert(sub_path.join("."), condition_to_filter(condition));
           }
         }
       }
@@ -197,7 +195,7 @@ pub fn condition_to_filter(condition: Condition) -> Bson {
 }
 
 /// Transform an Ardite sort to a MongoDB sort.
-pub fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
+pub fn sort_rules_to_sort(sort_rules: Vec<Sort>) -> Bson {
   let mut document = Document::new();
   for sort_rule in sort_rules {
     document.insert(sort_rule.property().join("."), if sort_rule.is_descending() { -1 } else { 1 });
@@ -205,26 +203,11 @@ pub fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
   Bson::Document(document)
 }
 
-/// Transform an Ardite query to a MongoDB projection.
-pub fn query_to_projection(query: Query) -> Bson {
-  let mut document = Document::new();
-  document.insert("_id", 0);
-
-  if query == Query::All {
-    Bson::Document(document)
-  } else {
-    for pointer in query.to_pointers() {
-      document.insert(pointer.join("."), 1);
-    }
-    Bson::Document(document)
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
 
-  use query::{SortRule, Condition, Query};
+  use query::{Sort, Condition};
   use value::Value;
 
   #[test]
@@ -269,45 +252,10 @@ mod tests {
   #[test]
   fn test_sort_rules_to_sort() {
     let sort = vec![
-      SortRule::new(vec!["hello".to_owned(), "world".to_owned()], true),
-      SortRule::new(vec!["a".to_owned()], false)
+      Sort::new(vec!["hello".to_owned(), "world".to_owned()], true),
+      Sort::new(vec!["a".to_owned()], false)
     ];
     let sort_bson = bson!({ "hello.world" => 1, "a" => (-1) });
     assert_eq!(sort_rules_to_sort(sort), sort_bson);
-  }
-
-  #[test]
-  fn test_query_to_projection() {
-    let query = Query::Keys(linear_map! {
-      str!("a") => Query::All,
-      str!("b") => Query::All,
-      str!("c") => Query::Keys(linear_map! {
-        str!("d") => Query::All,
-        str!("e") => Query::Keys(linear_map! {
-          str!("f") => Query::Keys(linear_map! {
-            str!("g") => Query::All
-          }),
-          str!("h") => Query::All
-        })
-      }),
-      str!("i") => Query::All,
-      str!("hello") => Query::Keys(linear_map! {
-        str!("world") => Query::All
-      }),
-      str!("goodbye") => Query::All
-    });
-    let projection = bson!({
-      "_id" => 0,
-      "a" => 1,
-      "b" => 1,
-      "c.d" => 1,
-      "c.e.f.g" => 1,
-      "c.e.h" => 1,
-      "i" => 1,
-      "hello.world" => 1,
-      "goodbye" => 1
-    });
-    assert_eq!(query_to_projection(query), projection);
-    assert_eq!(query_to_projection(Query::All), bson!({ "_id" => 0 }));
   }
 }
