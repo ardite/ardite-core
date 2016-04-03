@@ -13,25 +13,11 @@ use serde_json;
 
 use error::Error;
 
-/// The type which represents the key for maps used throughout the Ardite
-/// codebase.
-///
-/// Functions similarly to an object key in JavaScript.
-pub type Key = String;
-
-/// Represents a [JSON pointer][1] to a document property. Examples of a
-/// pointer in this context include `/hello/world` or `/a/b/c/d`.
-///
-/// These pointers are represented as a list of keys.
-///
-/// [1]: https://duckduckgo.com/?q=json+pointer&atb=v1&ia=about
-pub type Pointer = Vec<Key>;
-
 /// Ordered representation of a map of key/value pairs, like a JSON object.
 /// Backed by a linear map to maintain order and have high performance for
 /// small objects.
 // TODO: newtype pattern?
-pub type Object = LinearMap<Key, Value>;
+pub type Object = LinearMap<String, Value>;
 
 /// Ordered array of values, like a JSON array.
 // TODO: newtype pattern?
@@ -63,21 +49,21 @@ impl Value {
   /// Gets a value at a specific point. Helpful for retrieving nested values.
   // TODO: Consider removing `Pointer` and using methods like `get`, `get_path`,
   // `set`, `set_path`. This is also good for the `pointer.is_empty()` case.
-  pub fn get(&self, mut pointer: Pointer) -> Option<&Value> {
+  pub fn get<'a>(&'a self, pointer: &[&str]) -> Option<&'a Value> {
     if pointer.is_empty() {
       Some(self)
     } else {
       match *self {
         Value::Object(ref map) => {
-          if let Some(value) = map.get(&pointer.remove(0)) {
-            value.get(pointer)
+          if let Some(value) = map.get(pointer[0]) {
+            value.get(&pointer[1..])
           } else {
             None
           }
         },
         Value::Array(ref vec) => {
-          if let Some(value) = pointer.remove(0).parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
-            value.get(pointer)
+          if let Some(value) = pointer[0].parse::<usize>().ok().map_or(None, |i| vec.get(i)) {
+            value.get(&pointer[1..])
           } else {
             None
           }
@@ -87,7 +73,7 @@ impl Value {
     }
   }
 
-  pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(Key) -> Key {
+  pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(String) -> String {
     match self {
       Value::Object(object) => {
         let mut new_object = Object::new();
@@ -120,7 +106,7 @@ impl Value {
     }
   }
 
-  pub fn map_entries<F>(self, transform: F) -> Value where F: Fn((Key, Value)) -> (Key, Value) {
+  pub fn map_entries<F>(self, transform: F) -> Value where F: Fn((String, Value)) -> (String, Value) {
     match self {
       Value::Object(object) => {
         let mut new_object = Object::new();
@@ -273,15 +259,15 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert_eq!(value!().get(point![]).cloned(), Some(value!()));
-    assert_eq!(value!().get(point!["hello"]).cloned(), None);
-    assert_eq!(value!().get(point!["a", "b", "c", "d", "e"]).cloned(), None);
-    assert_eq!(value!(true).get(point![]).cloned(), Some(value!(true)));
-    assert_eq!(value!(true).get(point!["hello"]).cloned(), None);
-    assert_eq!(value!(36).get(point![]).cloned(), Some(value!(36)));
-    assert_eq!(value!(36).get(point!["hello"]).cloned(), None);
-    assert_eq!(value!("world").get(point![]).cloned(), Some(value!("world")));
-    assert_eq!(value!("world").get(point!["hello"]).cloned(), None);
+    assert_eq!(value!().get(&[]).cloned(), Some(value!()));
+    assert_eq!(value!().get(&["hello"]).cloned(), None);
+    assert_eq!(value!().get(&["a", "b", "c", "d", "e"]).cloned(), None);
+    assert_eq!(value!(true).get(&[]).cloned(), Some(value!(true)));
+    assert_eq!(value!(true).get(&["hello"]).cloned(), None);
+    assert_eq!(value!(36).get(&[]).cloned(), Some(value!(36)));
+    assert_eq!(value!(36).get(&["hello"]).cloned(), None);
+    assert_eq!(value!("world").get(&[]).cloned(), Some(value!("world")));
+    assert_eq!(value!("world").get(&["hello"]).cloned(), None);
   }
 
   #[test]
@@ -295,13 +281,13 @@ mod tests {
         "hello" => "yoyo"
       }
     });
-    assert_eq!(object.get(point![]).cloned(), Some(object.clone()));
-    assert_eq!(object.get(point!["hello"]).cloned(), Some(value!(true)));
-    assert_eq!(object.get(point!["yolo"]).cloned(), Some(value!("swag")));
-    assert_eq!(object.get(point!["5"]).cloned(), Some(value!()));
-    assert_eq!(object.get(point!["world", "hello"]).cloned(), None);
-    assert_eq!(object.get(point!["moon", "hello"]).cloned(), Some(value!("yoyo")));
-    assert_eq!(object.get(point!["moon", "nope"]).cloned(), None);
+    assert_eq!(object.get(&[]).cloned(), Some(object.clone()));
+    assert_eq!(object.get(&["hello"]).cloned(), Some(value!(true)));
+    assert_eq!(object.get(&["yolo"]).cloned(), Some(value!("swag")));
+    assert_eq!(object.get(&["5"]).cloned(), Some(value!()));
+    assert_eq!(object.get(&["world", "hello"]).cloned(), None);
+    assert_eq!(object.get(&["moon", "hello"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(object.get(&["moon", "nope"]).cloned(), None);
   }
 
   #[test]
@@ -318,13 +304,13 @@ mod tests {
       },
       [[1, 2, 3], 4, 5 ]
     ]);
-    assert_eq!(array.get(point![]).cloned(), Some(array.clone()));
-    assert_eq!(array.get(point!["0"]).cloned(), Some(value!(false)));
-    assert_eq!(array.get(point!["1"]).cloned(), Some(value!(64)));
-    assert_eq!(array.get(point!["2", "hello"]).cloned(), Some(value!(true)));
-    assert_eq!(array.get(point!["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
-    assert_eq!(array.get(point!["length"]).cloned(), None);
-    assert_eq!(array.get(point!["3", "0", "1"]).cloned(), Some(value!(2)));
+    assert_eq!(array.get(&[]).cloned(), Some(array.clone()));
+    assert_eq!(array.get(&["0"]).cloned(), Some(value!(false)));
+    assert_eq!(array.get(&["1"]).cloned(), Some(value!(64)));
+    assert_eq!(array.get(&["2", "hello"]).cloned(), Some(value!(true)));
+    assert_eq!(array.get(&["2", "moon", "goodbye"]).cloned(), Some(value!("yoyo")));
+    assert_eq!(array.get(&["length"]).cloned(), None);
+    assert_eq!(array.get(&["3", "0", "1"]).cloned(), Some(value!(2)));
   }
 
   #[test]

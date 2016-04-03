@@ -1,37 +1,3 @@
-/// Creates a `Pointer`. Automatically converts `&'static str` to `String` and
-/// accepts more than one argument. Works like `vec!`.
-///
-/// # Example
-/// ```rust
-/// #[macro_use(point)]
-/// extern crate ardite;
-///
-/// use ardite::value::Pointer;
-///
-/// # fn main() {
-///
-/// let mut pointer = Pointer::new();
-/// pointer.push("hello".to_owned());
-/// pointer.push("world".to_owned());
-///
-/// assert_eq!(point![], Pointer::new());
-/// assert_eq!(point!["hello", "world"], pointer);
-///
-/// # }
-/// ```
-#[macro_export]
-macro_rules! point {
-  () => {{ $crate::value::Pointer::new() }};
-
-  ($($key:expr),*) => {{
-    let mut pointer = $crate::value::Pointer::new();
-    $(
-      pointer.push(String::from($key));
-    )*
-    pointer
-  }}
-}
-
 /// Recursively create a `Value` from many primitive data types whilst also
 /// detecting the appropriate type.
 ///
