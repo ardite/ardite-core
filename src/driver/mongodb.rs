@@ -34,24 +34,24 @@ impl Driver for MongoDB {
 
   fn read(
     &self,
-    type_name: &Key,
+    name: &str,
     condition: Condition,
     sort: Vec<SortRule>,
     range: Range,
     query: Query
   ) -> Result<Iter, Error> {
     let mut spec = doc! {
-      "find" => type_name,
+      "find" => name,
       "filter" => (condition_to_filter(condition)),
       "sort" => (sort_rules_to_sort(sort)),
       "projection" => (query_to_projection(query))
     };
 
     if let Some(limit) = range.limit() {
-      spec.insert("limit", limit);
+      spec.insert("limit", limit as u64);
     }
-    if let Some(skip) = range.skip() {
-      spec.insert("skip", skip);
+    if let Some(offset) = range.offset() {
+      spec.insert("skip", offset as u64);
     }
 
     let cursor = try!(self.database.command_cursor(spec, CommandType::Find, ReadPreference {
@@ -207,28 +207,15 @@ pub fn sort_rules_to_sort(sort_rules: Vec<SortRule>) -> Bson {
 
 /// Transform an Ardite query to a MongoDB projection.
 pub fn query_to_projection(query: Query) -> Bson {
-  // The `add_keys` function is so that we can have a flat document with
-  // dot-deliniated pointers as keys instead of a nested document.
-  fn add_keys(document: &mut Document, pointer: Pointer, query: Query) {
-    match query {
-      Query::All => { document.insert(pointer.join("."), 1); },
-      Query::Keys(keys) => {
-        for (key, sub_query) in keys.into_iter() {
-          let mut sub_pointer = pointer.clone();
-          sub_pointer.push(key);
-          add_keys(document, sub_pointer, sub_query)
-        }
-      }
-    }
-  }
-
   let mut document = Document::new();
   document.insert("_id", 0);
 
   if query == Query::All {
     Bson::Document(document)
   } else {
-    add_keys(&mut document, vec![], query);
+    for pointer in query.to_pointers() {
+      document.insert(pointer.join("."), 1);
+    }
     Bson::Document(document)
   }
 }
@@ -321,5 +308,6 @@ mod tests {
       "goodbye" => 1
     });
     assert_eq!(query_to_projection(query), projection);
+    assert_eq!(query_to_projection(Query::All), bson!({ "_id" => 0 }));
   }
 }

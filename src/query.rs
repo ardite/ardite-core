@@ -152,12 +152,34 @@ impl GenericRange for Range {
 /// Specifies a complex driver query. The query is structured like a tree
 /// except each node is unaware of its name (or if it even has a name). It
 /// cannot be expected that a `Query` tree will map 1 to 1 with a `Value` tree.
+// TODO: Add `Not` to select all except some fields.
 #[derive(PartialEq, Debug)]
 pub enum Query {
   /// Queries a single value.
   All,
   /// Queries some partial properties of an object.
   Keys(LinearMap<Key, Query>)
+}
+
+impl Query {
+  pub fn to_pointers(&self) -> Vec<Pointer> {
+    fn add_pointers(vec: &mut Vec<Pointer>, parent: Pointer, query: &Query) {
+      match *query {
+        Query::All => { vec.push(parent); },
+        Query::Keys(ref keys) => {
+          for (key, child) in keys.iter() {
+            let mut pointer = parent.clone();
+            pointer.push(key.clone());
+            add_pointers(vec, pointer, child);
+          }
+        }
+      }
+    }
+
+    let mut vec = Vec::new();
+    add_pointers(&mut vec, Pointer::new(), self);
+    vec
+  }
 }
 
 impl Default for Query {
@@ -229,7 +251,7 @@ mod tests {
   }
 
   #[test]
-  fn test_from_pointer() {
+  fn test_query_from_pointer() {
     assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Keys(linear_map! {
       str!("hello") => Query::Keys(linear_map! {
         str!("good") => Query::Keys(linear_map! {
@@ -241,5 +263,25 @@ mod tests {
       str!("good") => Query::All
     }));
     assert_eq!(Query::from(point![]), Query::All);
+  }
+
+  #[test]
+  fn test_query_to_pointers() {
+    assert_eq!(Query::Keys(linear_map! {
+      str!("hello") => Query::Keys(linear_map! {
+        str!("good") => Query::Keys(linear_map! {
+          str!("world") => Query::All,
+          str!("moon") => Query::All
+        }),
+        str!("world") => Query::All
+      }),
+      str!("goodbye") => Query::All
+    }).to_pointers(), vec![
+      point!["hello", "good", "world"],
+      point!["hello", "good", "moon"],
+      point!["hello", "world"],
+      point!["goodbye"]
+    ]);
+    assert_eq!(Query::All.to_pointers(), vec![point![]]);
   }
 }
