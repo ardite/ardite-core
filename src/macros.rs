@@ -3,30 +3,25 @@
 ///
 /// # Examples
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::Value;
 ///
 /// # fn main() {
-///
 /// assert_eq!(value!(), Value::Null);
 /// assert_eq!(value!(true), Value::Boolean(true));
 /// assert_eq!(value!(42), Value::I64(42));
 /// assert_eq!(value!(3.333), Value::F64(3.333));
 /// assert_eq!(value!("Hello, world!"), Value::String("Hello, world!".to_owned()));
-///
 /// # }
 /// ```
 ///
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::{Object, Array, Value};
 ///
 /// # fn main() {
-///
 /// let value = value!([(), true, 42, 3.333, "Hello, world!", [1, 2, 3, true], { "hello" => "world" }]);
 ///
 /// let mut array = Array::new();
@@ -50,18 +45,15 @@
 /// }));
 ///
 /// assert_eq!(value, Value::Array(array));
-///
 /// # }
 /// ```
 ///
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::{Object, Array, Value};
 ///
 /// # fn main() {
-///
 /// let value = value!({
 ///   "null" => (),
 ///   "boolean" => true,
@@ -95,7 +87,6 @@
 /// }));
 ///
 /// assert_eq!(value, Value::Object(object));
-///
 /// # }
 /// ```
 #[macro_export]
@@ -109,7 +100,7 @@ macro_rules! value {
   }};
 
   ([]) => {{
-    Value::Array($crate::value::Array::new())
+    $crate::value::Value::Array($crate::value::Array::new())
   }};
 
   ([$($value:tt),*]) => {{
@@ -121,7 +112,7 @@ macro_rules! value {
   }};
 
   ({}) => {{
-    Value::Object($crate::value::Object::new())
+    $crate::value::Value::Object($crate::value::Object::new())
   }};
 
   ({ $($key:expr => $value:tt),* }) => {{

@@ -47,7 +47,19 @@ pub enum Value {
 
 impl Value {
   /// Gets the value of an object or array variant for a key.
-  // TODO: Add examples.
+  ///
+  /// # Example
+  /// ```rust
+  /// # #[macro_use(value)]
+  /// # extern crate ardite;
+  /// # fn main() {
+  /// assert_eq!(value!(2).get("hello"), None);
+  /// assert_eq!(value!({ "hello" => "world" }).get("hello"), Some(&value!("world")));
+  /// assert_eq!(value!({ "hello" => "world" }).get("goodbye"), None);
+  /// assert_eq!(value!([false, "a", "b", 42]).get("0"), Some(&value!(false)));
+  /// assert_eq!(value!([false, "a", "b", 42]).get("20"), None);
+  /// # }
+  /// ```
   pub fn get<'a>(&'a self, key: &str) -> Option<&'a Value> {
     match *self {
       Value::Object(ref object) => object.get(key),
@@ -57,13 +69,42 @@ impl Value {
   }
 
   /// Gets the value of an object or array variant recursively.
-  // TODO: Add examples.
+  ///
+  /// # Example
+  /// ```rust
+  /// # #[macro_use(value)]
+  /// # extern crate ardite;
+  /// # fn main() {
+  /// assert_eq!(value!(2).get_path(&["hello", "world"]), None);
+  /// assert_eq!(value!({ "hello" => "world" }).get_path(&["hello", "world"]), None);
+  /// assert_eq!(value!({ "hello" => { "world" => true } }).get_path(&["hello", "world"]), Some(&value!(true)));
+  /// assert_eq!(value!({
+  ///   "a" => {
+  ///     "b" => {
+  ///       "c" => [0, 1, 2, { "4" => 42 }, 4, 5]
+  ///     }
+  ///   }
+  /// }).get_path(&["a", "b", "c", "3", "4"]), Some(&value!(42)));
+  /// # }
+  /// ```
   pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Value> {
     path.iter().fold(Some(self), |value, key| value.and_then(|value| value.get(key)))
   }
 
   /// Sets the value of a certain key on an object or array.
-  // TODO: Add examples.
+  ///
+  /// # Example
+  /// ```rust
+  /// # #[macro_use(value)]
+  /// # extern crate ardite;
+  /// # fn main() {
+  /// assert!(value!(false).set("hello", value!(true)).is_err());
+  /// assert!(value!([1, 2, 3]).set("200", value!(true)).is_err());
+  /// assert_eq!(value!([1, 2, 3]).set("1", value!(true)).unwrap(), value!([1, true, 3]));
+  /// assert_eq!(value!({}).set("hello", value!("world")).unwrap(), value!({ "hello" => "world" }));
+  /// assert_eq!(value!({ "hello" => "moon" }).set("hello", value!("world")).unwrap(), value!({ "hello" => "world" }));
+  /// # }
+  /// ```
   pub fn set(self, key: &str, new: Value) -> Result<Value, Error> {
     match self {
       Value::Object(mut object) => {
