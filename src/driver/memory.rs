@@ -9,7 +9,7 @@ use url::Url;
 
 use driver::Driver;
 use error::Error;
-use query::{Range, SortRule, Condition, Query};
+use query::{Range, SortRule, Condition};
 use value::{Value, Iter};
 
 /// The default driver to be used by a service when no other driver is
@@ -72,8 +72,7 @@ impl Driver for Memory {
     name: &str,
     cond: Condition,
     _: Vec<SortRule>,
-    range: Range,
-    _: Query
+    range: Range
   ) -> Result<Iter, Error> {
     if let Some(objects) = self.store.lock().unwrap().get(name) {
       Ok(Iter::new(

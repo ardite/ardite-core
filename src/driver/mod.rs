@@ -12,7 +12,7 @@ pub use driver::memory::Memory;
 use url::Url;
 
 use error::Error;
-use query::{Condition, SortRule, Range, Query};
+use query::{Condition, SortRule, Range};
 use value::{Value, Iter};
 
 /// The driver trait which all drivers will implement. Designed to be
@@ -41,8 +41,7 @@ pub trait Driver: Send + Sync {
     name: &str,
     condition: Condition,
     sort: Vec<SortRule>,
-    range: Range,
-    query: Query
+    range: Range
   ) -> Result<Iter, Error>;
 
   /// Read a single value from the driver. The default implementation uses the
@@ -56,15 +55,13 @@ pub trait Driver: Send + Sync {
   fn read_one(
     &self,
     name: &str,
-    condition: Condition,
-    query: Query
+    condition: Condition
   ) -> Result<Value, Error> {
     let mut values = try!(self.read(
       name,
       condition,
       Default::default(),
-      Range::new(None, Some(1)),
-      query
+      Range::new(None, Some(1))
     ));
 
     if let Some(value) = values.next() {

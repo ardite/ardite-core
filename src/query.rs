@@ -2,7 +2,6 @@
 // TODO: This needs *lots* of review and expirementation.
 
 use itertools::misc::GenericRange;
-use linear_map::LinearMap;
 
 use value::Value;
 
@@ -144,24 +143,6 @@ impl GenericRange for Range {
 
   fn end(&self) -> Option<usize> {
     self.limit().map(|limit| self.offset().unwrap_or(0) + limit)
-  }
-}
-
-/// Specifies a complex driver query. The query is structured like a tree
-/// except each node is unaware of its name (or if it even has a name). It
-/// cannot be expected that a `Query` tree will map 1 to 1 with a `Value` tree.
-// TODO: Add `Not` to select all except some fields.
-#[derive(PartialEq, Debug)]
-pub enum Query {
-  /// Queries a single value.
-  All,
-  /// Queries some partial properties of an object.
-  Keys(LinearMap<String, Query>)
-}
-
-impl Default for Query {
-  fn default() -> Self {
-    Query::All
   }
 }
 

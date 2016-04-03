@@ -13,7 +13,6 @@ use serde_yaml;
 use url::Url;
 
 use error::{Error, NotAcceptable};
-use query::Query;
 use schema::{Schema, SchemaObject};
 
 /// The definition object which contains all necessary information to
@@ -133,7 +132,6 @@ impl Collection {
 
   #[inline] pub fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> { self.schema.get(key) }
   #[inline] pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> { self.schema.get_path(path) }
-  #[inline] pub fn validate_query(&self, query: &Query) -> Result<(), Error> { self.schema.validate_query(query) }
 
   /// Inserts a property into the underlying object schema. See the docs for
   /// `SchemaObject::insert_property` for more information.

@@ -8,7 +8,7 @@ use error::Error;
 use schema;
 use schema::{Definition, Collection};
 use driver::{discover_driver, Driver, Memory};
-use query::{Condition, SortRule, Range, Query};
+use query::{Condition, SortRule, Range};
 use value::{Value, Iter};
 
 pub struct Service<'a> {
@@ -73,31 +73,27 @@ impl<'a> Service<'a> {
     name: &str,
     condition: Condition,
     sort: Vec<SortRule>,
-    range: Range,
-    query: Query
+    range: Range
   ) -> Result<Iter, Error> {
     let collection = try!(
       self.get_collection(name)
       .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", name)))
     );
-    try!(collection.validate_query(&query));
     let driver: &Driver = collection.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
-    driver.read(name, condition, sort, range, query)
+    driver.read(name, condition, sort, range)
   }
 
   #[inline]
   pub fn read_one(
     &self,
     name: &str,
-    condition: Condition,
-    query: Query
+    condition: Condition
   ) -> Result<Value, Error> {
     let collection = try!(
       self.get_collection(name)
       .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", name)))
     );
-    try!(collection.validate_query(&query));
     let driver: &Driver = collection.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
-    driver.read_one(name, condition, query)
+    driver.read_one(name, condition)
   }
 }
