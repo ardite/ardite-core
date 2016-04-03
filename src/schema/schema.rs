@@ -23,7 +23,7 @@ use value::Value;
 ///    with the `hello` property and then another nested `world` property.
 ///    Nested schemas must be retrievable and this goal is not possible with
 ///    JSON Schema constructs like `oneOf`, `allOf`, `noneOf`, or `not` make it
-///    difficult (if not impossible) to find a single schema for a pointer.
+///    difficult (if not impossible) to find a single schema for a path.
 ///
 /// 2. Schema extension. In some areas, adding new properties to the schema
 ///    which don’t have strict validation purposes is useful. For example

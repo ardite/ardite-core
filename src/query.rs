@@ -64,7 +64,7 @@ pub struct SortRule {
 }
 
 impl SortRule {
-  /// Create a new sorting rule from the property pointer and a boolean
+  /// Create a new sorting rule from the property path and a boolean
   /// specifying if we are ascending or descending.
   pub fn new(property: Vec<String>, ascending: bool) -> Self {
     SortRule {
