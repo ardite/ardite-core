@@ -11,17 +11,17 @@ use driver::{discover_driver, Driver, Memory};
 use query::{Condition, Sort, Range};
 use value::{Value, Iter};
 
-pub struct Service<'a> {
+pub struct Service {
   definition: Definition,
   memory: Memory,
   /// A map of driver configs to their respective drivers. We use a `LinearMap`
   /// because it does not require the `DriverConfig` to implement anything
   /// crazy like `Hash` or `Ord`. We also don’t ever suspect having a large
   /// number of drivers.
-  drivers: LinearMap<&'a schema::Driver, Box<Driver>>
+  drivers: LinearMap<schema::Driver, Box<Driver>>
 }
 
-impl<'a> Service<'a> {
+impl Service {
   pub fn new(definition: Definition) -> Self {
     Service {
       definition: definition,
@@ -37,24 +37,24 @@ impl<'a> Service<'a> {
   /// Iterates through the `DriverConfig`s in the definition, connecting them,
   /// and storing them internally. After running this method, all drivers
   /// outside of memory will be connected.
-  pub fn connect_drivers(&'a mut self) -> Result<(), Error> {
-    let mut driver_configs = Vec::new();
+  pub fn connect_drivers(&mut self) -> Result<(), Error> {
+    let mut drivers = Vec::new();
 
     // Add the driver config for the definition.
     if let Some(default) = self.definition.driver() {
-      driver_configs.push(default);
+      drivers.push(default);
     }
 
     // Add the driver configs for the types.
     for (_, collection) in self.definition.collections() {
       if let Some(driver) = collection.driver() {
-        driver_configs.push(driver);
+        drivers.push(driver);
       }
     }
 
     // Discover and connect all of the drivers specified in the driver configs.
-    for driver_config in driver_configs.into_iter() {
-      self.drivers.insert(driver_config, try!(discover_driver(driver_config)));
+    for driver in drivers.into_iter() {
+      self.drivers.insert(driver.clone(), try!(discover_driver(driver)));
     }
 
     Ok(())
