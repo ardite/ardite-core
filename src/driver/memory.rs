@@ -40,8 +40,7 @@ impl Memory {
   /// reference to `self`. It is a requirement of the `Driver` trait that we
   /// never use mutable references to `self` because `Driver`s will often be
   /// shared across multiple different threads.
-  // TODO: Eventually rename to `get_collection`.
-  pub fn append_to_type(&self, name: &str, values: &mut Vec<Value>) {
+  pub fn append_to_collection(&self, name: &str, values: &mut Vec<Value>) {
     let mut store = self.store.lock().unwrap();
 
     if !store.contains_key(name) {
