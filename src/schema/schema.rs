@@ -14,10 +14,6 @@ use error::Error;
 use query::Query;
 use value::Value;
 
-lazy_static! {
-  static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
-}
-
 /// A schema detailing what the data received from the driver (or inserted
 /// into the driver) should be. To describe this data we use a subset of
 /// [JSON Schema][1]. The schema is a subset of JSON Schema for three reasons:
@@ -44,8 +40,11 @@ lazy_static! {
 ///
 /// [1]: http://json-schema.org
 pub trait Schema: Send + Sync + Debug + 'static {
-  /// Used to get a nested schema at a certain point.
-  fn get(&self, pointer: &[&str]) -> Option<&Schema>;
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema>;
+
+  fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> where Self: Sized {
+    path.iter().fold(Some(self), |schema, key| schema.and_then(|schema| schema.get(key)))
+  }
 
   /// Validates a query that a user would like to make on the database by
   /// comparing it to the schema. Mostly checks that all properties described
@@ -108,12 +107,8 @@ impl PartialEq<Schema> for Schema {
 pub trait SchemaPrimitive: Send + Sync + Debug + 'static {}
 
 impl<T> Schema for T where T: SchemaPrimitive {
-  fn get<'a>(&'a self, pointer: &[&str]) -> Option<&'a Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 
   fn validate_query(&self, query: &Query) -> Result<(), Error> {
@@ -140,12 +135,8 @@ impl SchemaNone {
 }
 
 impl Schema for SchemaNone {
-  fn get<'a>(&'a self, pointer: &[&str]) -> Option<&'a Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 
   fn validate_query(&self, _: &Query) -> Result<(), Error> {
@@ -280,20 +271,13 @@ impl SchemaArray {
 }
 
 impl Schema for SchemaArray {
-  fn get(&self, pointer: &[&str]) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      if INTEGER_RE.is_match(pointer[0]) {
-        if let Some(ref items) = self.items {
-          items.get(&pointer[1..])
-        } else {
-          None
-        }
-      } else {
-        None
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> {
+    if key.parse::<usize>().is_ok() {
+      if let Some(ref items) = self.items {
+        return Some(items.deref());
       }
     }
+    None
   }
 
   fn validate_query(&self, query: &Query) -> Result<(), Error> {
@@ -301,7 +285,7 @@ impl Schema for SchemaArray {
       Query::All => Ok(()),
       Query::Keys(ref query_properties) => {
         let err_key = query_properties.keys().map(|key| {
-          if INTEGER_RE.is_match(key) {
+          if key.parse::<usize>().is_ok() {
             if let Some(ref items) = self.items {
               items.validate_query(&query_properties.get(key).unwrap())
             } else {
@@ -423,15 +407,11 @@ impl SchemaObject {
 }
 
 impl Schema for SchemaObject {
-  fn get(&self, pointer: &[&str]) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
+  fn get(&self, key: &str) -> Option<&Schema> {
+    if let Some(schema) = self.properties.get(key) {
+      Some(schema.deref())
     } else {
-      if let Some(schema) = self.properties.get(pointer[0]) {
-        schema.get(&pointer[1..])
-      } else {
-        None
-      }
+      None
     }
   }
 
@@ -558,12 +538,12 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert!(Schema::none().get(&[]).unwrap().eq(&Schema::none()));
-    assert!(Schema::none().get(&["hello"]).is_none());
-    assert!(Schema::boolean().get(&[]).unwrap().eq(&Schema::boolean()));
-    assert!(Schema::boolean().get(&["hello"]).is_none());
-    assert!(Schema::number().get(&["hello"]).is_none());
-    assert!(Schema::string().get(&["hello"]).is_none());
+    assert!(Schema::none().get_path(&[]).unwrap().eq(&Schema::none()));
+    assert!(Schema::none().get_path(&["hello"]).is_none());
+    assert!(Schema::boolean().get_path(&[]).unwrap().eq(&Schema::boolean()));
+    assert!(Schema::boolean().get_path(&["hello"]).is_none());
+    assert!(Schema::number().get_path(&["hello"]).is_none());
+    assert!(Schema::string().get_path(&["hello"]).is_none());
   }
 
   #[test]
@@ -571,11 +551,11 @@ mod tests {
     let array_none = Schema::array();
     let mut array_bool = Schema::array();
     array_bool.set_items(Schema::boolean());
-    assert!(array_none.get(&["1"]).is_none());
-    assert!(array_none.get(&["asd"]).is_none());
-    assert!(array_bool.get(&["1"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(&["9999999"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(&["asd"]).is_none());
+    assert!(array_none.get_path(&["1"]).is_none());
+    assert!(array_none.get_path(&["asd"]).is_none());
+    assert!(array_bool.get_path(&["1"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["9999999"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["asd"]).is_none());
   }
 
   #[test]
@@ -590,10 +570,10 @@ mod tests {
       goodbye.insert_property("world", Schema::boolean());
       goodbye
     });
-    assert!(object.get(&["yo"]).is_none());
-    assert!(object.get(&["hello"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(&["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(&["goodbye", "yo"]).is_none());
+    assert!(object.get_path(&["yo"]).is_none());
+    assert!(object.get_path(&["hello"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "yo"]).is_none());
   }
 
   #[test]

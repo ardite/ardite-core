@@ -131,7 +131,8 @@ impl Collection {
     self.driver.as_ref()
   }
 
-  #[inline] pub fn get<'a>(&'a self, pointer: &[&str]) -> Option<&'a Schema> { self.schema.get(pointer) }
+  #[inline] pub fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> { self.schema.get(key) }
+  #[inline] pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> { self.schema.get_path(path) }
   #[inline] pub fn validate_query(&self, query: &Query) -> Result<(), Error> { self.schema.validate_query(query) }
 
   /// Inserts a property into the underlying object schema. See the docs for
