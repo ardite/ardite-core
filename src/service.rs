@@ -9,7 +9,7 @@ use schema;
 use schema::{Definition, Collection};
 use driver::{discover_driver, Driver, Memory};
 use query::{Condition, SortRule, Range, Query};
-use value::{Key, Value, Iter};
+use value::{Value, Iter};
 
 pub struct Service<'a> {
   definition: Definition,
@@ -65,7 +65,7 @@ impl<'a> Service<'a> {
   }
 
   #[inline] pub fn get_collection(&self, name: &str) -> Option<&Collection> { self.definition.get_collection(name) }
-  #[inline] pub fn collections(&self) -> &BTreeMap<Key, Collection> { self.definition.collections() }
+  #[inline] pub fn collections(&self) -> &BTreeMap<String, Collection> { self.definition.collections() }
 
   #[inline]
   pub fn read(

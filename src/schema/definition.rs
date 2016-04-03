@@ -15,7 +15,6 @@ use url::Url;
 use error::{Error, NotAcceptable};
 use query::Query;
 use schema::{Schema, SchemaObject};
-use value::{Key, Pointer};
 
 /// The definition object which contains all necessary information to
 /// understand an Ardite Schema Definition.
@@ -24,7 +23,7 @@ pub struct Definition {
   /// The default driver when one is not specified for a specific type.
   driver: Option<Driver>,
   /// Collections defined in the database.
-  collections: BTreeMap<Key, Collection>
+  collections: BTreeMap<String, Collection>
 }
 
 impl Definition {
@@ -61,12 +60,12 @@ impl Definition {
   ///
   /// let mut definition = Definition::new();
   ///
-  /// definition.insert_type("helloWorld", Collection::new());
+  /// definition.add_collection("helloWorld", Collection::new());
   ///
-  /// assert!(definition.get_type("helloWorld").is_none());
-  /// assert_eq!(definition.get_type("hello_world").unwrap(), &Type::new());
+  /// assert!(definition.get_collection("helloWorld").is_none());
+  /// assert_eq!(definition.get_collection("hello_world").unwrap(), &Collection::new());
   /// ```
-  pub fn add_collection<K>(&mut self, name: K, collection: Collection) where K: Into<Key> {
+  pub fn add_collection<N>(&mut self, name: N, collection: Collection) where N: Into<String> {
     self.collections.insert(to_snake_case(&name.into()), collection);
   }
 
@@ -76,7 +75,7 @@ impl Definition {
   }
 
   /// Gets all of the definition’s types.
-  pub fn collections(&self) -> &BTreeMap<Key, Collection> {
+  pub fn collections(&self) -> &BTreeMap<String, Collection> {
     &self.collections
   }
 
@@ -132,28 +131,29 @@ impl Collection {
     self.driver.as_ref()
   }
 
-  #[inline] pub fn get(&self, pointer: Pointer) -> Option<&Schema> { self.schema.get(pointer) }
+  #[inline] pub fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> { self.schema.get(key) }
+  #[inline] pub fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> { self.schema.get_path(path) }
   #[inline] pub fn validate_query(&self, query: &Query) -> Result<(), Error> { self.schema.validate_query(query) }
 
   /// Inserts a property into the underlying object schema. See the docs for
   /// `SchemaObject::insert_property` for more information.
-  #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema { self.schema.insert_property(key, schema); }
+  #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<String>, S: Schema { self.schema.insert_property(key, schema); }
 
   /// Inserts a boxed property into the underlying object schema. See the docs
   /// for `SchemaObject::insert_boxed_property` for more information.
-  #[inline] pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> { self.schema.insert_boxed_property(key, schema); }
+  #[inline] pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<String> { self.schema.insert_boxed_property(key, schema); }
 
   /// Gets the properties from the underlying object schema. See the docs for
   /// `SchemaObject::properties` fro more information.
-  #[inline] pub fn properties(&self) -> LinearMap<Key, &Schema> { self.schema.properties() }
+  #[inline] pub fn properties(&self) -> &LinearMap<String, Box<Schema>> { self.schema.properties() }
 
   /// Sets the required property keys in the underlying object schema. See the
   /// docs for `SchemaObject::set_required` for more information.
-  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> { self.schema.set_required(required) }
+  #[inline] pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<String> { self.schema.set_required(required) }
 
   /// Gets the required properties in the underlying object schema. See the
   /// docs for `SchemaObject::required` for more information.
-  #[inline] pub fn required(&self) -> &Vec<Key> { self.schema.required() }
+  #[inline] pub fn required(&self) -> &Vec<String> { self.schema.required() }
 
   /// Enable additional properties in the underlying object schema. See the
   /// docs for `SchemaObject::enable_additional_properties` for more

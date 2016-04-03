@@ -10,7 +10,7 @@ use url::Url;
 use driver::Driver;
 use error::Error;
 use query::{Range, SortRule, Condition, Query};
-use value::{Key, Value, Iter};
+use value::{Value, Iter};
 
 /// The default driver to be used by a service when no other driver is
 /// specified. This driver, unlike the others, stores all of its data in
@@ -23,7 +23,7 @@ use value::{Key, Value, Iter};
 pub struct Memory {
   /// The actual internal `HashMap` store. Wrapped in a `Mutex` so that we can
   /// mutate the value *without* requiring a mutable reference to `Memory`.
-  store: Mutex<HashMap<Key, Vec<Value>>>
+  store: Mutex<HashMap<String, Vec<Value>>>
 }
 
 impl Memory {

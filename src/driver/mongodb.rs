@@ -269,8 +269,8 @@ mod tests {
   #[test]
   fn test_sort_rules_to_sort() {
     let sort = vec![
-      SortRule::new(point!["hello", "world"], true),
-      SortRule::new(point!["a"], false)
+      SortRule::new(vec!["hello".to_owned(), "world".to_owned()], true),
+      SortRule::new(vec!["a".to_owned()], false)
     ];
     let sort_bson = bson!({ "hello.world" => 1, "a" => (-1) });
     assert_eq!(sort_rules_to_sort(sort), sort_bson);

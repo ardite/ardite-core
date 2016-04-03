@@ -7,7 +7,7 @@ use serde::de::impls::IgnoredAny;
 use url::Url;
 
 use schema::{Definition, Collection, Driver, Schema};
-use value::{Key, Value};
+use value::Value;
 
 macro_rules! visit_map_fields {
   ($visitor:expr, { $($field_name:expr => $var_name:ident),* }) => {{
@@ -55,7 +55,7 @@ impl Deserialize for Definition {
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
         let mut driver_config: Option<Driver> = None;
-        let mut collections: Option<BTreeMap<Key, Collection>> = None;
+        let mut collections: Option<BTreeMap<String, Collection>> = None;
 
         visit_map_fields!(visitor, {
           "driver" => driver_config,

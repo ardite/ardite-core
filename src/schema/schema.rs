@@ -12,11 +12,7 @@ use regex::Regex;
 
 use error::Error;
 use query::Query;
-use value::{Key, Pointer, Value};
-
-lazy_static! {
-  static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
-}
+use value::Value;
 
 /// A schema detailing what the data received from the driver (or inserted
 /// into the driver) should be. To describe this data we use a subset of
@@ -27,7 +23,7 @@ lazy_static! {
 ///    with the `hello` property and then another nested `world` property.
 ///    Nested schemas must be retrievable and this goal is not possible with
 ///    JSON Schema constructs like `oneOf`, `allOf`, `noneOf`, or `not` make it
-///    difficult (if not impossible) to find a single schema for a pointer.
+///    difficult (if not impossible) to find a single schema for a path.
 ///
 /// 2. Schema extension. In some areas, adding new properties to the schema
 ///    which don’t have strict validation purposes is useful. For example
@@ -44,8 +40,11 @@ lazy_static! {
 ///
 /// [1]: http://json-schema.org
 pub trait Schema: Send + Sync + Debug + 'static {
-  /// Used to get a nested schema at a certain point.
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema>;
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema>;
+
+  fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> where Self: Sized {
+    path.iter().fold(Some(self), |schema, key| schema.and_then(|schema| schema.get(key)))
+  }
 
   /// Validates a query that a user would like to make on the database by
   /// comparing it to the schema. Mostly checks that all properties described
@@ -108,12 +107,8 @@ impl PartialEq<Schema> for Schema {
 pub trait SchemaPrimitive: Send + Sync + Debug + 'static {}
 
 impl<T> Schema for T where T: SchemaPrimitive {
-  fn get(&self, pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 
   fn validate_query(&self, query: &Query) -> Result<(), Error> {
@@ -140,12 +135,8 @@ impl SchemaNone {
 }
 
 impl Schema for SchemaNone {
-  fn get(&self, pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 
   fn validate_query(&self, _: &Query) -> Result<(), Error> {
@@ -280,20 +271,13 @@ impl SchemaArray {
 }
 
 impl Schema for SchemaArray {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      if INTEGER_RE.is_match(&pointer.remove(0)) {
-        if let Some(ref items) = self.items {
-          items.get(pointer)
-        } else {
-          None
-        }
-      } else {
-        None
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> {
+    if key.parse::<usize>().is_ok() {
+      if let Some(ref items) = self.items {
+        return Some(items.deref());
       }
     }
+    None
   }
 
   fn validate_query(&self, query: &Query) -> Result<(), Error> {
@@ -301,7 +285,7 @@ impl Schema for SchemaArray {
       Query::All => Ok(()),
       Query::Keys(ref query_properties) => {
         let err_key = query_properties.keys().map(|key| {
-          if INTEGER_RE.is_match(key) {
+          if key.parse::<usize>().is_ok() {
             if let Some(ref items) = self.items {
               items.validate_query(&query_properties.get(key).unwrap())
             } else {
@@ -325,9 +309,9 @@ impl Schema for SchemaArray {
 pub struct SchemaObject {
   /// Schemas associated to the object properties.
   // We use box because the object must take ownership of its child schema.
-  properties: LinearMap<Key, Box<Schema>>,
+  properties: LinearMap<String, Box<Schema>>,
   /// Properties that are required to be in the object.
-  required: Vec<Key>,
+  required: Vec<String>,
   /// Whether or not there may be extra properties outside of the ones
   /// defined by the properties map.
   additional_properties: bool
@@ -367,7 +351,7 @@ impl SchemaObject {
   ///   number
   /// }));
   /// ```
-  pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
+  pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<String>, S: Schema + 'static {
     self.properties.insert(to_snake_case(&key.into()), Box::new(schema));
   }
 
@@ -393,7 +377,7 @@ impl SchemaObject {
   /// assert!(schema.get_property("helloWorld").is_none());
   /// assert!(schema.get_property("hello_world").unwrap().eq(&Schema::number()));
   /// ```
-  pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
+  pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<String> {
     self.properties.insert(to_snake_case(&key.into()), schema);
   }
 
@@ -401,7 +385,7 @@ impl SchemaObject {
     self.properties.get(key).map(|schema| schema.deref())
   }
 
-  pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> {
+  pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<String> {
     self.required = required.into_iter().map(Into::into).collect();
   }
 
@@ -409,15 +393,11 @@ impl SchemaObject {
     self.additional_properties = true;
   }
 
-  pub fn properties(&self) -> LinearMap<Key, &Schema> {
-    let mut properties = LinearMap::new();
-    for (key, value) in self.properties.iter() {
-      properties.insert(key.to_owned(), value.deref());
-    }
-    properties
+  pub fn properties(&self) -> &LinearMap<String, Box<Schema>> {
+    &self.properties
   }
 
-  pub fn required(&self) -> &Vec<Key> {
+  pub fn required(&self) -> &Vec<String> {
     &self.required
   }
 
@@ -427,15 +407,11 @@ impl SchemaObject {
 }
 
 impl Schema for SchemaObject {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
+  fn get(&self, key: &str) -> Option<&Schema> {
+    if let Some(schema) = self.properties.get(key) {
+      Some(schema.deref())
     } else {
-      if let Some(schema) = self.properties.get(&pointer.remove(0)) {
-        schema.get(pointer)
-      } else {
-        None
-      }
+      None
     }
   }
 
@@ -562,12 +538,12 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert!(Schema::none().get(point![]).unwrap().eq(&Schema::none()));
-    assert!(Schema::none().get(point!["hello"]).is_none());
-    assert!(Schema::boolean().get(point![]).unwrap().eq(&Schema::boolean()));
-    assert!(Schema::boolean().get(point!["hello"]).is_none());
-    assert!(Schema::number().get(point!["hello"]).is_none());
-    assert!(Schema::string().get(point!["hello"]).is_none());
+    assert!(Schema::none().get_path(&[]).unwrap().eq(&Schema::none()));
+    assert!(Schema::none().get_path(&["hello"]).is_none());
+    assert!(Schema::boolean().get_path(&[]).unwrap().eq(&Schema::boolean()));
+    assert!(Schema::boolean().get_path(&["hello"]).is_none());
+    assert!(Schema::number().get_path(&["hello"]).is_none());
+    assert!(Schema::string().get_path(&["hello"]).is_none());
   }
 
   #[test]
@@ -575,11 +551,11 @@ mod tests {
     let array_none = Schema::array();
     let mut array_bool = Schema::array();
     array_bool.set_items(Schema::boolean());
-    assert!(array_none.get(point!["1"]).is_none());
-    assert!(array_none.get(point!["asd"]).is_none());
-    assert!(array_bool.get(point!["1"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(point!["9999999"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(point!["asd"]).is_none());
+    assert!(array_none.get_path(&["1"]).is_none());
+    assert!(array_none.get_path(&["asd"]).is_none());
+    assert!(array_bool.get_path(&["1"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["9999999"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["asd"]).is_none());
   }
 
   #[test]
@@ -594,10 +570,10 @@ mod tests {
       goodbye.insert_property("world", Schema::boolean());
       goodbye
     });
-    assert!(object.get(point!["yo"]).is_none());
-    assert!(object.get(point!["hello"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(point!["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(point!["goodbye", "yo"]).is_none());
+    assert!(object.get_path(&["yo"]).is_none());
+    assert!(object.get_path(&["hello"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "yo"]).is_none());
   }
 
   #[test]

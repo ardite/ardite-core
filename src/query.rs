@@ -1,12 +1,10 @@
 //! Defines complex queries over Ardite driver data structures.
 // TODO: This needs *lots* of review and expirementation.
 
-use std::convert::From;
-
 use itertools::misc::GenericRange;
 use linear_map::LinearMap;
 
-use value::{Key, Pointer, Value};
+use value::Value;
 
 /// A condition which will resolve to a boolean value after comparing a certain
 /// value with a set rule.
@@ -25,7 +23,7 @@ pub enum Condition {
   Or(Vec<Condition>),
   /// Partial condition on a key of an object. To combine may keys use the
   /// `And` condition.
-  Key(Key, Box<Condition>),
+  Key(String, Box<Condition>),
   /// If the compared value is exactly equal to this one, the condition passes.
   Equal(Value)
 }
@@ -40,7 +38,7 @@ impl Condition {
       Not(ref cond) => cond.is_false(value),
       And(ref conds) => conds.iter().all(|cond| cond.is_true(value)),
       Or(ref conds) => conds.iter().any(|cond| cond.is_true(value)),
-      Key(ref key, ref cond) => value.get(vec![key.to_owned()]).map_or(false, |value| cond.is_true(value)),
+      Key(ref key, ref cond) => value.get(key).map_or(false, |value| cond.is_true(value)),
       Equal(ref other_value) => value == other_value
     }
   }
@@ -60,15 +58,15 @@ impl Default for Condition {
 /// Specifies the order in which a property of a value should be ordered.
 pub struct SortRule {
   /// The exacty property to order by.
-  property: Pointer,
+  property: Vec<String>,
   /// The direction to order the property in.
   direction: SortDirection
 }
 
 impl SortRule {
-  /// Create a new sorting rule from the property pointer and a boolean
+  /// Create a new sorting rule from the property path and a boolean
   /// specifying if we are ascending or descending.
-  pub fn new(property: Pointer, ascending: bool) -> Self {
+  pub fn new(property: Vec<String>, ascending: bool) -> Self {
     SortRule {
       property: property,
       direction: if ascending { SortDirection::Ascending } else { SortDirection::Descending }
@@ -76,7 +74,7 @@ impl SortRule {
   }
 
   /// Get the property the struct is sorting against.
-  pub fn property(&self) -> &Pointer {
+  pub fn property(&self) -> &Vec<String> {
     &self.property
   }
 
@@ -158,28 +156,7 @@ pub enum Query {
   /// Queries a single value.
   All,
   /// Queries some partial properties of an object.
-  Keys(LinearMap<Key, Query>)
-}
-
-impl Query {
-  pub fn to_pointers(&self) -> Vec<Pointer> {
-    fn add_pointers(vec: &mut Vec<Pointer>, parent: Pointer, query: &Query) {
-      match *query {
-        Query::All => { vec.push(parent); },
-        Query::Keys(ref keys) => {
-          for (key, child) in keys.iter() {
-            let mut pointer = parent.clone();
-            pointer.push(key.clone());
-            add_pointers(vec, pointer, child);
-          }
-        }
-      }
-    }
-
-    let mut vec = Vec::new();
-    add_pointers(&mut vec, Pointer::new(), self);
-    vec
-  }
+  Keys(LinearMap<String, Query>)
 }
 
 impl Default for Query {
@@ -188,21 +165,8 @@ impl Default for Query {
   }
 }
 
-impl From<Pointer> for Query {
-  fn from(pointer: Pointer) -> Self {
-    // Reverse loop through the pointer to construct the query.
-    pointer.iter().rev().fold(Query::All, |acc, key| {
-      let mut map = LinearMap::new();
-      map.insert(key.to_owned(), acc);
-      Query::Keys(map)
-    })
-  }
-}
-
 #[cfg(test)]
 mod tests {
-  use super::*;
-
   #[test]
   fn test_condition_is_true() {
     use super::Condition::*;
@@ -248,40 +212,5 @@ mod tests {
       "hello" => "world",
       "goodbye" => { "moon" => false }
     })));
-  }
-
-  #[test]
-  fn test_query_from_pointer() {
-    assert_eq!(Query::from(point!["hello", "good", "world"]), Query::Keys(linear_map! {
-      str!("hello") => Query::Keys(linear_map! {
-        str!("good") => Query::Keys(linear_map! {
-          str!("world") => Query::All
-        })
-      })
-    }));
-    assert_eq!(Query::from(point!["good"]), Query::Keys(linear_map! {
-      str!("good") => Query::All
-    }));
-    assert_eq!(Query::from(point![]), Query::All);
-  }
-
-  #[test]
-  fn test_query_to_pointers() {
-    assert_eq!(Query::Keys(linear_map! {
-      str!("hello") => Query::Keys(linear_map! {
-        str!("good") => Query::Keys(linear_map! {
-          str!("world") => Query::All,
-          str!("moon") => Query::All
-        }),
-        str!("world") => Query::All
-      }),
-      str!("goodbye") => Query::All
-    }).to_pointers(), vec![
-      point!["hello", "good", "world"],
-      point!["hello", "good", "moon"],
-      point!["hello", "world"],
-      point!["goodbye"]
-    ]);
-    assert_eq!(Query::All.to_pointers(), vec![point![]]);
   }
 }
