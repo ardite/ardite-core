@@ -147,36 +147,27 @@ impl Into<Document> for Value {
 /// MongoDB spec.
 pub fn condition_to_filter(condition: Condition) -> Bson {
   match condition {
-    // Because we want nested `Condition::Keys` to be represented as
-    // dot-deliniated pointers (`a.b.c`) we must make sure that
-    // `condition_to_filter` is only called for the highest level
-    // `Condition::Keys`. For `Condition::Keys` inside `Condition::Keys` there
-    // is special logic to get a flat filter document.
-    Condition::Keys(keys) => {
-      // This `add_keys` function is that special logic.
-      fn add_keys(document: &mut Document, path: Vec<String>, keys: LinearMap<String, Condition>) {
-        // For all of the keys:
-        for (key, condition) in keys {
-          // Create a new pointer from the parent pointer where the head is
-          // the key we are looping over.
-          let mut sub_path = path.clone();
-          sub_path.push(key);
-
-          if let Condition::Keys(sub_keys) = condition {
-            // If the sub condition is another `Condition::Keys`, run this
-            // function again instead of running `condition_to_filter`.
-            add_keys(document, sub_path, sub_keys);
-          } else {
-            // Otherwise, insert the filter into the document at the
-            // `sub_pointer`.
-            document.insert(sub_path.join("."), condition_to_filter(condition));
+    Condition::Key(prev_key, prev_cond) => {
+      let mut key = prev_key;
+      let mut cond = *prev_cond;
+      // We are looping here because we want to merge all of the directly
+      // nested `Condition::Key`s into a single key/value pair.
+      loop {
+        match cond {
+          Condition::Key(next_key, next_cond) => {
+            key.push_str(".");
+            key.push_str(&next_key);
+            cond = *next_cond;
+            // Loop!
+          },
+          _ => {
+            let mut document = Document::new();
+            document.insert(key, condition_to_filter(cond));
+            // End the loop.
+            return Bson::Document(document);
           }
         }
       }
-
-      let mut document = Document::new();
-      add_keys(&mut document, vec![], keys);
-      Bson::Document(document)
     },
     Condition::True => bson!({ "$where" => "true" }),
     Condition::False => bson!({ "$where" => "false" }),
@@ -198,7 +189,7 @@ pub fn condition_to_filter(condition: Condition) -> Bson {
 pub fn sort_rules_to_sort(sort_rules: Vec<Sort>) -> Bson {
   let mut document = Document::new();
   for sort_rule in sort_rules {
-    document.insert(sort_rule.property().join("."), if sort_rule.is_descending() { -1 } else { 1 });
+    document.insert(sort_rule.path().join("."), if sort_rule.is_descending() { -1 } else { 1 });
   }
   Bson::Document(document)
 }
@@ -207,27 +198,25 @@ pub fn sort_rules_to_sort(sort_rules: Vec<Sort>) -> Bson {
 mod tests {
   use super::*;
 
-  use query::{Sort, Condition};
-  use value::Value;
+  use query::Sort;
 
   #[test]
   fn test_condition_to_filter() {
-    let condition = Condition::Or(vec![
-      Condition::True,
-      Condition::False,
-      Condition::And(vec![
-        Condition::Not(Box::new(Condition::Equal(Value::String(str!("hello"))))),
-        Condition::Equal(Value::I64(42))
+    use query::Condition::*;
+    let condition = Or(vec![
+      True,
+      False,
+      And(vec![
+        Not(Box::new(Equal(value!("hello")))),
+        Equal(value!(42))
       ]),
-      Condition::Keys(linear_map! {
-        str!("a") => Condition::False,
-        str!("b") => Condition::Keys(linear_map! {
-          str!("c") => Condition::Equal(Value::I64(4)),
-          str!("d") => Condition::Keys(linear_map! {
-            str!("e") => Condition::True
-          })
-        })
-      })
+      And(vec![
+        Key(str!("a"), Box::new(False)),
+        Key(str!("b"), Box::new(And(vec![
+          Key(str!("c"), Box::new(Equal(value!(4)))),
+          Key(str!("d"), Box::new(Key(str!("e"), Box::new(Key(str!("f"), Box::new(Key(str!("g"), Box::new(True))))))))
+        ])))
+      ])
     ]);
     let filter = bson!({
       "$or" => [
@@ -240,9 +229,17 @@ mod tests {
           ]
         },
         {
-          "a" => { "$where" => "false" },
-          "b.c" => { "$eq" => 4i64 },
-          "b.d.e" => { "$where" => "true" }
+          "$and" => [
+            { "a" => { "$where" => "false" } },
+            {
+              "b" => {
+                "$and" => [
+                  { "c" => { "$eq" => 4i64 } },
+                  { "d.e.f.g" => { "$where" => "true" } }
+                ]
+              }
+            }
+          ]
         }
       ]
     });
