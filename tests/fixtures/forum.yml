@@ -1,4 +1,4 @@
-types:
+collections:
   person:
     type: object
     required:

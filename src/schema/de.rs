@@ -6,8 +6,8 @@ use serde::de::{Deserialize, Deserializer, Visitor, MapVisitor};
 use serde::de::impls::IgnoredAny;
 use url::Url;
 
-use schema::{Definition, Type, Driver, Schema};
-use value::{Key, Value};
+use schema::{Definition, Collection, Driver, Schema};
+use value::Value;
 
 macro_rules! visit_map_fields {
   ($visitor:expr, { $($field_name:expr => $var_name:ident),* }) => {{
@@ -55,20 +55,20 @@ impl Deserialize for Definition {
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
         let mut driver_config: Option<Driver> = None;
-        let mut types: Option<BTreeMap<Key, Type>> = None;
+        let mut collections: Option<BTreeMap<String, Collection>> = None;
 
         visit_map_fields!(visitor, {
           "driver" => driver_config,
-          "types" => types
+          "collections" => collections
         });
 
         let mut definition = Definition::new();
 
         if let Some(driver_config) = driver_config { definition.set_driver(driver_config); }
 
-        if let Some(types) = types {
-          for (key, type_) in types {
-            definition.insert_type(key, type_);
+        if let Some(collections) = collections {
+          for (key, collection) in collections {
+            definition.add_collection(key, collection);
           }
         }
 
@@ -80,12 +80,12 @@ impl Deserialize for Definition {
   }
 }
 
-impl Deserialize for Type {
+impl Deserialize for Collection {
   fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer {
-    struct TypeVisitor;
+    struct CollectionVisitor;
 
-    impl Visitor for TypeVisitor {
-      type Value = Type;
+    impl Visitor for CollectionVisitor {
+      type Value = Collection;
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
@@ -111,21 +111,21 @@ impl Deserialize for Type {
           return Err(de::Error::custom("Schema type property must be defined."));
         }
 
-        let mut type_ = Type::new();
+        let mut collection = Collection::new();
 
-        type_.set_required(required.unwrap_or_default());
-        if additional_properties.unwrap_or(false) { type_.enable_additional_properties(); }
+        collection.set_required(required.unwrap_or_default());
+        if additional_properties.unwrap_or(false) { collection.enable_additional_properties(); }
         for (key, schema) in properties.unwrap_or_default() {
-          type_.insert_boxed_property(key, schema);
+          collection.insert_boxed_property(key, schema);
         }
 
-        if let Some(driver_config) = driver_config { type_.set_driver(driver_config); }
+        if let Some(driver_config) = driver_config { collection.set_driver(driver_config); }
 
-        Ok(type_)
+        Ok(collection)
       }
     }
 
-    deserializer.deserialize_map(TypeVisitor)
+    deserializer.deserialize_map(CollectionVisitor)
   }
 }
 
@@ -251,26 +251,26 @@ mod tests {
   use serde_json;
   use url::Url;
 
-  use schema::{Definition, Type, Driver};
+  use schema::{Definition, Collection, Driver};
 
   #[test]
   fn test_json_definition() {
     let from_str = serde_json::from_str::<Definition>;
     assert_eq!(from_str("{}").unwrap(), Definition::new());
     assert_eq!(from_str(r#"{"hello":"world"}"#).unwrap(), Definition::new());
-    assert!(from_str(r#"{"types":2}"#).is_err());
-    assert!(from_str(r#"{"types":"yo"}"#).is_err());
-    assert!(from_str(r#"{"types":[]}"#).is_err());
-    assert_eq!(from_str(r#"{"types":{}}"#).unwrap(), Definition::new());
+    assert!(from_str(r#"{"collections":2}"#).is_err());
+    assert!(from_str(r#"{"collections":"yo"}"#).is_err());
+    assert!(from_str(r#"{"collections":[]}"#).is_err());
+    assert_eq!(from_str(r#"{"collections":{}}"#).unwrap(), Definition::new());
   }
 
   #[test]
-  fn test_json_type() {
-    let from_str = serde_json::from_str::<Type>;
-    assert_eq!(from_str(r#"{"type":"object"}"#).unwrap(), Type::new());
+  fn test_json_collection() {
+    let from_str = serde_json::from_str::<Collection>;
+    assert_eq!(from_str(r#"{"type":"object"}"#).unwrap(), Collection::new());
     assert!(from_str("{}").is_err());
     assert!(from_str(r#"{"hello":"world"}"#).is_err());
-    assert_eq!(from_str(r#"{"type":"object","hello":"world"}"#).unwrap(), Type::new());
+    assert_eq!(from_str(r#"{"type":"object","hello":"world"}"#).unwrap(), Collection::new());
     assert!(from_str(r#"{"type":2}"#).is_err());
     assert!(from_str(r#"{"type":"yo"}"#).is_err());
     assert!(from_str(r#"{"type":[]}"#).is_err());

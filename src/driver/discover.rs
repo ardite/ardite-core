@@ -13,9 +13,10 @@ pub fn discover_driver(config: &schema::Driver) -> Result<Box<Driver>, Error> {
 }
 
 #[cfg(feature = "driver_mongodb")]
-fn connect_mongodb_driver(_: &schema::Driver) -> Result<Box<Driver>, Error> {
+fn connect_mongodb_driver(config: &schema::Driver) -> Result<Box<Driver>, Error> {
   use driver::mongodb::MongoDB;
-  MongoDB::connect(config.url()).map(Box::new)
+  let driver = try!(MongoDB::connect(config.url()));
+  Ok(Box::new(driver))
 }
 
 #[cfg(not(feature = "driver_mongodb"))]

@@ -10,13 +10,7 @@ use inflections::case::to_snake_case;
 use linear_map::LinearMap;
 use regex::Regex;
 
-use error::Error;
-use query::Query;
-use value::{Key, Pointer, Value};
-
-lazy_static! {
-  static ref INTEGER_RE: Regex = Regex::new(r"^\d+$").unwrap();
-}
+use value::Value;
 
 /// A schema detailing what the data received from the driver (or inserted
 /// into the driver) should be. To describe this data we use a subset of
@@ -27,7 +21,7 @@ lazy_static! {
 ///    with the `hello` property and then another nested `world` property.
 ///    Nested schemas must be retrievable and this goal is not possible with
 ///    JSON Schema constructs like `oneOf`, `allOf`, `noneOf`, or `not` make it
-///    difficult (if not impossible) to find a single schema for a pointer.
+///    difficult (if not impossible) to find a single schema for a path.
 ///
 /// 2. Schema extension. In some areas, adding new properties to the schema
 ///    which don’t have strict validation purposes is useful. For example
@@ -44,13 +38,11 @@ lazy_static! {
 ///
 /// [1]: http://json-schema.org
 pub trait Schema: Send + Sync + Debug + 'static {
-  /// Used to get a nested schema at a certain point.
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema>;
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema>;
 
-  /// Validates a query that a user would like to make on the database by
-  /// comparing it to the schema. Mostly checks that all properties described
-  /// in the query are accessible according to the schema.
-  fn validate_query(&self, query: &Query) -> Result<(), Error>;
+  fn get_path<'a>(&'a self, path: &[&str]) -> Option<&'a Schema> where Self: Sized {
+    path.iter().fold(Some(self), |schema, key| schema.and_then(|schema| schema.get(key)))
+  }
 }
 
 impl Schema {
@@ -108,22 +100,8 @@ impl PartialEq<Schema> for Schema {
 pub trait SchemaPrimitive: Send + Sync + Debug + 'static {}
 
 impl<T> Schema for T where T: SchemaPrimitive {
-  fn get(&self, pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
-  }
-
-  fn validate_query(&self, query: &Query) -> Result<(), Error> {
-    match *query {
-      Query::All => Ok(()),
-      Query::Keys(_) => Err(Error::invalid(
-        "Cannot deeply query a primitive value.",
-        "Try not querying specific properties of a primitive like `null` or `boolean`."
-      ))
-    }
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 }
 
@@ -140,16 +118,8 @@ impl SchemaNone {
 }
 
 impl Schema for SchemaNone {
-  fn get(&self, pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      None
-    }
-  }
-
-  fn validate_query(&self, _: &Query) -> Result<(), Error> {
-    Ok(())
+  fn get<'a>(&'a self, _: &str) -> Option<&'a Schema> {
+    None
   }
 }
 
@@ -280,43 +250,13 @@ impl SchemaArray {
 }
 
 impl Schema for SchemaArray {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
-    } else {
-      if INTEGER_RE.is_match(&pointer.remove(0)) {
-        if let Some(ref items) = self.items {
-          items.get(pointer)
-        } else {
-          None
-        }
-      } else {
-        None
+  fn get<'a>(&'a self, key: &str) -> Option<&'a Schema> {
+    if key.parse::<usize>().is_ok() {
+      if let Some(ref items) = self.items {
+        return Some(items.deref());
       }
     }
-  }
-
-  fn validate_query(&self, query: &Query) -> Result<(), Error> {
-    match *query {
-      Query::All => Ok(()),
-      Query::Keys(ref query_properties) => {
-        let err_key = query_properties.keys().map(|key| {
-          if INTEGER_RE.is_match(key) {
-            if let Some(ref items) = self.items {
-              items.validate_query(&query_properties.get(key).unwrap())
-            } else {
-              Ok(())
-            }
-          } else {
-            Err(Error::invalid(format!("Cannot query non-integer \"{}\" array property.", key), "Only query integer array keys like 1, 2, and 3."))
-          }
-        }).find(|r| r.is_err());
-        match err_key {
-          None => Ok(()),
-          Some(error) => error
-        }
-      }
-    }
+    None
   }
 }
 
@@ -325,9 +265,9 @@ impl Schema for SchemaArray {
 pub struct SchemaObject {
   /// Schemas associated to the object properties.
   // We use box because the object must take ownership of its child schema.
-  properties: LinearMap<Key, Box<Schema>>,
+  properties: LinearMap<String, Box<Schema>>,
   /// Properties that are required to be in the object.
-  required: Vec<Key>,
+  required: Vec<String>,
   /// Whether or not there may be extra properties outside of the ones
   /// defined by the properties map.
   additional_properties: bool
@@ -367,7 +307,7 @@ impl SchemaObject {
   ///   number
   /// }));
   /// ```
-  pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static {
+  pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<String>, S: Schema + 'static {
     self.properties.insert(to_snake_case(&key.into()), Box::new(schema));
   }
 
@@ -393,7 +333,7 @@ impl SchemaObject {
   /// assert!(schema.get_property("helloWorld").is_none());
   /// assert!(schema.get_property("hello_world").unwrap().eq(&Schema::number()));
   /// ```
-  pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<Key> {
+  pub fn insert_boxed_property<K>(&mut self, key: K, schema: Box<Schema>) where K: Into<String> {
     self.properties.insert(to_snake_case(&key.into()), schema);
   }
 
@@ -401,7 +341,7 @@ impl SchemaObject {
     self.properties.get(key).map(|schema| schema.deref())
   }
 
-  pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<Key> {
+  pub fn set_required<K>(&mut self, required: Vec<K>) where K: Into<String> {
     self.required = required.into_iter().map(Into::into).collect();
   }
 
@@ -409,15 +349,11 @@ impl SchemaObject {
     self.additional_properties = true;
   }
 
-  pub fn properties(&self) -> LinearMap<Key, &Schema> {
-    let mut properties = LinearMap::new();
-    for (key, value) in self.properties.iter() {
-      properties.insert(key.to_owned(), value.deref());
-    }
-    properties
+  pub fn properties(&self) -> &LinearMap<String, Box<Schema>> {
+    &self.properties
   }
 
-  pub fn required(&self) -> &Vec<Key> {
+  pub fn required(&self) -> &Vec<String> {
     &self.required
   }
 
@@ -427,36 +363,11 @@ impl SchemaObject {
 }
 
 impl Schema for SchemaObject {
-  fn get(&self, mut pointer: Pointer) -> Option<&Schema> {
-    if pointer.is_empty() {
-      Some(self)
+  fn get(&self, key: &str) -> Option<&Schema> {
+    if let Some(schema) = self.properties.get(key) {
+      Some(schema.deref())
     } else {
-      if let Some(schema) = self.properties.get(&pointer.remove(0)) {
-        schema.get(pointer)
-      } else {
-        None
-      }
-    }
-  }
-
-  fn validate_query(&self, query: &Query) -> Result<(), Error> {
-    match *query {
-      Query::All => Ok(()),
-      Query::Keys(ref query_properties) => {
-        let err_key = query_properties.keys().map(|key| {
-          if let Some(property_schema) = self.properties.get(key) {
-            property_schema.validate_query(&query_properties.get(key).unwrap())
-          } else if self.additional_properties {
-            Ok(())
-          } else {
-            Err(Error::invalid(format!("Cannot query object property \"{}\".", key), "Query an object property that is defined in the schema."))
-          }
-        }).find(|r| r.is_err());
-        match err_key {
-          None => Ok(()),
-          Some(error) => error
-        }
-      }
+      None
     }
   }
 }
@@ -486,8 +397,7 @@ impl SchemaPrimitive for SchemaEnum {}
 
 #[cfg(test)]
 mod tests {
-  use schema::Schema;
-  use query::Query;
+  use super::*;
 
   #[test]
   fn test_schema_equality() {
@@ -562,12 +472,12 @@ mod tests {
 
   #[test]
   fn test_get_primitive() {
-    assert!(Schema::none().get(point![]).unwrap().eq(&Schema::none()));
-    assert!(Schema::none().get(point!["hello"]).is_none());
-    assert!(Schema::boolean().get(point![]).unwrap().eq(&Schema::boolean()));
-    assert!(Schema::boolean().get(point!["hello"]).is_none());
-    assert!(Schema::number().get(point!["hello"]).is_none());
-    assert!(Schema::string().get(point!["hello"]).is_none());
+    assert!(Schema::none().get_path(&[]).unwrap().eq(&Schema::none()));
+    assert!(Schema::none().get_path(&["hello"]).is_none());
+    assert!(Schema::boolean().get_path(&[]).unwrap().eq(&Schema::boolean()));
+    assert!(Schema::boolean().get_path(&["hello"]).is_none());
+    assert!(Schema::number().get_path(&["hello"]).is_none());
+    assert!(Schema::string().get_path(&["hello"]).is_none());
   }
 
   #[test]
@@ -575,11 +485,11 @@ mod tests {
     let array_none = Schema::array();
     let mut array_bool = Schema::array();
     array_bool.set_items(Schema::boolean());
-    assert!(array_none.get(point!["1"]).is_none());
-    assert!(array_none.get(point!["asd"]).is_none());
-    assert!(array_bool.get(point!["1"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(point!["9999999"]).unwrap().eq(&Schema::boolean()));
-    assert!(array_bool.get(point!["asd"]).is_none());
+    assert!(array_none.get_path(&["1"]).is_none());
+    assert!(array_none.get_path(&["asd"]).is_none());
+    assert!(array_bool.get_path(&["1"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["9999999"]).unwrap().eq(&Schema::boolean()));
+    assert!(array_bool.get_path(&["asd"]).is_none());
   }
 
   #[test]
@@ -594,106 +504,9 @@ mod tests {
       goodbye.insert_property("world", Schema::boolean());
       goodbye
     });
-    assert!(object.get(point!["yo"]).is_none());
-    assert!(object.get(point!["hello"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(point!["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
-    assert!(object.get(point!["goodbye", "yo"]).is_none());
-  }
-
-  #[test]
-  fn test_query_none() {
-    assert!(Schema::none().validate_query(&Query::All).is_ok());
-    assert!(Schema::none().validate_query(&Query::Keys(linear_map! {
-      str!("s@#f&/Ij)82h(;pa0]") => Query::All,
-      str!("123") => Query::All,
-      str!("hello") => Query::All,
-      str!("nested") => Query::Keys(linear_map! {
-        str!("yo") => Query::All
-      })
-    })).is_ok());
-  }
-
-  #[test]
-  fn test_query_primitive() {
-    assert!(Schema::null().validate_query(&Query::All).is_ok());
-    let obj_query = Query::Keys(linear_map! {});
-    Schema::null().validate_query(&obj_query).unwrap_err().expect("deeply query");
-    Schema::boolean().validate_query(&obj_query).unwrap_err().expect("deeply query");
-    Schema::number().validate_query(&obj_query).unwrap_err().expect("deeply query");
-    Schema::string().validate_query(&obj_query).unwrap_err().expect("deeply query");
-    Schema::enum_(vec![true, false]).validate_query(&obj_query).unwrap_err().expect("deeply query");
-  }
-
-  #[test]
-  fn test_query_array() {
-    let array_none = Schema::array();
-    let mut array_bool = Schema::array();
-    array_bool.set_items(Schema::boolean());
-    assert!(array_none.validate_query(&Query::All).is_ok());
-    assert!(array_none.validate_query(&Query::Keys(linear_map! {
-      str!("1") => Query::All
-    })).is_ok());
-    assert!(array_none.validate_query(&Query::Keys(linear_map! {
-      str!("1") => Query::Keys(linear_map! {})
-    })).is_ok());
-    assert!(array_bool.validate_query(&Query::Keys(linear_map! {
-      str!("1") => Query::All,
-      str!("2") => Query::All,
-      str!("3") => Query::All,
-      str!("50") => Query::All,
-      str!("9999999999999") => Query::All
-    })).is_ok());
-    array_none.validate_query(&Query::Keys(linear_map! {
-      str!("hello") => Query::All
-    })).unwrap_err().expect("non-integer \"hello\"");
-    array_bool.validate_query(&Query::Keys(linear_map! {
-      str!("1") => Query::Keys(linear_map! {})
-    })).unwrap_err().expect("deeply query");
-  }
-
-  #[test]
-  fn test_query_object() {
-    let mut object = Schema::object();
-    object.insert_property("hello", Schema::boolean());
-    object.insert_property("world", Schema::boolean());
-    object.insert_property("5", Schema::boolean());
-    object.insert_property("goodbye", {
-      let mut goodbye = Schema::object();
-      goodbye.insert_property("hello", Schema::boolean());
-      goodbye.insert_property("world", Schema::boolean());
-      goodbye
-    });
-    let mut object_additional = Schema::object();
-    object_additional.enable_additional_properties();
-    object_additional.insert_property("hello", Schema::boolean());
-    object_additional.insert_property("world", Schema::boolean());
-    assert!(object.validate_query(&Query::Keys(linear_map! {
-      str!("world") => Query::All,
-      str!("5") => Query::All,
-      str!("goodbye") => Query::All
-    })).is_ok());
-    object.validate_query(&Query::Keys(linear_map! {
-      str!("hello") => Query::All,
-      str!("moon") => Query::All
-    })).unwrap_err().expect("Cannot query object property \"moon\".");
-    object.validate_query(&Query::Keys(linear_map! {
-      str!("hello") => Query::Keys(linear_map! {})
-    })).unwrap_err().expect("deeply query");
-    assert!(object.validate_query(&Query::Keys(linear_map! {
-      str!("goodbye") => Query::Keys(linear_map! {
-        str!("hello") => Query::All
-      })
-    })).is_ok());
-    object.validate_query(&Query::Keys(linear_map! {
-      str!("goodbye") => Query::Keys(linear_map! {
-        str!("hello") => Query::Keys(linear_map! {})
-      })
-    })).unwrap_err().expect("deeply query");
-    assert!(object_additional.validate_query(&Query::Keys(linear_map! {
-      str!("world") => Query::All,
-      str!("5") => Query::All,
-      str!("goodbye") => Query::All,
-      str!("moon") => Query::All
-    })).is_ok());
+    assert!(object.get_path(&["yo"]).is_none());
+    assert!(object.get_path(&["hello"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "world"]).unwrap().eq(&Schema::boolean()));
+    assert!(object.get_path(&["goodbye", "yo"]).is_none());
   }
 }

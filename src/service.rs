@@ -6,10 +6,10 @@ use linear_map::LinearMap;
 
 use error::Error;
 use schema;
-use schema::{Definition, Type};
+use schema::{Definition, Collection};
 use driver::{discover_driver, Driver, Memory};
-use query::{Condition, SortRule, Range, Query};
-use value::{Key, Value, Iter};
+use query::{Condition, Sort, Range};
+use value::{Value, Iter};
 
 pub struct Service<'a> {
   definition: Definition,
@@ -41,14 +41,14 @@ impl<'a> Service<'a> {
     let mut driver_configs = Vec::new();
 
     // Add the driver config for the definition.
-    if let Some(default_driver) = self.definition.driver() {
-      driver_configs.push(default_driver);
+    if let Some(default) = self.definition.driver() {
+      driver_configs.push(default);
     }
 
     // Add the driver configs for the types.
-    for (_, type_) in self.definition.types() {
-      if let Some(type_driver) = type_.driver() {
-        driver_configs.push(type_driver);
+    for (_, collection) in self.definition.collections() {
+      if let Some(driver) = collection.driver() {
+        driver_configs.push(driver);
       }
     }
 
@@ -64,40 +64,36 @@ impl<'a> Service<'a> {
     &self.definition
   }
 
-  #[inline] pub fn get_type(&self, name: &str) -> Option<&Type> { self.definition.get_type(name) }
-  #[inline] pub fn types(&self) -> &BTreeMap<Key, Type> { self.definition.types() }
+  #[inline] pub fn get_collection(&self, name: &str) -> Option<&Collection> { self.definition.get_collection(name) }
+  #[inline] pub fn collections(&self) -> &BTreeMap<String, Collection> { self.definition.collections() }
 
   #[inline]
   pub fn read(
     &self,
-    type_name: &Key,
+    name: &str,
     condition: Condition,
-    sort: Vec<SortRule>,
-    range: Range,
-    query: Query
+    sorts: Vec<Sort>,
+    range: Range
   ) -> Result<Iter, Error> {
-    let type_ = try!(
-      self.get_type(type_name)
-      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", type_name)))
+    let collection = try!(
+      self.get_collection(name)
+      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", name)))
     );
-    try!(type_.validate_query(&query));
-    let driver: &Driver = type_.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
-    driver.read(type_name, condition, sort, range, query)
+    let driver: &Driver = collection.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
+    driver.read(name, condition, sorts, range)
   }
 
   #[inline]
   pub fn read_one(
     &self,
-    type_name: &Key,
-    condition: Condition,
-    query: Query
+    name: &str,
+    condition: Condition
   ) -> Result<Value, Error> {
-    let type_ = try!(
-      self.get_type(type_name)
-      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", type_name)))
+    let collection = try!(
+      self.get_collection(name)
+      .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", name)))
     );
-    try!(type_.validate_query(&query));
-    let driver: &Driver = type_.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
-    driver.read_one(type_name, condition, query)
+    let driver: &Driver = collection.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
+    driver.read_one(name, condition)
   }
 }

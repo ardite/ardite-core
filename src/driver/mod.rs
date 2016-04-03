@@ -12,8 +12,8 @@ pub use driver::memory::Memory;
 use url::Url;
 
 use error::Error;
-use query::{Condition, SortRule, Range, Query};
-use value::{Key, Value, Iter};
+use query::{Condition, Sort, Range};
+use value::{Value, Iter};
 
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
@@ -35,13 +35,13 @@ pub trait Driver: Send + Sync {
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
+  // TODO: Enforce this to *only* return objects.
   fn read(
     &self,
-    type_name: &Key,
+    name: &str,
     condition: Condition,
-    sort: Vec<SortRule>,
-    range: Range,
-    query: Query
+    sorts: Vec<Sort>,
+    range: Range
   ) -> Result<Iter, Error>;
 
   /// Read a single value from the driver. The default implementation uses the
@@ -54,16 +54,14 @@ pub trait Driver: Send + Sync {
   /// This method may be optionally optimized by the driver.
   fn read_one(
     &self,
-    type_name: &Key,
-    condition: Condition,
-    query: Query
+    name: &str,
+    condition: Condition
   ) -> Result<Value, Error> {
     let mut values = try!(self.read(
-      type_name,
+      name,
       condition,
       Default::default(),
-      Range::new(None, Some(1)),
-      query
+      Range::new(None, Some(1))
     ));
 
     if let Some(value) = values.next() {
