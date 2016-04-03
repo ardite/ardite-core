@@ -8,14 +8,14 @@ use std::path::PathBuf;
 use regex::Regex;
 use url::Url;
 
-use ardite::schema::{Definition, Type, Driver, Schema};
+use ardite::schema::{Definition, Collection, Driver, Schema};
 
 fn create_forum_definition() -> Definition {
   // TODO: use order in file, not serde’s `BTreeMap` order.
   let mut definition = Definition::new();
 
-  definition.insert_type("person", {
-    let mut person = Type::new();
+  definition.add_collection("person", {
+    let mut person = Collection::new();
     person.set_required(vec!["email"]);
     person.insert_property("email", {
       let mut email = Schema::string();
@@ -33,8 +33,8 @@ fn create_forum_definition() -> Definition {
     person
   });
 
-  definition.insert_type("post", {
-    let mut post = Type::new();
+  definition.add_collection("post", {
+    let mut post = Collection::new();
     post.set_required(vec!["headline"]);
     post.insert_property("headline", {
       let mut headline = Schema::string();
@@ -63,16 +63,16 @@ fn create_kitchen_sink_definition() -> Definition {
     Driver::new(Url::parse("scheme://host:1234?key1=value1&key2=value2#fragment").unwrap())
   );
 
-  definition.insert_type("a", Type::new());
+  definition.add_collection("a", Collection::new());
 
-  definition.insert_type("b", {
-    let mut b = Type::new();
+  definition.add_collection("b", {
+    let mut b = Collection::new();
     b.set_driver(Driver::new(Url::parse("party://fun:4242").unwrap()));
     b
   });
 
-  definition.insert_type("c", {
-    let mut c = Type::new();
+  definition.add_collection("c", {
+    let mut c = Collection::new();
     c.insert_property("array", {
       let mut array = Schema::array();
       array.set_items({

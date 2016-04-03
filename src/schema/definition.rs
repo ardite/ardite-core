@@ -1,6 +1,5 @@
 //! The full definition of a data system which Ardite will use to provide
 //! powerful services.
-// TODO: Make the idea of `Type` instead `Collection`.
 
 use std::collections::BTreeMap;
 use std::io::BufReader;
@@ -24,8 +23,8 @@ use value::{Key, Pointer};
 pub struct Definition {
   /// The default driver when one is not specified for a specific type.
   driver: Option<Driver>,
-  /// Types defined in the database.
-  types: BTreeMap<Key, Type>
+  /// Collections defined in the database.
+  collections: BTreeMap<Key, Collection>
 }
 
 impl Definition {
@@ -33,7 +32,7 @@ impl Definition {
   pub fn new() -> Self {
     Definition {
       driver: None,
-      types: BTreeMap::new()
+      collections: BTreeMap::new()
     }
   }
 
@@ -47,9 +46,9 @@ impl Definition {
     self.driver.as_ref()
   }
 
-  /// Add a new type to the `Definition`. Whatever name gets passed in will
-  /// automatically get converted to snake case. Keys get converted because we
-  /// want to guarantee that all type keys inserted are in the snake case
+  /// Add a new collection to the `Definition`. Whatever name gets passed in
+  /// will automatically get converted to snake case. Keys get converted because
+  /// we want to guarantee that all type keys inserted are in the snake case
   /// style. By making this guarantee we allow our services to be flexible with
   /// the names they display.
   ///
@@ -58,27 +57,27 @@ impl Definition {
   ///
   /// # Example
   /// ```rust
-  /// use ardite::schema::{Definition, Type};
+  /// use ardite::schema::{Definition, Collection};
   ///
   /// let mut definition = Definition::new();
   ///
-  /// definition.insert_type("helloWorld", Type::new());
+  /// definition.insert_type("helloWorld", Collection::new());
   ///
   /// assert!(definition.get_type("helloWorld").is_none());
   /// assert_eq!(definition.get_type("hello_world").unwrap(), &Type::new());
   /// ```
-  pub fn insert_type<K>(&mut self, name: K, type_: Type) where K: Into<Key> {
-    self.types.insert(to_snake_case(&name.into()), type_);
+  pub fn add_collection<K>(&mut self, name: K, collection: Collection) where K: Into<Key> {
+    self.collections.insert(to_snake_case(&name.into()), collection);
   }
 
-  /// Gets type of a certain name.
-  pub fn get_type(&self, name: &str) -> Option<&Type> {
-    self.types.get(name)
+  /// Gets the collection of a certain name.
+  pub fn get_collection(&self, name: &str) -> Option<&Collection> {
+    self.collections.get(name)
   }
 
   /// Gets all of the definition’s types.
-  pub fn types(&self) -> &BTreeMap<Key, Type> {
-    &self.types
+  pub fn collections(&self) -> &BTreeMap<Key, Collection> {
+    &self.collections
   }
 
   /// Gets an Ardite Schema Definition from a file. Aims to support mainly the
@@ -107,17 +106,17 @@ impl Definition {
 
 /// Represents a high-level database type.
 #[derive(PartialEq, Debug)]
-pub struct Type {
+pub struct Collection {
   /// A type may optionally have its own driver.
   driver: Option<Driver>,
   /// The schema used to validate data which claims to be of this type.
   schema: SchemaObject
 }
 
-impl Type {
+impl Collection {
   /// Create a new instance of `Type`.
   pub fn new() -> Self {
-    Type {
+    Collection {
       driver: None,
       schema: SchemaObject::new()
     }
@@ -138,7 +137,7 @@ impl Type {
 
   /// Inserts a property into the underlying object schema. See the docs for
   /// `SchemaObject::insert_property` for more information.
-  #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema + 'static { self.schema.insert_property(key, schema); }
+  #[inline] pub fn insert_property<K, S>(&mut self, key: K, schema: S) where K: Into<Key>, S: Schema { self.schema.insert_property(key, schema); }
 
   /// Inserts a boxed property into the underlying object schema. See the docs
   /// for `SchemaObject::insert_boxed_property` for more information.
@@ -193,19 +192,19 @@ impl Driver {
 
 #[cfg(test)]
 mod tests {
-  use schema::{Definition, Type};
+  use super::*;
 
   #[test]
   fn insert_type_will_snake_case() {
     let mut definition = Definition::new();
-    definition.insert_type("helloWorld", Type::new());
-    definition.insert_type("yo yo", Type::new());
-    definition.insert_type("COOL_COOL", Type::new());
-    assert!(definition.get_type("helloWorld").is_none());
-    assert!(definition.get_type("yo yo").is_none());
-    assert!(definition.get_type("COOL_COOL").is_none());
-    assert!(definition.get_type("hello_world").is_some());
-    assert!(definition.get_type("yo_yo").is_some());
-    assert!(definition.get_type("cool_cool").is_some());
+    definition.add_collection("helloWorld", Collection::new());
+    definition.add_collection("yo yo", Collection::new());
+    definition.add_collection("COOL_COOL", Collection::new());
+    assert!(definition.get_collection("helloWorld").is_none());
+    assert!(definition.get_collection("yo yo").is_none());
+    assert!(definition.get_collection("COOL_COOL").is_none());
+    assert!(definition.get_collection("hello_world").is_some());
+    assert!(definition.get_collection("yo_yo").is_some());
+    assert!(definition.get_collection("cool_cool").is_some());
   }
 }
