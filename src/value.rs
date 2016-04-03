@@ -3,6 +3,7 @@
 //! changed in the future. Driver authors must cast the data they retrieve from
 //! the driver to these types.
 
+use std::cmp::Ordering;
 use std::iter;
 
 use linear_map::LinearMap;
@@ -30,7 +31,7 @@ pub type Array = Vec<Value>;
 #[derive(PartialEq, Clone, Debug)]
 pub enum Value {
   /// The abscense of any value.
-  Null,
+  Null(()),
   /// True or false.
   Boolean(bool),
   /// An integer numeric value.
@@ -198,9 +199,9 @@ impl Value {
     serde_json::to_string_pretty(self).map_err(Error::from)
   }
 
-  pub fn debug_name(&self) -> &'static str {
+  fn debug_name(&self) -> &'static str {
     match *self {
-      Value::Null => "null",
+      Value::Null(_) => "null",
       Value::Boolean(_) => "boolean",
       Value::I64(_) => "i64",
       Value::F64(_) => "f64",
@@ -211,11 +212,32 @@ impl Value {
   }
 }
 
+impl PartialOrd<Value> for Value {
+  /// Only orders some variants with obvious orderings. Such variants being:
+  ///
+  /// - `Value::Null`
+  /// - `Value::Boolean`
+  /// - `Value::I64`
+  /// - `Value::F64`
+  /// - `Value::String`
+  fn partial_cmp(&self, other: &Value) -> Option<Ordering> {
+    use self::Value::*;
+    match (self, other) {
+      (&Null(ref a), &Null(ref b)) => a.partial_cmp(b),
+      (&Boolean(ref a), &Boolean(ref b)) => a.partial_cmp(b),
+      (&I64(ref a), &I64(ref b)) => a.partial_cmp(b),
+      (&F64(ref a), &F64(ref b)) => a.partial_cmp(b),
+      (&String(ref a), &String(ref b)) => a.partial_cmp(b),
+      _ => None
+    }
+  }
+}
+
 impl Serialize for Value {
   #[inline]
   fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer {
     match *self {
-      Value::Null => serializer.serialize_unit(),
+      Value::Null(_) => serializer.serialize_unit(),
       Value::Boolean(value) => serializer.serialize_bool(value),
       Value::I64(value) => serializer.serialize_i64(value),
       Value::F64(value) => serializer.serialize_f64(value),
@@ -240,9 +262,9 @@ impl Deserialize for Value {
       #[inline] fn visit_f64<E>(&mut self, value: f64) -> Result<Value, E> { Ok(Value::F64(value)) }
       #[inline] fn visit_str<E>(&mut self, value: &str) -> Result<Value, E> where E: DeError { self.visit_string(value.to_owned()) }
       #[inline] fn visit_string<E>(&mut self, value: String) -> Result<Value, E> { Ok(Value::String(value)) }
-      #[inline] fn visit_none<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_none<E>(&mut self) -> Result<Value, E> { Ok(Value::Null(())) }
       #[inline] fn visit_some<D>(&mut self, deserializer: &mut D) -> Result<Value, D::Error> where D: Deserializer { Deserialize::deserialize(deserializer) }
-      #[inline] fn visit_unit<E>(&mut self) -> Result<Value, E> { Ok(Value::Null) }
+      #[inline] fn visit_unit<E>(&mut self) -> Result<Value, E> { Ok(Value::Null(())) }
       #[inline] fn visit_seq<V>(&mut self, visitor: V) -> Result<Value, V::Error> where V: SeqVisitor { let values = try!(VecVisitor::new().visit_seq(visitor)); Ok(Value::Array(values)) }
 
       #[inline]
@@ -263,7 +285,7 @@ impl Deserialize for Value {
 impl<V> From<Option<V>> for Value where V: Into<Value> {
   fn from(option: Option<V>) -> Self {
     match option {
-      None => Value::Null,
+      None => Value::Null(()),
       Some(value) => value.into()
     }
   }

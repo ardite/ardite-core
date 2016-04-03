@@ -1,6 +1,8 @@
 //! Defines complex queries over Ardite driver data structures.
 // TODO: This needs *lots* of review and expirementation.
 
+use std::cmp::Ordering;
+
 use itertools::misc::GenericRange;
 
 use value::Value;
@@ -55,31 +57,31 @@ impl Default for Condition {
 }
 
 /// Specifies the order in which a property of a value should be ordered.
-pub struct SortRule {
+pub struct Sort {
   /// The exacty property to order by.
   property: Vec<String>,
   /// The direction to order the property in.
-  direction: SortDirection
+  direction: Direction
 }
 
-impl SortRule {
+impl Sort {
   /// Create a new sorting rule from the property path and a boolean
   /// specifying if we are ascending or descending.
-  pub fn new(property: Vec<String>, ascending: bool) -> Self {
-    SortRule {
-      property: property,
-      direction: if ascending { SortDirection::Ascending } else { SortDirection::Descending }
+  pub fn new(path: Vec<String>, ascending: bool) -> Self {
+    Sort {
+      property: path,
+      direction: if ascending { Direction::Ascending } else { Direction::Descending }
     }
   }
 
-  /// Get the property the struct is sorting against.
-  pub fn property(&self) -> &Vec<String> {
-    &self.property
+  /// Get the property path the struct is sorting against.
+  pub fn path(&self) -> Vec<&str> {
+    self.property.iter().map(String::as_str).collect()
   }
 
   /// Is the struct sorting the property in ascending order?
   pub fn is_ascending(&self) -> bool {
-    if let SortDirection::Ascending = self.direction {
+    if let Direction::Ascending = self.direction {
       true
     } else {
       false
@@ -88,16 +90,22 @@ impl SortRule {
 
   /// Is the struct sorting the property in descending order?
   pub fn is_descending(&self) -> bool {
-    if let SortDirection::Descending = self.direction {
+    if let Direction::Descending = self.direction {
       true
     } else {
       false
     }
   }
+
+  pub fn partial_cmp(&self, a: &Value, b: &Value) -> Option<Ordering> {
+    a.get_path(&self.path())
+    .partial_cmp(&b.get_path(&self.path()))
+    .map(|ord| if self.is_descending() { ord.reverse() } else { ord })
+  }
 }
 
 /// The direction in which an order occurs.
-enum SortDirection {
+pub enum Direction {
   Ascending,
   Descending
 }

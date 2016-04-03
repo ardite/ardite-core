@@ -12,7 +12,7 @@ pub use driver::memory::Memory;
 use url::Url;
 
 use error::Error;
-use query::{Condition, SortRule, Range};
+use query::{Condition, Sort, Range};
 use value::{Value, Iter};
 
 /// The driver trait which all drivers will implement. Designed to be
@@ -40,7 +40,7 @@ pub trait Driver: Send + Sync {
     &self,
     name: &str,
     condition: Condition,
-    sort: Vec<SortRule>,
+    sorts: Vec<Sort>,
     range: Range
   ) -> Result<Iter, Error>;
 

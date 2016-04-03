@@ -8,7 +8,7 @@ use error::Error;
 use schema;
 use schema::{Definition, Collection};
 use driver::{discover_driver, Driver, Memory};
-use query::{Condition, SortRule, Range};
+use query::{Condition, Sort, Range};
 use value::{Value, Iter};
 
 pub struct Service<'a> {
@@ -72,7 +72,7 @@ impl<'a> Service<'a> {
     &self,
     name: &str,
     condition: Condition,
-    sort: Vec<SortRule>,
+    sorts: Vec<Sort>,
     range: Range
   ) -> Result<Iter, Error> {
     let collection = try!(
@@ -80,7 +80,7 @@ impl<'a> Service<'a> {
       .ok_or(Error::not_found(format!("Can’t read for type '{}', because it does not exist in the schema.", name)))
     );
     let driver: &Driver = collection.driver().and_then(|config| self.drivers.get(config)).map_or(&self.memory, Deref::deref);
-    driver.read(name, condition, sort, range)
+    driver.read(name, condition, sorts, range)
   }
 
   #[inline]

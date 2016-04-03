@@ -8,7 +8,7 @@
 /// use ardite::value::Value;
 ///
 /// # fn main() {
-/// assert_eq!(value!(), Value::Null);
+/// assert_eq!(value!(), Value::Null(()));
 /// assert_eq!(value!(true), Value::Boolean(true));
 /// assert_eq!(value!(42), Value::I64(42));
 /// assert_eq!(value!(3.333), Value::F64(3.333));
@@ -25,7 +25,7 @@
 /// let value = value!([(), true, 42, 3.333, "Hello, world!", [1, 2, 3, true], { "hello" => "world" }]);
 ///
 /// let mut array = Array::new();
-/// array.push(Value::Null);
+/// array.push(Value::Null(()));
 /// array.push(Value::Boolean(true));
 /// array.push(Value::I64(42));
 /// array.push(Value::F64(3.333));
@@ -67,7 +67,7 @@
 /// });
 ///
 /// let mut object = Object::new();
-/// object.insert("null".to_owned(), Value::Null);
+/// object.insert("null".to_owned(), Value::Null(()));
 /// object.insert("boolean".to_owned(), Value::Boolean(true));
 /// object.insert("integer".to_owned(), Value::I64(42));
 /// object.insert("float".to_owned(), Value::F64(3.333));
@@ -92,11 +92,11 @@
 #[macro_export]
 macro_rules! value {
   () => {{
-    $crate::value::Value::Null
+    $crate::value::Value::Null(())
   }};
 
   (()) => {{
-    $crate::value::Value::Null
+    $crate::value::Value::Null(())
   }};
 
   ([]) => {{

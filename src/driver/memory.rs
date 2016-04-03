@@ -1,6 +1,7 @@
 //! Provides a default and reference driver implementation which stores all of
 //! its information in memory.
 
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -9,7 +10,7 @@ use url::Url;
 
 use driver::Driver;
 use error::Error;
-use query::{Range, SortRule, Condition};
+use query::{Range, Sort, Condition};
 use value::{Value, Iter};
 
 /// The default driver to be used by a service when no other driver is
@@ -71,7 +72,7 @@ impl Driver for Memory {
     &self,
     name: &str,
     cond: Condition,
-    _: Vec<SortRule>,
+    sorts: Vec<Sort>,
     range: Range
   ) -> Result<Iter, Error> {
     if let Some(objects) = self.store.lock().unwrap().get(name) {
@@ -81,13 +82,12 @@ impl Driver for Memory {
         .filter(|value| cond.is_true(value))
         .slice(range)
         .cloned()
-        // We collect our iterator into a vector so that we remove the
-        // dependency deep in the iterator type chain on the `objects`
-        // reference.
-        //
-        // This is similar to calling `objects.clone()` except we do it here so
-        // that we don’t clone *all* the objects.
-        .collect::<Vec<_>>()
+        .sorted_by(|a, b| {
+          sorts
+          .iter()
+          .fold(None, |ord, sort| ord.or_else(|| sort.partial_cmp(a, b)))
+          .unwrap_or(Ordering::Equal)
+        })
         .into_iter()
       ))
     } else {
