@@ -58,8 +58,8 @@ macro_rules! visit_map_fields {
       }
     }
 
-    while let Some(key) = try!($visitor.visit_key()) {
-      match key {
+    while let Some(__key) = try!($visitor.visit_key()) {
+      match __key {
         $(Field::$var_name => { $var_name = try!($visitor.visit_value()); },)*
         Field::Ignore => { try!($visitor.visit_value::<IgnoredAny>()); }
       }
@@ -113,8 +113,17 @@ impl Deserialize for Type {
 
       #[inline]
       fn visit_map<V>(&mut self, mut visitor: V) -> Result<Self::Value, V::Error> where V: MapVisitor {
-        try!(visitor.end());
-        Ok(Type::new())
+        let mut key: Option<String> = None;
+
+        visit_map_fields!(visitor, {
+          "key" => key
+        });
+
+        let mut type_ = Type::new();
+
+        if let Some(key) = key { type_.set_key(key); }
+
+        Ok(type_)
       }
     }
 
@@ -169,6 +178,7 @@ mod tests {
   fn test_json_type() {
     let from_str = serde_json::from_str::<Type>;
     assert_eq!(from_str("{}").unwrap(), Type::new());
+    assert_eq!(&from_str(r#"{"key":"hello"}"#).unwrap(), Type::new().set_key("hello"));
   }
 
   #[test]

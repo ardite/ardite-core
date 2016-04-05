@@ -17,16 +17,18 @@ impl Schema {
     }
   }
 
-  pub fn set_driver(&mut self, driver: Driver) {
+  pub fn set_driver(&mut self, driver: Driver) -> &mut Self {
     self.driver = Some(driver);
+    self
   }
 
   pub fn driver(&self) -> Option<&Driver> {
     self.driver.as_ref()
   }
 
-  pub fn insert_type<N>(&mut self, name: N, type_: Type) where N: Inflect {
+  pub fn insert_type<N>(&mut self, name: N, type_: Type) -> &mut Self where N: Inflect {
     self.types.insert(name.to_snake_case(), type_);
+    self
   }
 
   pub fn get_type(&self, name: &str) -> Option<&Type> {
@@ -40,14 +42,23 @@ impl Schema {
 
 #[derive(PartialEq, Debug)]
 pub struct Type {
-  properties: Vec<String>
+  key: Option<String>
 }
 
 impl Type {
   pub fn new() -> Self {
     Type {
-      properties: Vec::new()
+      key: None
     }
+  }
+
+  pub fn set_key<K>(&mut self, key: K) -> &mut Self where K: Into<String> {
+    self.key = Some(key.into());
+    self
+  }
+
+  pub fn key(&self) -> Option<&String> {
+    self.key.as_ref()
   }
 }
 
