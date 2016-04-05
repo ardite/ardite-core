@@ -1,0 +1,6 @@
+driver: scheme://host:1234?key1=value1&key2=value2#fragment
+
+types:
+  a: {}
+  b: {}
+  c: {}

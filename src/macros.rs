@@ -1,70 +1,31 @@
-/// Creates a `Pointer`. Automatically converts `&'static str` to `String` and
-/// accepts more than one argument. Works like `vec!`.
-///
-/// # Example
-/// ```rust
-/// #[macro_use(point)]
-/// extern crate ardite;
-///
-/// use ardite::value::Pointer;
-///
-/// # fn main() {
-///
-/// let mut pointer = Pointer::new();
-/// pointer.push("hello".to_owned());
-/// pointer.push("world".to_owned());
-///
-/// assert_eq!(point![], Pointer::new());
-/// assert_eq!(point!["hello", "world"], pointer);
-///
-/// # }
-/// ```
-#[macro_export]
-macro_rules! point {
-  () => {{ $crate::value::Pointer::new() }};
-
-  ($($key:expr),*) => {{
-    let mut pointer = $crate::value::Pointer::new();
-    $(
-      pointer.push(String::from($key));
-    )*
-    pointer
-  }}
-}
-
 /// Recursively create a `Value` from many primitive data types whilst also
 /// detecting the appropriate type.
 ///
 /// # Examples
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::Value;
 ///
 /// # fn main() {
-///
-/// assert_eq!(value!(), Value::Null);
+/// assert_eq!(value!(), Value::Null(()));
 /// assert_eq!(value!(true), Value::Boolean(true));
 /// assert_eq!(value!(42), Value::I64(42));
 /// assert_eq!(value!(3.333), Value::F64(3.333));
 /// assert_eq!(value!("Hello, world!"), Value::String("Hello, world!".to_owned()));
-///
 /// # }
 /// ```
 ///
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::{Object, Array, Value};
 ///
 /// # fn main() {
-///
 /// let value = value!([(), true, 42, 3.333, "Hello, world!", [1, 2, 3, true], { "hello" => "world" }]);
 ///
 /// let mut array = Array::new();
-/// array.push(Value::Null);
+/// array.push(Value::Null(()));
 /// array.push(Value::Boolean(true));
 /// array.push(Value::I64(42));
 /// array.push(Value::F64(3.333));
@@ -84,18 +45,15 @@ macro_rules! point {
 /// }));
 ///
 /// assert_eq!(value, Value::Array(array));
-///
 /// # }
 /// ```
 ///
 /// ```rust
-/// #[macro_use(value)]
-/// extern crate ardite;
-///
+/// # #[macro_use(value)]
+/// # extern crate ardite;
 /// use ardite::value::{Object, Array, Value};
 ///
 /// # fn main() {
-///
 /// let value = value!({
 ///   "null" => (),
 ///   "boolean" => true,
@@ -109,7 +67,7 @@ macro_rules! point {
 /// });
 ///
 /// let mut object = Object::new();
-/// object.insert("null".to_owned(), Value::Null);
+/// object.insert("null".to_owned(), Value::Null(()));
 /// object.insert("boolean".to_owned(), Value::Boolean(true));
 /// object.insert("integer".to_owned(), Value::I64(42));
 /// object.insert("float".to_owned(), Value::F64(3.333));
@@ -129,17 +87,20 @@ macro_rules! point {
 /// }));
 ///
 /// assert_eq!(value, Value::Object(object));
-///
 /// # }
 /// ```
 #[macro_export]
 macro_rules! value {
   () => {{
-    $crate::value::Value::Null
+    $crate::value::Value::Null(())
   }};
 
   (()) => {{
-    $crate::value::Value::Null
+    $crate::value::Value::Null(())
+  }};
+
+  ([]) => {{
+    $crate::value::Value::Array($crate::value::Array::new())
   }};
 
   ([$($value:tt),*]) => {{
@@ -148,6 +109,10 @@ macro_rules! value {
       array.push(value!($value));
     )*
     $crate::value::Value::Array(array)
+  }};
+
+  ({}) => {{
+    $crate::value::Value::Object($crate::value::Object::new())
   }};
 
   ({ $($key:expr => $value:tt),* }) => {{
