@@ -1,84 +1,42 @@
-use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
 use std::path::PathBuf;
 
 use error::Error;
 use schema;
-use schema::{Definition, Collection};
+use schema::{Schema, Type};
 use driver::{discover_driver, Driver, Memory};
 use query::{Condition, Sort, Range};
 use value::{Value, Iter};
 
+pub fn from_file(path: PathBuf) -> Result<Service, Error> {
+  let schema = try!(schema::from_file(path));
+  let service = try!(Service::from_schema(schema));
+  Ok(service)
+}
+
 pub struct Service {
-  definition: Definition,
-  memory: Memory,
-  /// A map of driver configs to their respective drivers. We use a `LinearMap`
-  /// because it does not require the `DriverConfig` to implement anything
-  /// crazy like `Hash` or `Ord`. We also don’t ever suspect having a large
-  /// number of drivers.
-  drivers: HashMap<schema::Driver, Box<Driver>>
+  pub schema: Schema,
+  driver: Box<Driver>
 }
 
 impl Service {
-  pub fn new(definition: Definition) -> Self {
-    Service {
-      definition: definition,
-      memory: Memory::new(),
-      drivers: HashMap::new()
-    }
-  }
+  pub fn from_schema(schema: Schema) -> Result<Self, Error> {
+    let driver = if let Some(driver) = schema.driver() {
+      try!(discover_driver(driver))
+    } else {
+      Box::new(Memory::new()) as Box<Driver>
+    };
 
-  pub fn from_file(path: PathBuf) -> Result<Self, Error> {
-    Ok(Service::new(try!(Definition::from_file(path))))
-  }
-
-  /// Iterates through the `schema::Driver`s in the definition, connecting them,
-  /// and storing them internally. After running this method, all drivers
-  /// outside of memory will be connected.
-  pub fn connect_drivers(&mut self) -> Result<(), Error> {
-    let mut drivers = Vec::new();
-
-    // Add the driver config for the definition.
-    if let Some(default) = self.definition.driver() {
-      drivers.push(default);
-    }
-
-    // Add the driver configs for the types.
-    for (_, collection) in self.definition.collections() {
-      if let Some(driver) = collection.driver() {
-        drivers.push(driver);
-      }
-    }
-
-    // Discover and connect all of the drivers specified in the driver configs.
-    for driver in drivers.into_iter() {
-      self.drivers.insert(driver.clone(), try!(discover_driver(driver)));
-      // TODO: Use the `log` crate with the `log!` macro.
-      println!("Connected driver {}", driver);
-    }
-
-    Ok(())
-  }
-
-  pub fn definition(&self) -> &Definition {
-    &self.definition
-  }
-
-  #[inline] pub fn get_collection(&self, name: &str) -> Option<&Collection> { self.definition.get_collection(name) }
-  #[inline] pub fn collections(&self) -> &BTreeMap<String, Collection> { self.definition.collections() }
-
-  #[inline]
-  fn get_collection_or_else(&self, name: &str) -> Result<&Collection, Error> {
-    self.get_collection(name)
-    .ok_or_else(|| Error::not_found(format!("Can’t use collection '{}' because it does not exist in the schema.", name)))
+    Ok(Service {
+      schema: schema,
+      driver: driver
+    })
   }
 
   #[inline]
-  fn get_driver_for_collection(&self, collection: &Collection) -> &Driver {
-    collection.driver()
-    .or_else(|| self.definition.driver())
-    .and_then(|config| self.drivers.get(config))
-    .map_or(&self.memory, Deref::deref)
+  fn get_type_or_else(&self, name: &str) -> Result<&Type, Error> {
+    self.schema
+    .get_type(name)
+    .ok_or_else(|| Error::not_found(format!("Can’t use type '{}' because it does not exist in the schema.", name)))
   }
 
   #[inline]
@@ -89,9 +47,8 @@ impl Service {
     sorts: Vec<Sort>,
     range: Range
   ) -> Result<Iter, Error> {
-    let collection = try!(self.get_collection_or_else(name));
-    let driver: &Driver = self.get_driver_for_collection(collection);
-    driver.read(name, condition, sorts, range)
+    let _ = try!(self.get_type_or_else(name));
+    self.driver.read(name, condition, sorts, range)
   }
 
   #[inline]
@@ -100,8 +57,7 @@ impl Service {
     name: &str,
     condition: Condition
   ) -> Result<Value, Error> {
-    let collection = try!(self.get_collection_or_else(name));
-    let driver: &Driver = self.get_driver_for_collection(collection);
-    driver.read_one(name, condition)
+    let _ = try!(self.get_type_or_else(name));
+    self.driver.read_one(name, condition)
   }
 }

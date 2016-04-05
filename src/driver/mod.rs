@@ -6,8 +6,8 @@ mod memory;
 #[cfg(feature = "driver_mongodb")]
 pub mod mongodb;
 
-pub use driver::discover::discover_driver;
-pub use driver::memory::Memory;
+pub use self::discover::discover_driver;
+pub use self::memory::Memory;
 
 use url::Url;
 

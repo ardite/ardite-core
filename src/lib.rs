@@ -39,9 +39,9 @@ pub mod driver;
 pub mod error;
 pub mod query;
 pub mod schema;
-mod service;
+pub mod service;
 pub mod value;
 
 pub use error::Error;
-pub use service::*;
+pub use service::Service;
 pub use value::Value;
