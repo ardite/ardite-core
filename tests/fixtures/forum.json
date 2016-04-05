@@ -1,6 +1,6 @@
 {
   "types": {
-    "person": {},
-    "post": {}
+    "Person": {},
+    "Post": {}
   }
 }
