@@ -213,11 +213,10 @@ impl Display for Error {
   /// assert_eq!(format!("{}", Error::invalid("That’s not right.", "Fix it!")), display);
   /// ```
   fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
-    try!(write!(fmt, "code: {}\n", self.code));
-    try!(write!(fmt, "message: {}", self.message));
+    try!(write!(fmt, "{}", self.message));
 
     if let Some(ref hint) = self.hint {
-      try!(write!(fmt, "\nhint: {}", hint));
+      try!(write!(fmt, " ({})", hint));
     }
 
     Ok(())
