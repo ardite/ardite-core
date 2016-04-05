@@ -110,10 +110,9 @@ impl Error {
   pub fn to_value(&self) -> Value {
     let mut object = Object::new();
 
-    // TODO: implement an insert method which isn‘t as strict.
-    object.insert("error".to_owned(), Value::Boolean(true));
-    object.insert("code".to_owned(), Value::I64(self.code().to_u16() as i64));
-    object.insert("message".to_owned(), Value::String(self.message.clone()));
+    object.insert("error", true);
+    object.insert("code", self.code().to_u16() as i64);
+    object.insert("message", self.message.clone());
 
     if let Some(ref hint) = self.hint {
       object.insert("hint".to_owned(), Value::String(hint.clone()));

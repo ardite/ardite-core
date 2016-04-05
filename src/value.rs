@@ -4,8 +4,8 @@
 //! the driver to these types.
 
 use std::cmp::Ordering;
-use std::iter;
 
+use linear_map;
 use linear_map::LinearMap;
 use serde::ser::{Serialize, Serializer};
 use serde::de::{Deserialize, Deserializer, Error as DeError, Visitor, SeqVisitor, MapVisitor};
@@ -17,8 +17,68 @@ use error::Error;
 /// Ordered representation of a map of key/value pairs, like a JSON object.
 /// Backed by a linear map to maintain order and have high performance for
 /// small objects.
-// TODO: newtype pattern?
-pub type Object = LinearMap<String, Value>;
+#[derive(PartialEq, Clone, Debug)]
+pub struct Object(LinearMap<String, Value>);
+
+impl Object {
+  #[inline] pub fn new() -> Self { Object(LinearMap::new()) }
+  #[inline] pub fn get(&self, key: &str) -> Option<&Value> { self.0.get(key) }
+  #[inline] pub fn insert<K, V>(&mut self, key: K, value: V) -> Option<Value> where K: Into<String>, V: Into<Value> { self.0.insert(key.into(), value.into()) }
+
+  pub fn map_keys<F>(self, transform: F) -> Object where F: Fn(String) -> String {
+    let mut object = Object::new();
+    for (key, value) in self.into_iter() {
+      object.insert(transform(key), value);
+    }
+    object
+  }
+
+  pub fn map_values<F>(self, transform: F) -> Object where F: Fn(Value) -> Value {
+    let mut object = Object::new();
+    for (key, value) in self.into_iter() {
+      object.insert(key, transform(value));
+    }
+    object
+  }
+
+  pub fn map_entries<F>(self, transform: F) -> Object where F: Fn((String, Value)) -> (String, Value) {
+    let mut object = Object::new();
+    for (key, value) in self.into_iter() {
+      let (new_key, new_value) = transform((key, value));
+      object.insert(new_key, new_value);
+    }
+    object
+  }
+
+  /// Creates a `Value` from a JSON string.
+  pub fn from_json(json: &str) -> Result<Value, Error> {
+    serde_json::from_str(json).map_err(Error::from)
+  }
+
+  /// Converts a `Value` into a JSON string.
+  pub fn to_json(&self) -> Result<String, Error> {
+    serde_json::to_string(self).map_err(Error::from)
+  }
+
+  /// Converts a `Value` into a nice and indented JSON string.
+  pub fn to_json_pretty(&self) -> Result<String, Error> {
+    serde_json::to_string_pretty(self).map_err(Error::from)
+  }
+}
+
+impl IntoIterator for Object {
+  type Item = (String, Value);
+  type IntoIter = linear_map::IntoIter<String, Value>;
+  #[inline] fn into_iter(self) -> Self::IntoIter { self.0.into_iter() }
+}
+
+impl Serialize for Object {
+  #[inline] fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: Serializer { self.0.serialize(serializer) }
+}
+
+impl Deserialize for Object {
+  #[inline] fn deserialize<D>(deserializer: &mut D) -> Result<Self, D::Error> where D: Deserializer { LinearMap::deserialize(deserializer).map(Object) }
+}
 
 /// Ordered array of values, like a JSON array.
 // TODO: newtype pattern?
@@ -139,26 +199,14 @@ impl Value {
 
   pub fn map_keys<F>(self, transform: F) -> Value where F: Fn(String) -> String {
     match self {
-      Value::Object(object) => {
-        let mut new_object = Object::new();
-        for (key, value) in object.into_iter() {
-          new_object.insert(transform(key), value);
-        }
-        Value::Object(new_object)
-      },
+      Value::Object(object) => Value::Object(object.map_keys(transform)),
       value @ _ => value
     }
   }
 
   pub fn map_values<F>(self, transform: F) -> Value where F: Fn(Value) -> Value {
     match self {
-      Value::Object(object) => {
-        let mut new_object = Object::new();
-        for (key, value) in object.into_iter() {
-          new_object.insert(key, transform(value));
-        }
-        Value::Object(new_object)
-      },
+      Value::Object(object) => Value::Object(object.map_values(transform)),
       Value::Array(array) => {
         let mut new_array = Array::new();
         for value in array.into_iter() {
@@ -172,14 +220,7 @@ impl Value {
 
   pub fn map_entries<F>(self, transform: F) -> Value where F: Fn((String, Value)) -> (String, Value) {
     match self {
-      Value::Object(object) => {
-        let mut new_object = Object::new();
-        for (key, value) in object.into_iter() {
-          let (new_key, new_value) = transform((key, value));
-          new_object.insert(new_key, new_value);
-        }
-        Value::Object(new_object)
-      },
+      Value::Object(object) => Value::Object(object.map_entries(transform)),
       value @ _ => value
     }
   }
@@ -274,7 +315,7 @@ impl Deserialize for Value {
           object.insert(key, value);
         }
         try!(visitor.end());
-        Ok(Value::Object(object))
+        Ok(Value::Object(Object(object)))
       }
     }
 
@@ -288,6 +329,12 @@ impl<V> From<Option<V>> for Value where V: Into<Value> {
       None => Value::Null(()),
       Some(value) => value.into()
     }
+  }
+}
+
+impl From<()> for Value {
+  fn from(unit: ()) -> Self {
+    Value::Null(unit)
   }
 }
 
@@ -321,32 +368,9 @@ impl<'a> From<&'a str> for Value {
   }
 }
 
-/// An iterator of values. Used by drivers to convert their own iterator
-/// implementations into a single type.
-pub struct Iter {
-  iter: Box<Iterator<Item=Value> + 'static>
-}
-
-impl Iter {
-  /// Create a new value iterator.
-  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Value> + 'static {
-    Iter {
-      iter: Box::new(iter)
-    }
-  }
-
-  /// Returns an empty iterator.
-  pub fn none() -> Self {
-    Iter::new(iter::empty())
-  }
-}
-
-impl Iterator for Iter {
-  type Item = Value;
-
-  #[inline]
-  fn next(&mut self) -> Option<Value> {
-    self.iter.next()
+impl From<Object> for Value {
+  fn from(object: Object) -> Self {
+    Value::Object(object)
   }
 }
 

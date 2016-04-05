@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use error::Error;
 use schema;
 use schema::{Schema, Type};
-use driver::{discover_driver, Driver, Memory};
+use driver::{discover_driver, Driver, Iter, Memory};
 use query::{Condition, Sort, Range};
-use value::{Value, Iter};
+use value::Object;
 
 pub fn from_file(path: PathBuf) -> Result<Service, Error> {
   let schema = try!(schema::from_file(path));
@@ -56,7 +56,7 @@ impl Service {
     &self,
     name: &str,
     condition: Condition
-  ) -> Result<Value, Error> {
+  ) -> Result<Object, Error> {
     let _ = try!(self.get_type_or_else(name));
     self.driver.read_one(name, condition)
   }

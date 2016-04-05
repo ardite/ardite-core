@@ -5,7 +5,7 @@ use std::cmp::Ordering;
 
 use itertools::misc::GenericRange;
 
-use value::Value;
+use value::{Object, Value};
 
 /// A condition which will resolve to a boolean value after comparing a certain
 /// value with a set rule.
@@ -47,6 +47,23 @@ impl Condition {
   /// Evaluates if a value is false against the condition.
   pub fn is_false(&self, value: &Value) -> bool {
     !self.is_true(value)
+  }
+
+  pub fn is_object_true(&self, object: &Object) -> bool {
+    use self::Condition::*;
+    match *self {
+      True => true,
+      False => false,
+      Not(ref cond) => cond.is_object_false(object),
+      And(ref conds) => conds.iter().all(|cond| cond.is_object_true(object)),
+      Or(ref conds) => conds.iter().any(|cond| cond.is_object_true(object)),
+      Key(ref key, ref cond) => object.get(key).map_or(false, |value| cond.is_true(value)),
+      Equal(_) => false
+    }
+  }
+
+  pub fn is_object_false(&self, object: &Object) -> bool {
+    !self.is_object_true(object)
   }
 }
 
@@ -97,10 +114,17 @@ impl Sort {
     }
   }
 
-  pub fn partial_cmp(&self, a: &Value, b: &Value) -> Option<Ordering> {
-    a.get_path(&self.path())
-    .partial_cmp(&b.get_path(&self.path()))
-    .map(|ord| if self.is_descending() { ord.reverse() } else { ord })
+  // TODO: Name?
+  pub fn partial_cmp(&self, a: &Object, b: &Object) -> Option<Ordering> {
+    if self.path().is_empty() {
+      None
+    } else {
+      let first = self.path()[0];
+      let rest = &self.path()[1..];
+      a.get(&first).map(|v| v.get_path(rest))
+      .partial_cmp(&b.get(&first).map(|v| v.get_path(rest)))
+      .map(|ord| if self.is_descending() { ord.reverse() } else { ord })
+    }
   }
 }
 

@@ -8,10 +8,10 @@ use std::sync::Mutex;
 use itertools::Itertools;
 use url::Url;
 
-use driver::Driver;
+use driver::{Driver, Iter};
 use error::Error;
 use query::{Range, Sort, Condition};
-use value::{Value, Iter};
+use value::Object;
 
 /// The default driver to be used by a service when no other driver is
 /// specified. This driver, unlike the others, stores all of its data in
@@ -24,7 +24,7 @@ use value::{Value, Iter};
 pub struct Memory {
   /// The actual internal `HashMap` store. Wrapped in a `Mutex` so that we can
   /// mutate the value *without* requiring a mutable reference to `Memory`.
-  store: Mutex<HashMap<String, Vec<Value>>>
+  store: Mutex<HashMap<String, Vec<Object>>>
 }
 
 impl Memory {
@@ -40,7 +40,7 @@ impl Memory {
   /// reference to `self`. It is a requirement of the `Driver` trait that we
   /// never use mutable references to `self` because `Driver`s will often be
   /// shared across multiple different threads.
-  pub fn append_to_collection(&self, name: &str, values: &mut Vec<Value>) {
+  pub fn append_to_collection(&self, name: &str, objects: &mut Vec<Object>) {
     let mut store = self.store.lock().unwrap();
 
     if !store.contains_key(name) {
@@ -49,7 +49,7 @@ impl Memory {
 
     // We can safely unwrap here because we guarantee the collection exists in
     // the if statement above.
-    store.get_mut(name).unwrap().append(values);
+    store.get_mut(name).unwrap().append(objects);
   }
 }
 
@@ -78,7 +78,7 @@ impl Driver for Memory {
       Ok(Iter::new(
         objects
         .into_iter()
-        .filter(|value| cond.is_true(value))
+        .filter(|object| cond.is_object_true(object))
         .slice(range)
         .cloned()
         .sorted_by(|a, b| {

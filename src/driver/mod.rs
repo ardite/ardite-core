@@ -9,11 +9,13 @@ pub mod mongodb;
 pub use self::discover::discover_driver;
 pub use self::memory::Memory;
 
+use std::iter;
+
 use url::Url;
 
 use error::Error;
 use query::{Condition, Sort, Range};
-use value::{Value, Iter};
+use value::Object;
 
 /// The driver trait which all drivers will implement. Designed to be
 /// interoperable with any data source, however the driver also assumes a
@@ -35,7 +37,6 @@ pub trait Driver: Send + Sync {
   ///
   /// [1]: http://www.postgresql.org/docs/current/static/sql-select.html
   /// [2]: https://docs.mongodb.org/manual/reference/command/find/
-  // TODO: Enforce this to *only* return objects.
   fn read(
     &self,
     name: &str,
@@ -56,7 +57,7 @@ pub trait Driver: Send + Sync {
     &self,
     name: &str,
     condition: Condition
-  ) -> Result<Value, Error> {
+  ) -> Result<Object, Error> {
     let mut values = try!(self.read(
       name,
       condition,
@@ -73,5 +74,34 @@ pub trait Driver: Send + Sync {
     } else {
       Err(Error::not_found("No value was found for the condition."))
     }
+  }
+}
+
+/// An iterator of values. Used by drivers to convert their own iterator
+/// implementations into a single type.
+pub struct Iter {
+  iter: Box<Iterator<Item=Object> + 'static>
+}
+
+impl Iter {
+  /// Create a new value iterator.
+  pub fn new<I>(iter: I) -> Self where I: Iterator<Item=Object> + 'static {
+    Iter {
+      iter: Box::new(iter)
+    }
+  }
+
+  /// Returns an empty iterator.
+  pub fn none() -> Self {
+    Iter::new(iter::empty())
+  }
+}
+
+impl Iterator for Iter {
+  type Item = Object;
+
+  #[inline]
+  fn next(&mut self) -> Option<Self::Item> {
+    self.iter.next()
   }
 }

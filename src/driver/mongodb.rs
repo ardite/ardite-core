@@ -1,5 +1,4 @@
 use bson::{Bson, Document};
-use linear_map::LinearMap;
 use mongodb;
 use mongodb::{Client, ThreadedClient, CommandType};
 use mongodb::common::{ReadPreference, ReadMode};
@@ -7,10 +6,10 @@ use mongodb::connstring;
 use mongodb::db::{Database, ThreadedDatabase};
 use url::Url;
 
-use driver::Driver;
+use driver::{Driver, Iter};
 use error::Error;
 use query::{Range, Sort, Condition};
-use value::{Value, Iter};
+use value::{Object, Value};
 
 pub struct MongoDB {
   database: Database
@@ -68,7 +67,7 @@ impl Driver for MongoDB {
       tag_sets: vec![]
     }));
 
-    Ok(Iter::new(cursor.filter_map(Result::ok).map(Value::from)))
+    Ok(Iter::new(cursor.filter_map(Result::ok).map(Object::from)))
   }
 }
 
@@ -88,7 +87,7 @@ impl From<Bson> for Value {
       Bson::FloatingPoint(value) => Value::F64(value),
       Bson::String(value) => Value::String(value),
       Bson::Array(array) => Value::Array(array.into_iter().map(Value::from).collect()),
-      Bson::Document(document) => Value::from(document),
+      Bson::Document(document) => Value::Object(Object::from(document)),
       Bson::Boolean(value) => Value::Boolean(value),
       Bson::Null => Value::Null(()),
       Bson::RegExp(value, _) => Value::String(value),
@@ -112,34 +111,29 @@ impl Into<Bson> for Value {
       Value::I64(value) => Bson::I64(value),
       Value::F64(value) => Bson::FloatingPoint(value),
       Value::String(value) => Bson::String(value),
-      value @ Value::Object(_) => Bson::Document(value.into()),
+      Value::Object(object) => Bson::Document(object.into()),
       Value::Array(array) => Bson::Array(array.into_iter().map(Value::into).collect())
     }
   }
 }
 
-impl From<Document> for Value {
-  fn from(document: Document) -> Value {
-    let mut object = LinearMap::new();
+impl From<Document> for Object {
+  fn from(document: Document) -> Self {
+    let mut object = Object::new();
     for (key, value) in document.into_iter() {
       object.insert(key, Value::from(value));
     }
-    Value::Object(object)
+    object
   }
 }
 
-impl Into<Document> for Value {
+impl Into<Document> for Object {
   fn into(self) -> Document {
-    match self {
-      Value::Object(object) => {
-        let mut document = Document::new();
-        for (key, value) in object.into_iter() {
-          document.insert(key, value);
-        }
-        document
-      },
-      _ => Document::new()
+    let mut document = Document::new();
+    for (key, value) in self.into_iter() {
+      document.insert(key, value);
     }
+    document
   }
 }
 
