@@ -201,17 +201,6 @@ impl Error {
 }
 
 impl Display for Error {
-  /// Displays an error in multiple lines. This format is subject to change so
-  /// do not depend on it.
-  ///
-  /// # Example
-  /// ```rust
-  /// use ardite::Error;
-  ///
-  /// let display = "code: 400 Bad Request\nmessage: That’s not right.\nhint: Fix it!";
-  ///
-  /// assert_eq!(format!("{}", Error::invalid("That’s not right.", "Fix it!")), display);
-  /// ```
   fn fmt(&self, fmt: &mut Formatter) -> fmt::Result {
     try!(write!(fmt, "{}", self.message));
 
